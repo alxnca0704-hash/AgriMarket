@@ -34,20 +34,20 @@ export function SignUpAddressStep({
     (option?.label ?? '').toLowerCase().includes(input.toLowerCase());
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div>
-        <h2 className="text-base font-semibold text-slate-900">Address & routing</h2>
-        <p className="text-xs text-slate-500 mt-0.5">
+        <h2 className="text-xl font-semibold text-stone-900 tracking-tight">Address & routing</h2>
+        <p className="text-sm text-stone-500 mt-1">
           Select your location to connect with your municipal aggregation hub.
         </p>
       </div>
 
       {/* Address Label Pills */}
       <div>
-        <label className="block text-xs font-medium text-slate-700 mb-1.5">
+        <label className="block text-sm font-medium text-stone-700 mb-2">
           Address label
         </label>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-2">
           {ADDRESS_LABELS.map((lbl) => {
             const isSelected = address.label === lbl;
             return (
@@ -55,10 +55,10 @@ export function SignUpAddressStep({
                 key={lbl}
                 type="button"
                 onClick={() => onUpdate('label', lbl as AddressLabel)}
-                className={`px-3 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer border ${
+                className={`px-3.5 py-1.5 text-sm rounded-full font-medium transition-colors cursor-pointer border ${
                   isSelected
                     ? 'bg-[#2D6A4F] text-white border-[#2D6A4F]'
-                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                    : 'bg-white text-stone-600 border-stone-200 hover:border-stone-300'
                 }`}
               >
                 {lbl}
@@ -73,9 +73,9 @@ export function SignUpAddressStep({
         <div>
           <label
             htmlFor="receiverName"
-            className="block text-xs font-medium text-slate-700 mb-1"
+            className="block text-sm font-medium text-stone-700 mb-1.5"
           >
-            Contact person <span className="text-rose-600">*</span>
+            Contact person <span className="text-error">*</span>
           </label>
           <Input
             id="receiverName"
@@ -87,16 +87,16 @@ export function SignUpAddressStep({
             className="!rounded-lg"
           />
           {errors.receiverName && (
-            <p className="text-xs text-rose-600 mt-1">{errors.receiverName}</p>
+            <p className="text-sm text-error mt-1">{errors.receiverName}</p>
           )}
         </div>
 
         <div>
           <label
             htmlFor="receiverPhone"
-            className="block text-xs font-medium text-slate-700 mb-1"
+            className="block text-sm font-medium text-stone-700 mb-1.5"
           >
-            Contact phone <span className="text-rose-600">*</span>
+            Contact phone <span className="text-error">*</span>
           </label>
           <Input
             id="receiverPhone"
@@ -108,7 +108,7 @@ export function SignUpAddressStep({
             className="!rounded-lg"
           />
           {errors.receiverPhone && (
-            <p className="text-xs text-rose-600 mt-1">{errors.receiverPhone}</p>
+            <p className="text-sm text-error mt-1">{errors.receiverPhone}</p>
           )}
         </div>
       </div>
@@ -116,8 +116,8 @@ export function SignUpAddressStep({
       {/* Complete Cascading: Region & Province */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs font-medium text-slate-700 mb-1">
-            Region <span className="text-rose-600">*</span>
+          <label className="block text-sm font-medium text-stone-700 mb-1.5">
+            Region <span className="text-error">*</span>
           </label>
           <Select
             size="large"
@@ -131,13 +131,13 @@ export function SignUpAddressStep({
             status={errors.region ? 'error' : ''}
           />
           {errors.region && (
-            <p className="text-xs text-rose-600 mt-1">{errors.region}</p>
+            <p className="text-sm text-error mt-1">{errors.region}</p>
           )}
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-slate-700 mb-1">
-            Province <span className="text-rose-600">*</span>
+          <label className="block text-sm font-medium text-stone-700 mb-1.5">
+            Province <span className="text-error">*</span>
           </label>
           <Select
             size="large"
@@ -159,7 +159,7 @@ export function SignUpAddressStep({
             status={errors.province ? 'error' : ''}
           />
           {errors.province && (
-            <p className="text-xs text-rose-600 mt-1">{errors.province}</p>
+            <p className="text-sm text-error mt-1">{errors.province}</p>
           )}
         </div>
       </div>
@@ -167,8 +167,8 @@ export function SignUpAddressStep({
       {/* Complete Cascading: City/Municipality & Barangay */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs font-medium text-slate-700 mb-1">
-            City / Municipality <span className="text-rose-600">*</span>
+          <label className="block text-sm font-medium text-stone-700 mb-1.5">
+            City / Municipality <span className="text-error">*</span>
           </label>
           <Select
             size="large"
@@ -190,13 +190,13 @@ export function SignUpAddressStep({
             status={errors.cityMunicipality ? 'error' : ''}
           />
           {errors.cityMunicipality && (
-            <p className="text-xs text-rose-600 mt-1">{errors.cityMunicipality}</p>
+            <p className="text-sm text-error mt-1">{errors.cityMunicipality}</p>
           )}
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-slate-700 mb-1">
-            Barangay <span className="text-rose-600">*</span>
+          <label className="block text-sm font-medium text-stone-700 mb-1.5">
+            Barangay <span className="text-error">*</span>
           </label>
           <Select
             size="large"
@@ -218,7 +218,7 @@ export function SignUpAddressStep({
             status={errors.barangay ? 'error' : ''}
           />
           {errors.barangay && (
-            <p className="text-xs text-rose-600 mt-1">{errors.barangay}</p>
+            <p className="text-sm text-error mt-1">{errors.barangay}</p>
           )}
         </div>
       </div>
@@ -228,9 +228,9 @@ export function SignUpAddressStep({
         <div className="sm:col-span-2">
           <label
             htmlFor="streetBuilding"
-            className="block text-xs font-medium text-slate-700 mb-1"
+            className="block text-sm font-medium text-stone-700 mb-1.5"
           >
-            Street name, building, house no. <span className="text-rose-600">*</span>
+            Street name, building, house no. <span className="text-error">*</span>
           </label>
           <Input
             id="streetBuilding"
@@ -242,16 +242,16 @@ export function SignUpAddressStep({
             className="!rounded-lg"
           />
           {errors.streetBuilding && (
-            <p className="text-xs text-rose-600 mt-1">{errors.streetBuilding}</p>
+            <p className="text-sm text-error mt-1">{errors.streetBuilding}</p>
           )}
         </div>
 
         <div>
           <label
             htmlFor="postalCode"
-            className="block text-xs font-medium text-slate-700 mb-1"
+            className="block text-sm font-medium text-stone-700 mb-1.5"
           >
-            Postal code <span className="text-rose-600">*</span>
+            Postal code <span className="text-error">*</span>
           </label>
           <Input
             id="postalCode"
@@ -264,14 +264,14 @@ export function SignUpAddressStep({
             className="!rounded-lg"
           />
           {errors.postalCode && (
-            <p className="text-xs text-rose-600 mt-1">{errors.postalCode}</p>
+            <p className="text-sm text-error mt-1">{errors.postalCode}</p>
           )}
         </div>
       </div>
 
       {/* Default Address Toggle */}
-      <div className="pt-2 flex items-center justify-between bg-slate-50/70 p-3 rounded-xl border border-slate-200/60">
-        <span className="text-xs font-medium text-slate-700">
+      <div className="pt-2 flex items-center justify-between bg-stone-50/80 p-4 rounded-xl border border-stone-200/70">
+        <span className="text-sm font-medium text-stone-700">
           Set as default delivery address
         </span>
         <Switch

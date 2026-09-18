@@ -1,11 +1,26 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+  --font-display: var(--font-newsreader), Georgia, "Times New Roman", serif;
+
+  --color-sage: #2d6a4f;
+  --color-sage-soft: #e9f0eb;
+  --color-error: #a64d42;
+}
+
 :root {
-  --background: #f8fafc;
-  --foreground: #1e293b;
+  --background: #fafaf9;
+  --foreground: #1c1917;
 }
 
 body {
   background-color: var(--background);
   color: var(--foreground);
+}
+
+::selection {
+  background-color: #e7f0ea;
+  color: #1c1917;
 }

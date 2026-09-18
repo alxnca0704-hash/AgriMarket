@@ -4,6 +4,7 @@ import React from 'react';
 import { Input, Button, Checkbox, Alert } from 'antd';
 import { useSignIn } from '@/hooks/useSignIn';
 import { APP_ROUTES } from '@/constants/routes';
+import { BrandMark } from '@/components/BrandMark';
 
 export function SignInView() {
   const {
@@ -25,24 +26,17 @@ export function SignInView() {
   } = useSignIn();
 
   return (
-    <main className="min-h-screen flex flex-col justify-between bg-[#FBFBFA] p-4 sm:p-8">
+    <main className="min-h-screen flex flex-col justify-between bg-stone-50 p-4 sm:p-8">
       {/* Minimal Top Header */}
       <header className="max-w-md mx-auto w-full pt-4 pb-2 flex items-center justify-between">
-        <a href={APP_ROUTES.landing} className="flex items-center gap-2 text-decoration-none">
-          <div className="w-7 h-7 rounded-md bg-[#2D6A4F] text-white flex items-center justify-center">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2a10 10 0 0 1 10 10c0 5.523-4.477 10-10 10S2 17.523 2 12A10 10 0 0 1 12 2z" />
-              <path d="M12 6v12" />
-              <path d="M8 10l4-4 4 4" />
-            </svg>
-          </div>
-          <span className="font-semibold text-sm tracking-tight text-slate-900">agrimarket</span>
+        <a href={APP_ROUTES.landing} className="flex items-center gap-2 no-underline">
+          <BrandMark />
         </a>
 
         <button
           type="button"
           onClick={handleNavigateToLanding}
-          className="text-xs text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+          className="text-sm text-[#2D6A4F] hover:text-[#1B4332] transition-colors cursor-pointer"
         >
           Back to home
         </button>
@@ -50,12 +44,12 @@ export function SignInView() {
 
       {/* Centered Clean Card */}
       <div className="max-w-md mx-auto w-full my-auto py-8">
-        <div className="bg-white p-7 sm:p-9 rounded-2xl border border-slate-200/80 shadow-xs">
-          <div className="mb-6">
-            <h1 className="text-xl font-semibold tracking-tight text-slate-900">
+        <div className="bg-white p-7 sm:p-9 rounded-xl border border-stone-200/80">
+          <div className="mb-7">
+            <h1 className="text-2xl font-semibold tracking-tight text-stone-900">
               Sign in to Agrimarket
             </h1>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-sm text-stone-500 mt-1.5">
               Enter your mobile number or email address
             </p>
           </div>
@@ -85,12 +79,12 @@ export function SignInView() {
               handleSubmit();
             }}
             noValidate
-            className="space-y-4"
+            className="space-y-5"
           >
             <div>
               <label
                 htmlFor="identifier"
-                className="block text-xs font-medium text-slate-700 mb-1"
+                className="block text-sm font-medium text-stone-700 mb-1.5"
               >
                 Mobile number or email
               </label>
@@ -106,24 +100,24 @@ export function SignInView() {
                 className="!rounded-lg"
               />
               {fieldErrors.identifier && (
-                <p className="text-xs text-rose-600 mt-1 font-normal">
+                <p className="text-sm text-error mt-1 font-normal">
                   {fieldErrors.identifier}
                 </p>
               )}
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center justify-between mb-1.5">
                 <label
                   htmlFor="password"
-                  className="block text-xs font-medium text-slate-700"
+                  className="block text-sm font-medium text-stone-700"
                 >
                   Password
                 </label>
                 <button
                   type="button"
                   onClick={handleForgotPassword}
-                  className="text-xs text-[#2D6A4F] hover:underline font-normal cursor-pointer"
+                  className="text-sm text-sage hover:underline font-medium cursor-pointer"
                 >
                   Forgot password?
                 </button>
@@ -140,7 +134,7 @@ export function SignInView() {
                 className="!rounded-lg"
               />
               {fieldErrors.password && (
-                <p className="text-xs text-rose-600 mt-1 font-normal">
+                <p className="text-sm text-error mt-1 font-normal">
                   {fieldErrors.password}
                 </p>
               )}
@@ -150,7 +144,7 @@ export function SignInView() {
               <Checkbox
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
-                className="text-xs text-slate-600"
+                className="text-sm text-stone-600"
               >
                 Keep me signed in on this browser
               </Checkbox>
@@ -170,12 +164,12 @@ export function SignInView() {
             </div>
           </form>
 
-          <div className="mt-6 pt-5 border-t border-slate-100 text-center text-xs text-slate-500">
+          <div className="mt-7 pt-6 border-t border-stone-100 text-center text-sm text-stone-500">
             Don&apos;t have an account?{' '}
             <button
               type="button"
               onClick={handleNavigateToSignUp}
-              className="text-[#2D6A4F] hover:underline font-medium cursor-pointer"
+              className="text-sage hover:underline font-medium cursor-pointer"
             >
               Create an account
             </button>
@@ -183,7 +177,7 @@ export function SignInView() {
         </div>
       </div>
 
-      <footer className="text-center text-xs text-slate-400 py-3">
+      <footer className="text-center text-sm text-stone-400 py-3">
         Agrimarket Philippines • Prototype
       </footer>
     </main>

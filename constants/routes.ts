@@ -11,3 +11,7 @@ export const API_ROUTES = {
   signUp: '/api/auth/signup',
   locations: '/api/locations',
 } as const;
+
+export const ASSET_ROUTES = {
+  logo: '/AgriMarketLogo.png',
+} as const;

@@ -8,6 +8,7 @@ import { SignUpAddressStep } from '@/components/SignUpAddressStep';
 import { SignUpReviewStep } from '@/components/SignUpReviewStep';
 import { useSignUp } from '@/hooks/useSignUp';
 import { APP_ROUTES } from '@/constants/routes';
+import { BrandMark } from '@/components/BrandMark';
 
 const STEP_ITEMS = [
   { title: 'Account' },
@@ -41,24 +42,17 @@ export function SignUpWizard() {
   } = useSignUp();
 
   return (
-    <main className="min-h-screen flex flex-col justify-between bg-[#FBFBFA] p-4 sm:p-8">
+    <main className="min-h-screen flex flex-col justify-between bg-stone-50 p-4 sm:p-8">
       {/* Minimal Top Header */}
       <header className="max-w-xl mx-auto w-full pt-4 pb-2 flex items-center justify-between">
-        <a href={APP_ROUTES.landing} className="flex items-center gap-2 text-decoration-none">
-          <div className="w-7 h-7 rounded-md bg-[#2D6A4F] text-white flex items-center justify-center">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2a10 10 0 0 1 10 10c0 5.523-4.477 10-10 10S2 17.523 2 12A10 10 0 0 1 12 2z" />
-              <path d="M12 6v12" />
-              <path d="M8 10l4-4 4 4" />
-            </svg>
-          </div>
-          <span className="font-semibold text-sm tracking-tight text-slate-900">agrimarket</span>
+        <a href={APP_ROUTES.landing} className="flex items-center gap-2 no-underline">
+          <BrandMark />
         </a>
 
         <button
           type="button"
           onClick={handleBack}
-          className="text-xs text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+          className="text-sm text-[#2D6A4F] hover:text-[#1B4332] transition-colors cursor-pointer"
         >
           {currentStep === 0 ? 'Back to home' : 'Previous step'}
         </button>
@@ -66,9 +60,9 @@ export function SignUpWizard() {
 
       {/* Centered Clean Wizard Container */}
       <div className="max-w-xl mx-auto w-full my-auto py-6">
-        <div className="bg-white p-7 sm:p-9 rounded-2xl border border-slate-200/80 shadow-xs">
+        <div className="bg-white p-7 sm:p-9 rounded-xl border border-stone-200/80">
           {/* Stepper */}
-          <div className="mb-7 pb-4 border-b border-slate-100">
+          <div className="mb-8 pb-5 border-b border-stone-100">
             <Steps
               current={currentStep}
               size="small"
@@ -126,13 +120,13 @@ export function SignUpWizard() {
           </div>
 
           {/* Navigation Controls */}
-          <div className="mt-8 pt-5 border-t border-slate-100 flex items-center justify-between gap-3">
+          <div className="mt-9 pt-6 border-t border-stone-100 flex items-center justify-between gap-3">
             <Button
               type="default"
               size="large"
               onClick={handleBack}
               disabled={isLoading}
-              className="!h-10 !px-5 !text-xs !font-medium !rounded-lg !border-slate-300"
+              className="!h-10 !px-5 !text-sm !font-medium !rounded-lg !bg-white !text-[#2D6A4F] !border-[#2D6A4F] hover:!bg-[#E9F0EB]"
             >
               {currentStep === 0 ? 'Cancel' : 'Back'}
             </Button>
@@ -142,7 +136,7 @@ export function SignUpWizard() {
                 type="primary"
                 size="large"
                 onClick={handleNext}
-                className="!h-10 !px-6 !text-xs !font-medium !rounded-lg !bg-[#2D6A4F] hover:!bg-[#1B4332]"
+                className="!h-10 !px-6 !text-sm !font-medium !rounded-lg !bg-[#2D6A4F] hover:!bg-[#1B4332]"
               >
                 Continue →
               </Button>
@@ -152,7 +146,7 @@ export function SignUpWizard() {
                 size="large"
                 loading={isLoading}
                 onClick={handleSubmit}
-                className="!h-10 !px-6 !text-xs !font-medium !rounded-lg !bg-[#2D6A4F] hover:!bg-[#1B4332]"
+                className="!h-10 !px-6 !text-sm !font-medium !rounded-lg !bg-[#2D6A4F] hover:!bg-[#1B4332]"
               >
                 Create account
               </Button>
@@ -160,12 +154,12 @@ export function SignUpWizard() {
           </div>
         </div>
 
-        <p className="text-center text-xs text-slate-400 mt-4">
+        <p className="text-center text-sm text-stone-400 mt-4">
           Step {currentStep + 1} of 4 • {STEP_ITEMS[currentStep].title}
         </p>
       </div>
 
-      <footer className="text-center text-xs text-slate-400 py-3">
+      <footer className="text-center text-sm text-stone-400 py-3">
         Agrimarket Philippines • Prototype
       </footer>
     </main>

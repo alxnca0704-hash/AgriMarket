@@ -12,10 +12,10 @@ interface SignUpAccountStepProps {
 
 export function SignUpAccountStep({ account, errors, onUpdate }: SignUpAccountStepProps) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div>
-        <h2 className="text-lg font-bold text-slate-900">Set up your account</h2>
-        <p className="text-xs text-slate-500 mt-0.5">
+        <h2 className="text-xl font-semibold text-stone-900 tracking-tight">Set up your account</h2>
+        <p className="text-sm text-stone-500 mt-1">
           We use your mobile number to coordinate orders and deliveries.
         </p>
       </div>
@@ -24,14 +24,14 @@ export function SignUpAccountStep({ account, errors, onUpdate }: SignUpAccountSt
       <div>
         <label
           htmlFor="mobileNumber"
-          className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1.5"
+          className="block text-sm font-medium text-stone-700 mb-1.5"
         >
-          Mobile number <span className="text-rose-600">*</span>
+          Mobile number <span className="text-error">*</span>
         </label>
         <Space.Compact size="large" className="w-full">
           <Button
             disabled
-            className="!text-xs !font-medium !text-slate-600 !bg-slate-50 !border-slate-300 pointer-events-none"
+            className="!text-sm !font-medium !text-[#2D6A4F] !bg-[#E9F0EB] !border-[#2D6A4F] pointer-events-none"
           >
             +63
           </Button>
@@ -55,9 +55,9 @@ export function SignUpAccountStep({ account, errors, onUpdate }: SignUpAccountSt
           />
         </Space.Compact>
         {errors.mobileNumber ? (
-          <p className="text-xs text-rose-600 mt-1 font-medium">{errors.mobileNumber}</p>
+          <p className="text-sm text-error mt-1 font-medium">{errors.mobileNumber}</p>
         ) : (
-          <p className="text-[11px] text-slate-400 mt-1">Standard 10 digits after +63</p>
+          <p className="text-sm text-stone-400 mt-1">Standard 10 digits after +63</p>
         )}
       </div>
 
@@ -66,11 +66,11 @@ export function SignUpAccountStep({ account, errors, onUpdate }: SignUpAccountSt
         <div className="flex items-center justify-between mb-1.5">
           <label
             htmlFor="email"
-            className="block text-xs font-semibold text-slate-700 uppercase tracking-wide"
+            className="block text-sm font-medium text-stone-700"
           >
             Email address
           </label>
-          <span className="text-xs text-slate-400 font-normal">Optional</span>
+          <span className="text-sm text-stone-400 font-normal">Optional</span>
         </div>
         <Input
           id="email"
@@ -82,7 +82,7 @@ export function SignUpAccountStep({ account, errors, onUpdate }: SignUpAccountSt
           status={errors.email ? 'error' : ''}
         />
         {errors.email && (
-          <p className="text-xs text-rose-600 mt-1 font-medium">{errors.email}</p>
+          <p className="text-sm text-error mt-1 font-medium">{errors.email}</p>
         )}
       </div>
 
@@ -90,9 +90,9 @@ export function SignUpAccountStep({ account, errors, onUpdate }: SignUpAccountSt
       <div>
         <label
           htmlFor="signup-password"
-          className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1.5"
+          className="block text-sm font-medium text-stone-700 mb-1.5"
         >
-          Password <span className="text-rose-600">*</span>
+          Password <span className="text-error">*</span>
         </label>
         <Input.Password
           id="signup-password"
@@ -103,7 +103,7 @@ export function SignUpAccountStep({ account, errors, onUpdate }: SignUpAccountSt
           status={errors.password ? 'error' : ''}
         />
         {errors.password && (
-          <p className="text-xs text-rose-600 mt-1 font-medium">{errors.password}</p>
+          <p className="text-sm text-error mt-1 font-medium">{errors.password}</p>
         )}
       </div>
 
@@ -111,9 +111,9 @@ export function SignUpAccountStep({ account, errors, onUpdate }: SignUpAccountSt
       <div>
         <label
           htmlFor="confirmPassword"
-          className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1.5"
+          className="block text-sm font-medium text-stone-700 mb-1.5"
         >
-          Confirm password <span className="text-rose-600">*</span>
+          Confirm password <span className="text-error">*</span>
         </label>
         <Input.Password
           id="confirmPassword"
@@ -124,7 +124,7 @@ export function SignUpAccountStep({ account, errors, onUpdate }: SignUpAccountSt
           status={errors.confirmPassword ? 'error' : ''}
         />
         {errors.confirmPassword && (
-          <p className="text-xs text-rose-600 mt-1 font-medium">{errors.confirmPassword}</p>
+          <p className="text-sm text-error mt-1 font-medium">{errors.confirmPassword}</p>
         )}
       </div>
 
@@ -133,12 +133,12 @@ export function SignUpAccountStep({ account, errors, onUpdate }: SignUpAccountSt
         <Checkbox
           checked={account.agreeToTerms}
           onChange={(e) => onUpdate('agreeToTerms', e.target.checked)}
-          className="text-xs text-slate-600"
+          className="text-sm text-stone-600"
         >
           I agree to the Agrimarket Terms of Service and Privacy Policy
         </Checkbox>
         {errors.agreeToTerms && (
-          <p className="text-xs text-rose-600 mt-1 font-medium">{errors.agreeToTerms}</p>
+          <p className="text-sm text-error mt-1 font-medium">{errors.agreeToTerms}</p>
         )}
       </div>
     </div>
