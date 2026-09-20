@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import philAddress from 'phil-address';
 
+interface LocationRecord {
+  name?: string;
+  code?: string;
+  psgcCode?: string;
+  id?: string;
+}
+
+const toNamed = (item: LocationRecord) => ({
+  name: item.name ?? '',
+  code: item.code ?? item.psgcCode ?? item.id ?? '',
+});
+
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
@@ -12,10 +24,7 @@ export async function GET(request: NextRequest) {
     if (type === 'regions') {
       const data = await philAddress.regions();
       return NextResponse.json({
-        data: (data || []).map((r: any) => ({
-          name: r.name,
-          code: r.code || r.psgcCode,
-        })),
+        data: (data || []).map(toNamed),
       });
     }
 
@@ -25,10 +34,7 @@ export async function GET(request: NextRequest) {
       }
       const data = await philAddress.provinces(code);
       return NextResponse.json({
-        data: (data || []).map((p: any) => ({
-          name: p.name,
-          code: p.code || p.id,
-        })),
+        data: (data || []).map(toNamed),
       });
     }
 
@@ -38,10 +44,7 @@ export async function GET(request: NextRequest) {
       }
       const data = await philAddress.cities(code);
       return NextResponse.json({
-        data: (data || []).map((c: any) => ({
-          name: c.name,
-          code: c.code || c.id,
-        })),
+        data: (data || []).map(toNamed),
       });
     }
 
@@ -51,18 +54,15 @@ export async function GET(request: NextRequest) {
       }
       const data = await philAddress.barangays(code);
       return NextResponse.json({
-        data: (data || []).map((b: any) => ({
-          name: b.name,
-          code: b.code || b.id,
-        })),
+        data: (data || []).map(toNamed),
       });
     }
 
     return NextResponse.json({ error: 'Invalid location type' }, { status: 400 });
-  } catch (err: any) {
+  } catch (err) {
     console.error('Error fetching location data:', err);
     return NextResponse.json(
-      { error: 'Failed to load Philippine address data', details: err?.message },
+      { error: 'Failed to load Philippine address data', details: err instanceof Error ? err.message : String(err) },
       { status: 500 }
     );
   }

@@ -6,6 +6,13 @@ export const APP_ROUTES = {
   signUpOnboarding: (role: string, step = 1) =>
     `/signup?role=${encodeURIComponent(role)}&step=${step}`,
   home: '/home',
+  search: '/search',
+  productDetail: (id: string) => `/products/${id}`,
+  cart: '/cart',
+  orders: '/orders',
+  orderDetail: (id: string) => `/orders/${id}`,
+  profile: '/profile',
+  profileAddresses: '/profile/addresses',
 } as const;
 
 export const API_ROUTES = {

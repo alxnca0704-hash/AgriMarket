@@ -24,3 +24,12 @@ body {
   background-color: #e7f0ea;
   color: #1c1917;
 }
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

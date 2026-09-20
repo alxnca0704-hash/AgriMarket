@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { AntdRegistry } from '@ant-design/nextjs-registry';
-import { ConfigProvider, theme as antdTheme } from 'antd';
+import { ConfigProvider, App, theme as antdTheme } from 'antd';
 
 export function AntdProvider({ children }: { children: React.ReactNode }) {
   return (
@@ -64,7 +64,7 @@ export function AntdProvider({ children }: { children: React.ReactNode }) {
           },
         }}
       >
-        {children}
+        <App>{children}</App>
       </ConfigProvider>
     </AntdRegistry>
   );
