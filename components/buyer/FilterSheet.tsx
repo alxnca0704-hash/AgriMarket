@@ -2,12 +2,7 @@
 
 import React, { useState } from 'react';
 import { Button, Drawer, InputNumber, Radio } from 'antd';
-
-const RATING_OPTIONS = [
-  { label: 'Any rating', value: null },
-  { label: '4.0 & above', value: 4 },
-  { label: '4.5 & above', value: 4.5 },
-] as const;
+import { RATING_FILTER_OPTIONS } from '@/constants/filters';
 
 interface FilterSheetProps {
   open: boolean;
@@ -72,7 +67,7 @@ export function FilterSheet({
             buttonStyle="solid"
             className="w-full [&_.ant-radio-button-wrapper]:flex [&_.ant-radio-button-wrapper]:flex-1 [&_.ant-radio-button-wrapper]:justify-center"
           >
-            {RATING_OPTIONS.map((option) => (
+            {RATING_FILTER_OPTIONS.map((option) => (
               <Radio.Button key={option.label} value={option.value}>
                 {option.label}
               </Radio.Button>

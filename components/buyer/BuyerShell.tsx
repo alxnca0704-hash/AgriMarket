@@ -10,7 +10,6 @@ import {
   CloseOutlined,
   HomeOutlined,
   MenuOutlined,
-  SearchOutlined,
   ShoppingCartOutlined,
   UnorderedListOutlined,
   UserOutlined,
@@ -24,7 +23,6 @@ const { Sider, Content } = Layout;
 
 const TABS = [
   { key: 'home', label: 'Home', href: APP_ROUTES.home, icon: <HomeOutlined /> },
-  { key: 'search', label: 'Search', href: APP_ROUTES.search, icon: <SearchOutlined /> },
   { key: 'cart', label: 'Cart', href: APP_ROUTES.cart, icon: <ShoppingCartOutlined /> },
   { key: 'orders', label: 'Orders', href: APP_ROUTES.orders, icon: <UnorderedListOutlined /> },
   { key: 'profile', label: 'Profile', href: APP_ROUTES.profile, icon: <UserOutlined /> },
@@ -43,7 +41,6 @@ export function BuyerShell({ children }: { children: React.ReactNode }) {
 
   const TAB_ROOTS = [
     APP_ROUTES.home,
-    APP_ROUTES.search,
     APP_ROUTES.cart,
     APP_ROUTES.orders,
     APP_ROUTES.profile,
@@ -51,8 +48,6 @@ export function BuyerShell({ children }: { children: React.ReactNode }) {
 
   const activeKey = pathname === APP_ROUTES.home || pathname.startsWith('/products')
     ? 'home'
-    : pathname === APP_ROUTES.search
-    ? 'search'
     : pathname === APP_ROUTES.cart
     ? 'cart'
     : pathname === APP_ROUTES.orders || pathname.startsWith('/orders')

@@ -25,9 +25,9 @@ export function SortFilterBar({
   onOpenFilters,
 }: SortFilterBarProps) {
   return (
-    <div className="sticky top-14 lg:top-0 z-20 bg-stone-50/95 backdrop-blur py-2.5">
+    <div className="sticky top-14 lg:top-0 z-20 bg-stone-50/95 backdrop-blur py-3">
       <div className="flex items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center justify-end gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2.5">
           <CategorySelect active={category} onChange={onCategoryChange} />
           <Select
             size="middle"

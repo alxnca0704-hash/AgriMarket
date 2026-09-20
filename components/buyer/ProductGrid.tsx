@@ -8,13 +8,17 @@ interface ProductGridProps {
   products: Product[];
   sellers: Map<string, Seller>;
   onOpen: (productId: string) => void;
+  gridClassName?: string;
 }
 
-export function ProductGrid({ products, sellers, onOpen }: ProductGridProps) {
+const DEFAULT_GRID_CLASS =
+  'grid grid-cols-2 gap-x-2.5 gap-y-5 sm:grid-cols-3 sm:gap-x-4 sm:gap-y-6 lg:grid-cols-4 xl:grid-cols-5 xl:gap-x-5';
+
+export function ProductGrid({ products, sellers, onOpen, gridClassName }: ProductGridProps) {
   if (products.length === 0) return null;
 
   return (
-    <div className="grid grid-cols-2 gap-x-2.5 gap-y-4 sm:grid-cols-3 sm:gap-x-3 sm:gap-y-5 lg:grid-cols-4 xl:grid-cols-5">
+    <div className={gridClassName ?? DEFAULT_GRID_CLASS}>
       {products.map((product) => {
         const seller = sellers.get(product.sellerId);
         if (!seller) return null;

@@ -6,6 +6,7 @@ import { EnvironmentOutlined } from '@ant-design/icons';
 import { useHome } from '@/hooks/useHome';
 import { ProductGrid } from '@/components/buyer/ProductGrid';
 import { SortFilterBar } from '@/components/buyer/SortFilterBar';
+import { BrowseSidebar } from '@/components/buyer/BrowseSidebar';
 import { FilterSheet } from '@/components/buyer/FilterSheet';
 
 function HomeSkeleton() {
@@ -45,6 +46,8 @@ export function HomeView() {
     setFilterOpen,
     maxPrice,
     minRating,
+    setMaxPrice,
+    setMinRating,
     filterCount,
     handleOpenProduct,
     handleApplyFilters,
@@ -66,7 +69,7 @@ export function HomeView() {
 
   return (
     <div>
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-5 pb-8 sm:pt-10 space-y-7 sm:space-y-9">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 pb-10 sm:pt-10 space-y-8 sm:space-y-10">
         {error && <Alert type="error" title={error} showIcon />}
 
         <div>
@@ -121,28 +124,54 @@ export function HomeView() {
           </section>
         ) : (
           <>
-            <section>
-              <div className="mb-3.5">
-                <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-stone-900">
-                  Available now
-                </h2>
-              </div>
-              <SortFilterBar
-                sort={sort}
-                category={activeCategory}
-                filterCount={filterCount}
-                onSortChange={setSort}
-                onCategoryChange={setActiveCategory}
-                onOpenFilters={() => setFilterOpen(true)}
-              />
-              <div className="pt-4">
-                <ProductGrid
-                  products={products}
-                  sellers={sellers}
-                  onOpen={handleOpenProduct}
+            <div className="lg:grid lg:grid-cols-[260px_1fr] lg:gap-12 lg:items-start">
+              <aside className="hidden lg:block">
+                <BrowseSidebar
+                  activeCategory={activeCategory}
+                  onCategoryChange={setActiveCategory}
+                  sort={sort}
+                  onSortChange={setSort}
+                  maxPrice={maxPrice}
+                  onMaxPriceChange={setMaxPrice}
+                  minRating={minRating}
+                  onMinRatingChange={setMinRating}
+                  filterCount={filterCount}
+                  onReset={() => {
+                    setMaxPrice(null);
+                    setMinRating(null);
+                  }}
                 />
+              </aside>
+
+              <div className="min-w-0">
+                <div className="lg:hidden">
+                  <SortFilterBar
+                    sort={sort}
+                    category={activeCategory}
+                    filterCount={filterCount}
+                    onSortChange={setSort}
+                    onCategoryChange={setActiveCategory}
+                    onOpenFilters={() => setFilterOpen(true)}
+                  />
+                </div>
+
+                <section>
+                  <div className="mb-4 mt-7 lg:mt-0">
+                    <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-stone-900">
+                      Available now
+                    </h2>
+                  </div>
+                  <div>
+                    <ProductGrid
+                      products={products}
+                      sellers={sellers}
+                      onOpen={handleOpenProduct}
+                      gridClassName="grid grid-cols-2 gap-x-2.5 gap-y-5 sm:grid-cols-3 sm:gap-x-4 sm:gap-y-6 xl:grid-cols-4 xl:gap-x-6"
+                    />
+                  </div>
+                </section>
               </div>
-            </section>
+            </div>
           </>
         )}
       </div>

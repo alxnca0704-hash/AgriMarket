@@ -129,6 +129,8 @@ export function useHome() {
     setFilterOpen,
     maxPrice,
     minRating,
+    setMaxPrice,
+    setMinRating,
     filterCount,
     handleOpenProduct,
     handleApplyFilters,
