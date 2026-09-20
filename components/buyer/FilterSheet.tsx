@@ -61,14 +61,16 @@ export function FilterSheet({
         <div>
           <p className="text-sm font-medium text-stone-700 mb-2">Minimum seller rating</p>
           <Radio.Group
-            value={rating}
-            onChange={(e) => setRating(e.target.value)}
+            value={rating ?? 'any'}
+            onChange={(e) =>
+              setRating(e.target.value === 'any' ? null : (e.target.value as number))
+            }
             optionType="button"
             buttonStyle="solid"
             className="w-full [&_.ant-radio-button-wrapper]:flex [&_.ant-radio-button-wrapper]:flex-1 [&_.ant-radio-button-wrapper]:justify-center"
           >
             {RATING_FILTER_OPTIONS.map((option) => (
-              <Radio.Button key={option.label} value={option.value}>
+              <Radio.Button key={option.label} value={option.value ?? 'any'}>
                 {option.label}
               </Radio.Button>
             ))}

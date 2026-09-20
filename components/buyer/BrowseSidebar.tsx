@@ -83,14 +83,18 @@ export function BrowseSidebar({
           <div className="space-y-2.5">
             <label className="text-sm text-stone-600">Minimum seller rating</label>
             <Radio.Group
-              value={minRating}
-              onChange={(e) => onMinRatingChange(e.target.value)}
+              value={minRating ?? 'any'}
+              onChange={(e) =>
+                onMinRatingChange(
+                  e.target.value === 'any' ? null : (e.target.value as number)
+                )
+              }
               optionType="button"
               buttonStyle="solid"
               className="w-full [&_.ant-radio-button-wrapper]:flex [&_.ant-radio-button-wrapper]:flex-1 [&_.ant-radio-button-wrapper]:justify-center"
             >
               {RATING_FILTER_OPTIONS.map((option) => (
-                <Radio.Button key={option.label} value={option.value}>
+                <Radio.Button key={option.label} value={option.value ?? 'any'}>
                   {option.label}
                 </Radio.Button>
               ))}

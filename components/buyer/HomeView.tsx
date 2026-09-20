@@ -124,7 +124,7 @@ export function HomeView() {
           </section>
         ) : (
           <>
-            <div className="lg:grid lg:grid-cols-[260px_1fr] lg:gap-12 lg:items-start">
+            <div className="lg:grid lg:grid-cols-[260px_1fr] lg:gap-12">
               <aside className="hidden lg:block">
                 <BrowseSidebar
                   activeCategory={activeCategory}
