@@ -21,7 +21,7 @@ export function SortFilterBar({
   onOpenFilters,
 }: SortFilterBarProps) {
   return (
-    <div className="sticky top-[116px] md:top-14 z-20 bg-stone-50/95 backdrop-blur py-2.5">
+    <div className="sticky top-14 lg:top-0 z-20 bg-stone-50/95 backdrop-blur py-2.5">
       <div className="flex items-center justify-between gap-3">
         <span className="text-sm text-stone-500">
           <span className="font-semibold text-stone-800">{resultCount}</span> products
@@ -35,7 +35,7 @@ export function SortFilterBar({
             popupMatchSelectWidth={false}
             className="min-w-[140px] sm:min-w-[180px]"
           />
-          <Badge count={filterCount} size="small" offset={[3, -4]}>
+          <Badge count={filterCount} color="#2D6A4F" overflowCount={99} offset={[4, -3]}>
             <Button
               icon={<FilterOutlined />}
               onClick={onOpenFilters}

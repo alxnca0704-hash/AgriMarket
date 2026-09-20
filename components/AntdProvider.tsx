@@ -61,6 +61,29 @@ export function AntdProvider({ children }: { children: React.ReactNode }) {
             Alert: {
               borderRadiusLG: 8,
             },
+            Badge: {
+              indicatorHeight: 20,
+              indicatorHeightSM: 18,
+              textFontSize: 12,
+              textFontSizeSM: 11,
+              textFontWeight: 600,
+              paddingInline: 7,
+              statusSize: 8,
+            },
+            Menu: {
+              itemBorderRadius: 10,
+              itemHeight: 44,
+              itemMarginInline: 8,
+              itemMarginBlock: 3,
+              itemPaddingInline: 12,
+              itemColor: '#57534E',
+              itemHoverBg: '#F5F5F4',
+              itemHoverColor: '#1C1917',
+              itemSelectedBg: '#E9F0EB',
+              itemSelectedColor: '#2D6A4F',
+              iconMarginInlineEnd: 12,
+              activeBarBorderWidth: 0,
+            },
           },
         }}
       >
