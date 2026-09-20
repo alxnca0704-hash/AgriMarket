@@ -1,5 +1,6 @@
 import { AuthenticatedUser, DeliveryAddress } from '@/types/auth';
 import { ROLES } from '@/constants/roles';
+import { formatAddressSummary } from '@/lib/format';
 
 const STORAGE_KEY = 'agrimarket_mock_user';
 
@@ -127,4 +128,18 @@ export function updateSessionUser(user: AuthenticatedUser): void {
   userSnapshot = user;
   saveMockUser(user);
   userListeners.forEach((listener) => listener());
+}
+
+export function persistUserAddresses(
+  user: AuthenticatedUser,
+  addresses: DeliveryAddress[],
+  defaultIndex: number
+): void {
+  const def = addresses[defaultIndex] ?? addresses[0];
+  updateSessionUser({
+    ...user,
+    deliveryAddresses: addresses,
+    deliveryAddress: def ?? undefined,
+    defaultAddressSummary: def ? formatAddressSummary(def) : '',
+  });
 }
