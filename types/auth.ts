@@ -1,14 +1,6 @@
 import { AddressLabel } from '@/constants/phLocations';
 import { UserRole } from '@/constants/roles';
 
-export interface AccountStepData {
-  mobileNumber: string;
-  email: string;
-  password: string;
-  confirmPassword: string;
-  agreeToTerms: boolean;
-}
-
 export interface ProfileStepData {
   role: UserRole;
   firstName: string;
@@ -32,15 +24,8 @@ export interface AddressStepData {
 }
 
 export interface SignUpFormData {
-  account: AccountStepData;
   profile: ProfileStepData;
   address: AddressStepData;
-}
-
-export interface SignInFormData {
-  identifier: string; // phone or email
-  password: string;
-  rememberMe?: boolean;
 }
 
 export interface AuthenticatedUser {
@@ -49,6 +34,7 @@ export interface AuthenticatedUser {
   fullName: string;
   mobileNumber: string;
   email?: string;
+  photoUrl?: string;
   defaultAddressSummary: string;
   createdAt: string;
 }

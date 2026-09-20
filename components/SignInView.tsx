@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Input, Button, Checkbox, Alert } from 'antd';
+import { Input, Button, Alert } from 'antd';
+import { GoogleOutlined } from '@ant-design/icons';
 import { useSignIn } from '@/hooks/useSignIn';
 import { APP_ROUTES } from '@/constants/routes';
 import { BrandMark } from '@/components/BrandMark';
@@ -10,14 +11,14 @@ export function SignInView() {
   const {
     identifier,
     password,
-    rememberMe,
-    setRememberMe,
     isLoading,
+    isGoogleLoading,
     error,
     fieldErrors,
     forgotPasswordNotice,
     handleIdentifierChange,
     handlePasswordChange,
+    handleGoogleSignIn,
     handleForgotPassword,
     closeForgotPasswordNotice,
     handleSubmit,
@@ -64,14 +65,33 @@ export function SignInView() {
             <div className="mb-4">
               <Alert
                 type="info"
-                message="Password reset is unavailable in this prototype"
-                description="You can sign in with any valid 11-digit mobile number (e.g. 0917 123 4567) or email with 6+ characters."
+                message="Use Google sign-in to access your account"
+                description="Accounts created with Google do not use a password. Sign in with the Google button below."
                 closable
                 onClose={closeForgotPasswordNotice}
                 showIcon
               />
             </div>
           )}
+
+          <Button
+            type="default"
+            size="large"
+            block
+            icon={<GoogleOutlined />}
+            onClick={handleGoogleSignIn}
+            loading={isGoogleLoading}
+            disabled={isLoading}
+            className="!h-11 !text-sm !font-medium !rounded-lg !bg-white !text-stone-700 !border-stone-200 hover:!bg-stone-50 hover:!border-stone-300"
+          >
+            Continue with Google
+          </Button>
+
+          <div className="flex items-center gap-3 my-5">
+            <span className="h-px flex-1 bg-stone-200/70" />
+            <span className="text-xs uppercase tracking-[0.14em] text-stone-400">or</span>
+            <span className="h-px flex-1 bg-stone-200/70" />
+          </div>
 
           <form
             onSubmit={(e) => {
@@ -140,16 +160,6 @@ export function SignInView() {
               )}
             </div>
 
-            <div className="pt-0.5">
-              <Checkbox
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                className="text-sm text-stone-600"
-              >
-                Keep me signed in on this browser
-              </Checkbox>
-            </div>
-
             <div className="pt-2">
               <Button
                 type="primary"
@@ -157,6 +167,7 @@ export function SignInView() {
                 block
                 htmlType="submit"
                 loading={isLoading}
+                disabled={isGoogleLoading}
                 className="!h-11 !text-sm !font-medium !rounded-lg !bg-[#2D6A4F] hover:!bg-[#1B4332]"
               >
                 Sign in

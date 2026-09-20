@@ -1,20 +1,14 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { APP_ROUTES, API_ROUTES } from '@/constants/routes';
 import { ROLES, UserRole } from '@/constants/roles';
-import { COMPLETE_PH_REGIONS, NamedLocation, AddressLabel } from '@/constants/phLocations';
+import { COMPLETE_PH_REGIONS, NamedLocation } from '@/constants/phLocations';
 import { SignUpFormData, AuthenticatedUser } from '@/types/auth';
+import { saveMockUser } from '@/lib/mockSession';
 
 const INITIAL_FORM_DATA: SignUpFormData = {
-  account: {
-    mobileNumber: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    agreeToTerms: false,
-  },
   profile: {
     role: ROLES.BUYER,
     firstName: '',
@@ -37,14 +31,18 @@ const INITIAL_FORM_DATA: SignUpFormData = {
   },
 };
 
+const DEMO_EMAIL = 'demo.user@gmail.com';
+
 export function useSignUp() {
   const router = useRouter();
   const searchParams = useSearchParams();
+
   const initialRoleParam = searchParams.get('role');
   const initialRole: UserRole =
     initialRoleParam === ROLES.SELLER ? ROLES.SELLER : ROLES.BUYER;
+  const initialStep = searchParams.get('step') === '1' ? 1 : 0;
 
-  const [currentStep, setCurrentStep] = useState<number>(0);
+  const [step, setStep] = useState<number>(initialStep);
   const [formData, setFormData] = useState<SignUpFormData>(() => ({
     ...INITIAL_FORM_DATA,
     profile: {
@@ -54,7 +52,10 @@ export function useSignUp() {
   }));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [verifiedEmail, setVerifiedEmail] = useState<string | null>(null);
 
   // Complete Cascading Address State
   const [provincesList, setProvincesList] = useState<NamedLocation[]>([]);
@@ -65,43 +66,31 @@ export function useSignUp() {
   const [isCitiesLoading, setIsCitiesLoading] = useState(false);
   const [isBarangaysLoading, setIsBarangaysLoading] = useState(false);
 
+  const isSignedIn = verifiedEmail !== null;
+  const userEmail = verifiedEmail ?? '';
+
+  // An unsigned visitor can never advance past the Google verification step.
+  const currentStep = !isSignedIn && step > 0 ? 0 : step;
+
+  // Without a real identity provider, the profile starts blank.
+  const profileWithDefaults: SignUpFormData['profile'] = formData.profile;
+
   // Region options (all 18 Philippine regions)
   const regionOptions = useMemo(() => {
     return COMPLETE_PH_REGIONS.map((r) => ({ label: r.name, value: r.name }));
   }, []);
 
-  // Province options
   const provinceOptions = useMemo(() => {
     return provincesList.map((p) => ({ label: p.name, value: p.name }));
   }, [provincesList]);
 
-  // City options
   const cityOptions = useMemo(() => {
     return citiesList.map((c) => ({ label: c.name, value: c.name }));
   }, [citiesList]);
 
-  // Barangay options
   const barangayOptions = useMemo(() => {
     return barangaysList.map((b) => ({ label: b.name, value: b.name }));
   }, [barangaysList]);
-
-  // Account field updater
-  const updateAccountField = <K extends keyof SignUpFormData['account']>(
-    field: K,
-    value: SignUpFormData['account'][K]
-  ) => {
-    setFormData((prev) => ({
-      ...prev,
-      account: { ...prev.account, [field]: value },
-    }));
-    if (errors[field]) {
-      setErrors((prev) => {
-        const next = { ...prev };
-        delete next[field];
-        return next;
-      });
-    }
-  };
 
   // Profile field updater
   const updateProfileField = <K extends keyof SignUpFormData['profile']>(
@@ -277,44 +266,9 @@ export function useSignUp() {
   };
 
   // Validations per step
-  const validateStep1 = (): boolean => {
+  const validateProfileStep = (): boolean => {
     const errs: Record<string, string> = {};
-    const { mobileNumber, email, password, confirmPassword, agreeToTerms } = formData.account;
-
-    const cleanPhone = mobileNumber.replace(/\s|-/g, '');
-    if (!cleanPhone) {
-      errs.mobileNumber = 'Mobile number is required';
-    } else if (!/^9\d{9}$/.test(cleanPhone) && !/^09\d{9}$/.test(cleanPhone) && !/^\+?639\d{9}$/.test(cleanPhone)) {
-      errs.mobileNumber = 'Enter a valid 10-digit mobile number (e.g. 917 123 4567)';
-    }
-
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      errs.email = 'Enter a valid email address';
-    }
-
-    if (!password) {
-      errs.password = 'Password is required';
-    } else if (password.length < 8) {
-      errs.password = 'Password must be at least 8 characters';
-    }
-
-    if (!confirmPassword) {
-      errs.confirmPassword = 'Confirm your password';
-    } else if (confirmPassword !== password) {
-      errs.confirmPassword = 'Passwords do not match';
-    }
-
-    if (!agreeToTerms) {
-      errs.agreeToTerms = 'You must agree to the Terms of Service to continue';
-    }
-
-    setErrors(errs);
-    return Object.keys(errs).length === 0;
-  };
-
-  const validateStep2 = (): boolean => {
-    const errs: Record<string, string> = {};
-    const { firstName, lastName, role, farmName } = formData.profile;
+    const { firstName, lastName, role, farmName } = profileWithDefaults;
 
     if (!firstName.trim()) {
       errs.firstName = 'First name is required';
@@ -330,7 +284,7 @@ export function useSignUp() {
     return Object.keys(errs).length === 0;
   };
 
-  const validateStep3 = (): boolean => {
+  const validateAddressStep = (): boolean => {
     const errs: Record<string, string> = {};
     const { receiverName, receiverPhone, region, province, cityMunicipality, barangay, streetBuilding, postalCode } =
       formData.address;
@@ -365,27 +319,35 @@ export function useSignUp() {
     return Object.keys(errs).length === 0;
   };
 
+  const handleGoogleSignUp = () => {
+    setAuthError(null);
+    setIsGoogleLoading(true);
+
+    setTimeout(() => {
+      setIsGoogleLoading(false);
+      setVerifiedEmail(DEMO_EMAIL);
+    }, 900);
+  };
+
   const handleNext = () => {
     if (currentStep === 0) {
-      if (validateStep1()) {
-        if (!formData.address.receiverPhone && formData.account.mobileNumber) {
-          const raw = formData.account.mobileNumber.replace(/\D/g, '');
-          const fullPhone = raw.startsWith('0') ? raw : `0${raw}`;
-          updateAddressField('receiverPhone', fullPhone);
-        }
-        setCurrentStep(1);
+      if (!isSignedIn) {
+        setAuthError('Continue with Google to verify your account first.');
+        return;
       }
+      setAuthError(null);
+      setStep(1);
     } else if (currentStep === 1) {
-      if (validateStep2()) {
-        if (!formData.address.receiverName && (formData.profile.firstName || formData.profile.lastName)) {
-          const defaultName = `${formData.profile.firstName} ${formData.profile.lastName}`.trim();
+      if (validateProfileStep()) {
+        if (!formData.address.receiverName && (profileWithDefaults.firstName || profileWithDefaults.lastName)) {
+          const defaultName = `${profileWithDefaults.firstName} ${profileWithDefaults.lastName}`.trim();
           updateAddressField('receiverName', defaultName);
         }
-        setCurrentStep(2);
+        setStep(2);
       }
     } else if (currentStep === 2) {
-      if (validateStep3()) {
-        setCurrentStep(3);
+      if (validateAddressStep()) {
+        setStep(3);
       }
     }
   };
@@ -393,7 +355,7 @@ export function useSignUp() {
   const handleBack = () => {
     if (currentStep > 0) {
       setErrors({});
-      setCurrentStep((prev) => prev - 1);
+      setStep(currentStep - 1);
     } else {
       router.push(APP_ROUTES.landing);
     }
@@ -401,7 +363,7 @@ export function useSignUp() {
 
   const handleJumpToStep = (stepIndex: number) => {
     setErrors({});
-    setCurrentStep(stepIndex);
+    setStep(stepIndex);
   };
 
   const handleRoleChange = (role: UserRole) => {
@@ -410,34 +372,42 @@ export function useSignUp() {
 
   const handleSubmit = async () => {
     setSubmitError(null);
+
+    if (!isSignedIn) {
+      setSubmitError('Please verify your account with Google to continue.');
+      setStep(0);
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 600));
+      const profile = profileWithDefaults;
+      const { address } = formData;
+      const addressSummary = `${address.streetBuilding}, Brgy. ${address.barangay}, ${address.cityMunicipality}, ${address.province}, ${address.region} ${address.postalCode}`;
+      const cleanPhone = address.receiverPhone.replace(/\s|-/g, '');
+      const mobileNumber = cleanPhone.startsWith('0') ? cleanPhone : `0${cleanPhone}`;
 
-      const fullName = `${formData.profile.firstName} ${formData.profile.lastName}`.trim();
-      const addressSummary = `${formData.address.streetBuilding}, Brgy. ${formData.address.barangay}, ${formData.address.cityMunicipality}, ${formData.address.province}, ${formData.address.region} ${formData.address.postalCode}`;
-
-      const rawMobile = formData.account.mobileNumber.replace(/\D/g, '');
-      const formattedMobile = rawMobile.startsWith('0') ? rawMobile : `0${rawMobile}`;
-
-      const createdUser: AuthenticatedUser = {
-        id: 'usr_' + Math.random().toString(36).substring(2, 9),
-        role: formData.profile.role,
-        fullName,
-        mobileNumber: formattedMobile,
-        email: formData.account.email || undefined,
+      const user: AuthenticatedUser = {
+        id: `mock-${Date.now()}`,
+        role: profile.role,
+        fullName: `${profile.firstName.trim()} ${profile.lastName.trim()}`,
+        mobileNumber,
+        email: userEmail || undefined,
+        photoUrl: profile.photoUrl || undefined,
         defaultAddressSummary: addressSummary,
         createdAt: new Date().toISOString(),
       };
 
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('agrimarket_user', JSON.stringify(createdUser));
-      }
+      saveMockUser(user);
+
+      await new Promise((resolve) => setTimeout(resolve, 800));
 
       router.push(APP_ROUTES.home);
-    } catch {
-      setSubmitError('Failed to create account. Please try again.');
+    } catch (err) {
+      setSubmitError(
+        err instanceof Error ? err.message : 'Failed to create account. Please try again.'
+      );
     } finally {
       setIsLoading(false);
     }
@@ -445,10 +415,15 @@ export function useSignUp() {
 
   return {
     currentStep,
-    formData,
+    formData: { ...formData, profile: profileWithDefaults },
     errors,
+    isAuthLoaded: true,
+    isSignedIn,
+    userEmail,
     isLoading,
+    isGoogleLoading,
     submitError,
+    authError,
     regionOptions,
     provinceOptions,
     cityOptions,
@@ -456,10 +431,10 @@ export function useSignUp() {
     isProvincesLoading,
     isCitiesLoading,
     isBarangaysLoading,
-    updateAccountField,
     updateProfileField,
     updateAddressField,
     handleRoleChange,
+    handleGoogleSignUp,
     handleNext,
     handleBack,
     handleJumpToStep,

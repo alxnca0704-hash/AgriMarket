@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Button, Alert, Skeleton } from 'antd';
+import { Button, Alert, Skeleton, Avatar } from 'antd';
 import { usePlaceholderHome } from '@/hooks/usePlaceholderHome';
 import { ROLE_DETAILS } from '@/constants/roles';
 import { BrandMark } from '@/components/BrandMark';
@@ -33,6 +33,9 @@ export function PlaceholderHomeView() {
             <span className="text-sm text-stone-500 hidden sm:inline">
               {user?.fullName} ({roleInfo?.label})
             </span>
+            <Avatar size={32} src={user?.photoUrl} className="!bg-[#2D6A4F]">
+              {user?.fullName?.[0]}
+            </Avatar>
             <Button
               type="text"
               size="small"

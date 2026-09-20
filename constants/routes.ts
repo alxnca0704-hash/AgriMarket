@@ -3,12 +3,12 @@ export const APP_ROUTES = {
   signIn: '/signin',
   signUp: '/signup',
   signUpWithRole: (role: string) => `/signup?role=${encodeURIComponent(role)}`,
+  signUpOnboarding: (role: string, step = 1) =>
+    `/signup?role=${encodeURIComponent(role)}&step=${step}`,
   home: '/home',
 } as const;
 
 export const API_ROUTES = {
-  signIn: '/api/auth/signin',
-  signUp: '/api/auth/signup',
   locations: '/api/locations',
 } as const;
 

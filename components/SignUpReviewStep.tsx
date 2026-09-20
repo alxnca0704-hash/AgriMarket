@@ -6,11 +6,12 @@ import { ROLE_DETAILS } from '@/constants/roles';
 
 interface SignUpReviewStepProps {
   formData: SignUpFormData;
+  email: string;
   onEditStep: (stepIndex: number) => void;
 }
 
-export function SignUpReviewStep({ formData, onEditStep }: SignUpReviewStepProps) {
-  const { account, profile, address } = formData;
+export function SignUpReviewStep({ formData, email, onEditStep }: SignUpReviewStepProps) {
+  const { profile, address } = formData;
   const roleInfo = ROLE_DETAILS[profile.role];
 
   return (
@@ -22,11 +23,11 @@ export function SignUpReviewStep({ formData, onEditStep }: SignUpReviewStepProps
         </p>
       </div>
 
-      {/* Account Section */}
+      {/* Sign-in Section */}
       <div className="bg-stone-50/80 p-5 rounded-xl border border-stone-200/70">
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs font-semibold text-stone-400 uppercase tracking-[0.16em]">
-            1. Account
+            1. Sign-in
           </span>
           <button
             type="button"
@@ -36,21 +37,9 @@ export function SignUpReviewStep({ formData, onEditStep }: SignUpReviewStepProps
             Edit
           </button>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-          <div>
-            <span className="text-stone-400 block">Mobile number</span>
-            <span className="font-medium text-stone-800 font-mono">+63 {account.mobileNumber.replace(/^(\+63|0)/, '')}</span>
-          </div>
-          {account.email && (
-            <div>
-              <span className="text-stone-400 block">Email</span>
-              <span className="font-medium text-stone-800">{account.email}</span>
-            </div>
-          )}
-          <div>
-            <span className="text-stone-400 block">Password</span>
-            <span className="text-stone-500">••••••••</span>
-          </div>
+        <div className="text-sm">
+          <span className="text-stone-400 block">Google account</span>
+          <span className="font-medium text-stone-800">{email || 'Connected with Google'}</span>
         </div>
       </div>
 

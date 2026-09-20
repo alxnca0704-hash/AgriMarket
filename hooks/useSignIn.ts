@@ -5,13 +5,17 @@ import { useRouter } from 'next/navigation';
 import { APP_ROUTES } from '@/constants/routes';
 import { ROLES } from '@/constants/roles';
 import { AuthenticatedUser } from '@/types/auth';
+import { getMockUser, saveMockUser } from '@/lib/mockSession';
+
+const DEMO_EMAIL = 'demo.user@gmail.com';
 
 export function useSignIn() {
   const router = useRouter();
+
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ identifier?: string; password?: string }>({});
   const [forgotPasswordNotice, setForgotPasswordNotice] = useState(false);
@@ -54,6 +58,31 @@ export function useSignIn() {
     }
   };
 
+  const completeSignIn = (email: string) => {
+    const existing = getMockUser();
+    const user: AuthenticatedUser = existing ?? {
+      id: `mock-${Date.now()}`,
+      role: ROLES.BUYER,
+      fullName: 'Demo Buyer',
+      mobileNumber: '09171234567',
+      email,
+      defaultAddressSummary:
+        '142 Rizal St, Brgy. San Lorenzo, Makati City, Metro Manila, NCR 1229',
+      createdAt: new Date().toISOString(),
+    };
+    saveMockUser(user);
+    router.push(APP_ROUTES.home);
+  };
+
+  const handleGoogleSignIn = () => {
+    setError(null);
+    setIsGoogleLoading(true);
+    setTimeout(() => {
+      setIsGoogleLoading(false);
+      completeSignIn(DEMO_EMAIL);
+    }, 900);
+  };
+
   const handleForgotPassword = () => {
     setForgotPasswordNotice(true);
   };
@@ -70,52 +99,28 @@ export function useSignIn() {
     router.push(APP_ROUTES.landing);
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     setError(null);
-    if (!validate()) {
-      return;
-    }
+    if (!validate()) return;
 
     setIsLoading(true);
-
-    try {
-      // Simulate quick auth response
-      await new Promise((resolve) => setTimeout(resolve, 600));
-
-      const isPhone = /^(\+?63|0)?9\d{9}$/.test(identifier.replace(/\s|-/g, ''));
-      const mockUser: AuthenticatedUser = {
-        id: 'usr_' + Math.random().toString(36).substring(2, 9),
-        role: ROLES.BUYER,
-        fullName: isPhone ? 'Returning Customer' : identifier.split('@')[0],
-        mobileNumber: isPhone ? identifier : '0917 888 1234',
-        email: !isPhone ? identifier : undefined,
-        defaultAddressSummary: 'Brgy. San Antonio, Pasig City, Metro Manila',
-        createdAt: new Date().toISOString(),
-      };
-
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('agrimarket_user', JSON.stringify(mockUser));
-      }
-
-      router.push(APP_ROUTES.home);
-    } catch {
-      setError('Unable to log in. Please check your connection and try again.');
-    } finally {
+    setTimeout(() => {
       setIsLoading(false);
-    }
+      completeSignIn(identifier.trim());
+    }, 900);
   };
 
   return {
     identifier,
     password,
-    rememberMe,
-    setRememberMe,
     isLoading,
+    isGoogleLoading,
     error,
     fieldErrors,
     forgotPasswordNotice,
     handleIdentifierChange,
     handlePasswordChange,
+    handleGoogleSignIn,
     handleForgotPassword,
     closeForgotPasswordNotice,
     handleSubmit,
