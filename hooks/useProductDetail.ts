@@ -56,7 +56,7 @@ export function useProductDetail(productId: string) {
   const handleBuyNow = () => {
     if (!product) return;
     cart.addItem(product.id, qty);
-    router.push(APP_ROUTES.cart);
+    router.push(APP_ROUTES.checkout);
   };
 
   const notFound = !isLoading && !product;

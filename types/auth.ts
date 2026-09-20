@@ -23,6 +23,18 @@ export interface AddressStepData {
   isDefault: boolean;
 }
 
+export interface DeliveryAddress {
+  label?: AddressLabel;
+  receiverName: string;
+  receiverPhone: string;
+  region: string;
+  province: string;
+  cityMunicipality: string;
+  barangay: string;
+  streetBuilding: string;
+  postalCode: string;
+}
+
 export interface SignUpFormData {
   profile: ProfileStepData;
   address: AddressStepData;
@@ -36,5 +48,7 @@ export interface AuthenticatedUser {
   email?: string;
   photoUrl?: string;
   defaultAddressSummary: string;
+  deliveryAddress?: DeliveryAddress;
+  deliveryAddresses?: DeliveryAddress[];
   createdAt: string;
 }

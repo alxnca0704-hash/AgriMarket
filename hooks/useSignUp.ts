@@ -388,6 +388,18 @@ export function useSignUp() {
       const cleanPhone = address.receiverPhone.replace(/\s|-/g, '');
       const mobileNumber = cleanPhone.startsWith('0') ? cleanPhone : `0${cleanPhone}`;
 
+      const deliveryAddress: AuthenticatedUser['deliveryAddress'] = {
+        label: address.label,
+        receiverName: address.receiverName,
+        receiverPhone: address.receiverPhone,
+        region: address.region,
+        province: address.province,
+        cityMunicipality: address.cityMunicipality,
+        barangay: address.barangay,
+        streetBuilding: address.streetBuilding,
+        postalCode: address.postalCode,
+      };
+
       const user: AuthenticatedUser = {
         id: `mock-${Date.now()}`,
         role: profile.role,
@@ -396,6 +408,8 @@ export function useSignUp() {
         email: userEmail || undefined,
         photoUrl: profile.photoUrl || undefined,
         defaultAddressSummary: addressSummary,
+        deliveryAddress: deliveryAddress,
+        deliveryAddresses: [deliveryAddress],
         createdAt: new Date().toISOString(),
       };
 

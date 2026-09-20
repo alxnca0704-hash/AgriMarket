@@ -8,6 +8,7 @@ export const APP_ROUTES = {
   home: '/home',
   productDetail: (id: string) => `/products/${id}`,
   cart: '/cart',
+  checkout: '/checkout',
   orders: '/orders',
   orderDetail: (id: string) => `/orders/${id}`,
   profile: '/profile',

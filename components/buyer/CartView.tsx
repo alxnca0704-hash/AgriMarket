@@ -52,7 +52,7 @@ export function CartView() {
   }
 
   const handleCheckout = () => {
-    message.info('Checkout is next on the roadmap — your cart is saved.');
+    router.push(APP_ROUTES.checkout);
   };
 
   const handleEditAddress = () => {

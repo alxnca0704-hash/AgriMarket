@@ -1,3 +1,5 @@
+import { DeliveryAddress } from '@/types/auth';
+
 export const CURRENCY_SYMBOL = '₱';
 
 export function formatPrice(value: number): string {
@@ -16,4 +18,17 @@ export function formatCount(value: number): string {
   if (value >= 10000) return `${Math.round(value / 1000)}K`;
   if (value >= 1000) return `${(value / 1000).toFixed(1).replace(/\.0$/, '')}K`;
   return value.toLocaleString('en-PH');
+}
+
+export function formatAddressSummary(address: DeliveryAddress): string {
+  return `${address.streetBuilding}, Brgy. ${address.barangay}, ${address.cityMunicipality}, ${address.province}, ${address.region} ${address.postalCode}`;
+}
+
+export function formatOrderTime(iso: string): string {
+  return new Date(iso).toLocaleString('en-PH', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 }
