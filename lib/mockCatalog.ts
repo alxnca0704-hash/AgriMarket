@@ -1,6 +1,21 @@
 import { Catalog } from '@/types/product';
 
 const PUBLIC_PRODUCTS = '/products';
+const FRUIT_IMAGES = [
+  `${PUBLIC_PRODUCTS}/fruits.svg`,
+  `${PUBLIC_PRODUCTS}/fruits-2.svg`,
+  `${PUBLIC_PRODUCTS}/fruits-3.svg`,
+];
+const VEGETABLE_IMAGES = [
+  `${PUBLIC_PRODUCTS}/vegetables.svg`,
+  `${PUBLIC_PRODUCTS}/vegetables-2.svg`,
+  `${PUBLIC_PRODUCTS}/vegetables-3.svg`,
+];
+const GRAIN_IMAGES = [
+  `${PUBLIC_PRODUCTS}/grains.svg`,
+  `${PUBLIC_PRODUCTS}/grains-2.svg`,
+  `${PUBLIC_PRODUCTS}/grains-3.svg`,
+];
 
 export const MOCK_CATALOG: Catalog = {
   sellers: [
@@ -91,6 +106,7 @@ export const MOCK_CATALOG: Catalog = {
       category: 'fruits',
       price: 140,
       unit: 'kg',
+      images: FRUIT_IMAGES,
       imageUrl: `${PUBLIC_PRODUCTS}/fruits.svg`,
       stockQty: 120,
       soldCount: 1240,
@@ -110,6 +126,7 @@ export const MOCK_CATALOG: Catalog = {
       category: 'vegetables',
       price: 120,
       unit: 'kg',
+      images: VEGETABLE_IMAGES,
       imageUrl: `${PUBLIC_PRODUCTS}/vegetables.svg`,
       stockQty: 60,
       soldCount: 860,
@@ -129,6 +146,7 @@ export const MOCK_CATALOG: Catalog = {
       category: 'vegetables',
       price: 90,
       unit: 'kg',
+      images: VEGETABLE_IMAGES,
       imageUrl: `${PUBLIC_PRODUCTS}/vegetables.svg`,
       stockQty: 200,
       soldCount: 2140,
@@ -148,6 +166,7 @@ export const MOCK_CATALOG: Catalog = {
       category: 'vegetables',
       price: 75,
       unit: 'kg',
+      images: VEGETABLE_IMAGES,
       imageUrl: `${PUBLIC_PRODUCTS}/vegetables.svg`,
       stockQty: 75,
       soldCount: 3120,
@@ -167,6 +186,7 @@ export const MOCK_CATALOG: Catalog = {
       category: 'vegetables',
       price: 45,
       unit: 'bunch',
+      images: VEGETABLE_IMAGES,
       imageUrl: `${PUBLIC_PRODUCTS}/vegetables.svg`,
       stockQty: 90,
       soldCount: 540,
@@ -186,6 +206,7 @@ export const MOCK_CATALOG: Catalog = {
       category: 'fruits',
       price: 45,
       unit: 'kg',
+      images: FRUIT_IMAGES,
       imageUrl: `${PUBLIC_PRODUCTS}/fruits.svg`,
       stockQty: 90,
       soldCount: 980,
@@ -205,6 +226,7 @@ export const MOCK_CATALOG: Catalog = {
       category: 'grains',
       price: 48,
       unit: 'kg',
+      images: GRAIN_IMAGES,
       imageUrl: `${PUBLIC_PRODUCTS}/grains.svg`,
       stockQty: 1000,
       soldCount: 18400,
@@ -224,6 +246,7 @@ export const MOCK_CATALOG: Catalog = {
       category: 'grains',
       price: 380,
       unit: 'kg',
+      images: GRAIN_IMAGES,
       imageUrl: `${PUBLIC_PRODUCTS}/grains.svg`,
       stockQty: 48,
       soldCount: 720,
@@ -243,6 +266,7 @@ export const MOCK_CATALOG: Catalog = {
       category: 'fruits',
       price: 110,
       unit: 'kg',
+      images: FRUIT_IMAGES,
       imageUrl: `${PUBLIC_PRODUCTS}/fruits.svg`,
       stockQty: 85,
       soldCount: 4150,

@@ -22,6 +22,7 @@ export interface Product {
   category: ProductCategory;
   price: number;
   unit: string;
+  images: string[];
   imageUrl: string;
   stockQty: number;
   soldCount: number;
