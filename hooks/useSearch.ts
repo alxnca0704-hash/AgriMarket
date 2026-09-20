@@ -15,12 +15,10 @@ import {
 } from '@/lib/mockSearch';
 import { APP_ROUTES } from '@/constants/routes';
 import { Seller } from '@/types/product';
-import { useCartContext } from '@/components/buyer/CartProvider';
 
 export function useSearch() {
   const router = useRouter();
   const { message } = App.useApp();
-  const cart = useCartContext();
 
   const [isLoading, setIsLoading] = useState(true);
   const [query, setQuery] = useState('');
@@ -65,12 +63,6 @@ export function useSearch() {
     message.info('Recent searches cleared');
   };
 
-  const handleQuickAdd = (productId: string) => {
-    const product = MOCK_CATALOG.products.find((p) => p.id === productId);
-    cart.addItem(productId, 1);
-    message.success(`${product?.name ?? 'Product'} added to cart`);
-  };
-
   const handleOpenProduct = (productId: string) => {
     router.push(APP_ROUTES.productDetail(productId));
   };
@@ -87,7 +79,6 @@ export function useSearch() {
     handleSubmit,
     handleSelectTerm,
     handleClearRecent,
-    handleQuickAdd,
     handleOpenProduct,
     clearSearch: () => setQuery(''),
   };

@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
-import { App } from 'antd';
 import { MOCK_CATALOG } from '@/lib/mockCatalog';
 import { searchCatalog } from '@/lib/search';
 import { saveRecentSearch } from '@/lib/mockSearch';
@@ -10,13 +9,10 @@ import { DEMO_BUYER, getSessionUserSnapshot, subscribeSessionUser } from '@/lib/
 import { APP_ROUTES } from '@/constants/routes';
 import { ProductCategory } from '@/constants/categories';
 import { SortOption } from '@/constants/sortOptions';
-import { Product, Seller } from '@/types/product';
-import { useCartContext } from '@/components/buyer/CartProvider';
+import { Seller } from '@/types/product';
 
 export function useHome() {
   const router = useRouter();
-  const { message } = App.useApp();
-  const cart = useCartContext();
 
   const [isLoading, setIsLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState<'all' | ProductCategory>('all');
@@ -70,16 +66,6 @@ export function useHome() {
     return sorted;
   }, [activeCategory, sort, maxPrice, minRating]);
 
-  const nearYou: Product[] = useMemo(() => {
-    return [...MOCK_CATALOG.products]
-      .sort(
-        (a, b) =>
-          (sellerById.get(a.sellerId)?.distanceKm ?? Infinity) -
-          (sellerById.get(b.sellerId)?.distanceKm ?? Infinity)
-      )
-      .slice(0, 4);
-  }, [sellerById]);
-
   const user = useSyncExternalStore(
     subscribeSessionUser,
     getSessionUserSnapshot,
@@ -117,12 +103,6 @@ export function useHome() {
     setQuery('');
   };
 
-  const handleQuickAdd = (productId: string) => {
-    const product = MOCK_CATALOG.products.find((p) => p.id === productId);
-    cart.addItem(productId, 1);
-    message.success(`${product?.name ?? 'Product'} added to cart`);
-  };
-
   const handleOpenProduct = (productId: string) => {
     router.push(APP_ROUTES.productDetail(productId));
   };
@@ -140,7 +120,6 @@ export function useHome() {
     firstName,
     deliveryAddress: user.defaultAddressSummary,
     products: filtered,
-    nearYou,
     sellers: sellerById,
     activeCategory,
     setActiveCategory,
@@ -151,7 +130,6 @@ export function useHome() {
     maxPrice,
     minRating,
     filterCount,
-    handleQuickAdd,
     handleOpenProduct,
     handleApplyFilters,
     query,

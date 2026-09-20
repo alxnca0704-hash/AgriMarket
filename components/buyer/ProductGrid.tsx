@@ -8,31 +8,17 @@ interface ProductGridProps {
   products: Product[];
   sellers: Map<string, Seller>;
   onOpen: (productId: string) => void;
-  onQuickAdd: (productId: string) => void;
 }
 
-export function ProductGrid({
-  products,
-  sellers,
-  onOpen,
-  onQuickAdd,
-}: ProductGridProps) {
+export function ProductGrid({ products, sellers, onOpen }: ProductGridProps) {
   if (products.length === 0) return null;
 
   return (
-    <div className="grid grid-cols-2 gap-x-3 gap-y-5 sm:gap-x-4 sm:gap-y-6 md:grid-cols-3 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-x-2.5 gap-y-4 sm:grid-cols-3 sm:gap-x-3 sm:gap-y-5 lg:grid-cols-4 xl:grid-cols-5">
       {products.map((product) => {
         const seller = sellers.get(product.sellerId);
         if (!seller) return null;
-        return (
-          <ProductCard
-            key={product.id}
-            product={product}
-            seller={seller}
-            onOpen={onOpen}
-            onQuickAdd={onQuickAdd}
-          />
-        );
+        return <ProductCard key={product.id} product={product} seller={seller} onOpen={onOpen} />;
       })}
     </div>
   );

@@ -4,9 +4,6 @@ import React from 'react';
 import { Alert, Button, Empty, Input, Skeleton } from 'antd';
 import { EnvironmentOutlined } from '@ant-design/icons';
 import { useHome } from '@/hooks/useHome';
-import { CategoryChips } from '@/components/buyer/CategoryChips';
-import { PromoCarousel } from '@/components/buyer/PromoCarousel';
-import { ProductCard } from '@/components/buyer/ProductCard';
 import { ProductGrid } from '@/components/buyer/ProductGrid';
 import { SortFilterBar } from '@/components/buyer/SortFilterBar';
 import { FilterSheet } from '@/components/buyer/FilterSheet';
@@ -16,10 +13,9 @@ function HomeSkeleton() {
     <div className="max-w-6xl mx-auto px-4 sm:px-6 space-y-6 pt-5 sm:pt-10">
       <Skeleton active paragraph={{ rows: 1 }} />
       <Skeleton.Input active block />
-      <Skeleton.Button active block className="!h-52 sm:!h-60" />
       <div className="space-y-3">
-        <Skeleton.Input active className="!w-32" />
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
+        <Skeleton.Input active className="!w-44" />
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="bg-white rounded-2xl shadow-sm p-4 space-y-3">
               <Skeleton.Image active className="!aspect-[4/3] !w-full" />
@@ -40,7 +36,6 @@ export function HomeView() {
     firstName,
     deliveryAddress,
     products,
-    nearYou,
     sellers,
     activeCategory,
     setActiveCategory,
@@ -51,7 +46,6 @@ export function HomeView() {
     maxPrice,
     minRating,
     filterCount,
-    handleQuickAdd,
     handleOpenProduct,
     handleApplyFilters,
     query,
@@ -108,7 +102,6 @@ export function HomeView() {
                   products={searchResults}
                   sellers={sellers}
                   onOpen={handleOpenProduct}
-                  onQuickAdd={handleQuickAdd}
                 />
               </>
             ) : (
@@ -128,37 +121,6 @@ export function HomeView() {
           </section>
         ) : (
           <>
-            <CategoryChips active={activeCategory} onChange={setActiveCategory} />
-
-            <PromoCarousel />
-
-            {nearYou.length > 0 && (
-              <section>
-                <div className="flex items-baseline justify-between mb-3.5">
-                  <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-stone-900">
-                    Near you
-                  </h2>
-                  <span className="text-xs text-stone-400">Growing closest to your address</span>
-                </div>
-                <div className="flex gap-3 overflow-x-auto -mx-4 px-4 pb-2 no-scrollbar">
-                  {nearYou.map((product) => {
-                    const seller = sellers.get(product.sellerId);
-                    if (!seller) return null;
-                    return (
-                      <div key={product.id} className="w-[168px] shrink-0">
-                        <ProductCard
-                          product={product}
-                          seller={seller}
-                          onOpen={handleOpenProduct}
-                          onQuickAdd={handleQuickAdd}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-            )}
-
             <section>
               <div className="mb-3.5">
                 <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-stone-900">
@@ -167,9 +129,10 @@ export function HomeView() {
               </div>
               <SortFilterBar
                 sort={sort}
-                resultCount={products.length}
+                category={activeCategory}
                 filterCount={filterCount}
                 onSortChange={setSort}
+                onCategoryChange={setActiveCategory}
                 onOpenFilters={() => setFilterOpen(true)}
               />
               <div className="pt-4">
@@ -177,7 +140,6 @@ export function HomeView() {
                   products={products}
                   sellers={sellers}
                   onOpen={handleOpenProduct}
-                  onQuickAdd={handleQuickAdd}
                 />
               </div>
             </section>

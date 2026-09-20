@@ -10,7 +10,7 @@ function SearchSkeleton() {
   return (
     <div className="space-y-5 pt-4">
       <Skeleton.Input active block />
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         {Array.from({ length: 6 }).map((_, i) => (
           <div key={i} className="bg-white rounded-2xl shadow-sm p-3 space-y-3">
             <Skeleton.Image active />
@@ -35,7 +35,6 @@ export function SearchView() {
     handleSubmit,
     handleSelectTerm,
     handleClearRecent,
-    handleQuickAdd,
     handleOpenProduct,
     clearSearch,
   } = useSearch();
@@ -117,7 +116,6 @@ export function SearchView() {
             products={results}
             sellers={sellers}
             onOpen={handleOpenProduct}
-            onQuickAdd={handleQuickAdd}
           />
         </section>
       )}

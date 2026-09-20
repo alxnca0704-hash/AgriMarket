@@ -24,6 +24,7 @@ export interface Product {
   unit: string;
   imageUrl: string;
   stockQty: number;
+  soldCount: number;
   harvestDate: string;
   origin: string;
   storageTips: string;
