@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
-import { Carousel } from 'antd';
+import React, { useRef, useState } from 'react';
+import { Carousel, type CarouselRef } from 'antd';
 
 const PROMO_SLIDES = [
   {
@@ -22,21 +22,52 @@ const PROMO_SLIDES = [
 ] as const;
 
 export function PromoCarousel() {
+  const carouselRef = useRef<CarouselRef>(null);
+  const [current, setCurrent] = useState(0);
+
   return (
-    <Carousel autoplay dots={{ className: '!bottom-1' }} className="overflow-hidden rounded-2xl">
-      {PROMO_SLIDES.map((slide) => (
-        <div key={slide.eyebrow}>
-          <div className="rounded-2xl bg-gradient-to-r from-[#2D6A4F] via-[#3D7A5F] to-[#5C8D6E] px-5 py-6 sm:px-8 sm:py-8 text-white">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/70 block mb-1.5">
-              {slide.eyebrow}
-            </span>
-            <h3 className="text-lg sm:text-2xl font-semibold leading-tight max-w-md">
-              {slide.title}
-            </h3>
-            <p className="text-sm text-white/75 mt-2 max-w-lg leading-relaxed">{slide.body}</p>
+    <div className="relative">
+      <Carousel
+        ref={carouselRef}
+        autoplay
+        autoplaySpeed={4800}
+        dots={false}
+        waitForAnimate
+        afterChange={setCurrent}
+        className="overflow-hidden rounded-2xl"
+      >
+        {PROMO_SLIDES.map((slide) => (
+          <div key={slide.eyebrow}>
+            <div className="relative flex h-52 sm:h-60 flex-col justify-center overflow-hidden bg-sage px-7 py-12 text-white sm:px-12">
+              <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/5" />
+              <div className="pointer-events-none absolute -bottom-24 right-28 h-56 w-56 rounded-full bg-black/10" />
+              <span className="relative mb-2 block text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">
+                {slide.eyebrow}
+              </span>
+              <h3 className="relative max-w-md text-xl font-semibold leading-snug tracking-tight sm:text-2xl">
+                {slide.title}
+              </h3>
+              <p className="relative mt-2 max-w-lg text-sm leading-relaxed text-white/75 sm:text-base">
+                {slide.body}
+              </p>
+            </div>
           </div>
-        </div>
-      ))}
-    </Carousel>
+        ))}
+      </Carousel>
+
+      <div className="absolute inset-x-0 bottom-3 z-10 flex items-center justify-center gap-1.5">
+        {PROMO_SLIDES.map((slide, index) => (
+          <button
+            key={slide.eyebrow}
+            type="button"
+            aria-label={`Go to slide ${index + 1}`}
+            onClick={() => carouselRef.current?.goTo(index)}
+            className={`h-1.5 cursor-pointer rounded-full transition-all duration-300 ${
+              index === current ? 'w-6 bg-white' : 'w-1.5 bg-white/50 hover:bg-white/85'
+            }`}
+          />
+        ))}
+      </div>
+    </div>
   );
 }

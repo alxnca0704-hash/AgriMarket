@@ -4,26 +4,40 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Alert, Button, Image, InputNumber, Result, Skeleton, Tag } from 'antd';
 import {
+  CalendarOutlined,
   CheckCircleFilled,
+  CloudOutlined,
   EnvironmentOutlined,
+  ShoppingCartOutlined,
   ShoppingOutlined,
-  StarOutlined,
-  TagOutlined,
+  StarFilled,
 } from '@ant-design/icons';
 import { useProductDetail } from '@/hooks/useProductDetail';
 import { SellerCard } from '@/components/buyer/SellerCard';
 import { ReviewsList } from '@/components/buyer/ReviewsList';
 import { APP_ROUTES } from '@/constants/routes';
+import { CATEGORY_OPTIONS } from '@/constants/categories';
 import { formatPrice, formatUnitPrice } from '@/lib/format';
 
 function ProductDetailSkeleton() {
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-4 space-y-5">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <Skeleton.Image active className="!w-full !aspect-square" />
-        <div className="space-y-4">
-          <Skeleton active paragraph={{ rows: 3 }} />
-          <Skeleton active paragraph={{ rows: 2 }} />
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-5 sm:pt-8 space-y-7 sm:space-y-10">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-8 lg:gap-12 items-start">
+        <Skeleton.Image active className="!w-full !rounded-2xl !aspect-square" />
+        <div className="space-y-5">
+          <Skeleton.Input active className="!w-24" />
+          <Skeleton active paragraph={{ rows: 1 }} title={{ width: '70%' }} />
+          <Skeleton active paragraph={{ rows: 1 }} title={false} />
+          <Skeleton active paragraph={{ rows: 1 }} title={{ width: '40%' }} />
+          <Skeleton.Button active block className="!h-14" />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="lg:col-span-2 rounded-2xl bg-white shadow-sm p-5 sm:p-7">
+          <Skeleton active paragraph={{ rows: 3 }} title={{ width: '40%' }} />
+        </div>
+        <div className="rounded-2xl bg-white shadow-sm p-5 sm:p-6">
+          <Skeleton active paragraph={{ rows: 3 }} title={{ width: '60%' }} />
         </div>
       </div>
     </div>
@@ -58,36 +72,41 @@ export function ProductDetailView({ productId }: { productId: string }) {
 
   if (notFound || !product) {
     return (
-      <div className="max-w-6xl mx-auto px-4 py-12">
+      <div className="max-w-6xl mx-auto px-4 py-16">
         <Result
           status="404"
           title="Product not found"
           subTitle="This item may have been removed or is temporarily unavailable."
-          extra={<Button type="primary" onClick={() => router.push(APP_ROUTES.home)} className="!bg-[#2D6A4F]">Back to home</Button>}
+          extra={<Button type="primary" onClick={() => router.push(APP_ROUTES.home)}>Back to home</Button>}
         />
       </div>
     );
   }
+
+  const categoryLabel =
+    CATEGORY_OPTIONS.find((c) => c.key === product.category)?.label ?? product.category;
 
   const actionButtons = (
     <>
       <Button
         size="large"
         block
-        icon={<ShoppingOutlined />}
+        variant="solid"
+        color="primary"
+        icon={<ShoppingCartOutlined />}
         disabled={!hasStock}
         onClick={handleAddToCart}
-        className="!h-11 !rounded-xl !bg-white !text-[#2D6A4F] !border-[#2D6A4F] hover:!bg-[#E9F0EB]"
       >
         Add to cart
       </Button>
       <Button
         size="large"
         block
-        type="primary"
+        variant="outlined"
+        color="primary"
+        icon={<ShoppingOutlined />}
         disabled={!hasStock}
         onClick={handleBuyNow}
-        className="!h-11 !rounded-xl !bg-[#2D6A4F] hover:!bg-[#1B4332]"
       >
         Buy now
       </Button>
@@ -96,15 +115,13 @@ export function ProductDetailView({ productId }: { productId: string }) {
 
   return (
     <div>
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-4">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-32 md:pb-10 pt-5 sm:pt-8 space-y-7 sm:space-y-10">
         {error && (
-          <div className="mb-4">
-            <Alert type="error" message={error} showIcon />
-          </div>
+          <Alert type="error" title={error} showIcon />
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-8">
-          <div className="rounded-2xl overflow-hidden bg-white shadow-sm">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-8 lg:gap-12 items-start">
+          <div className="rounded-2xl overflow-hidden bg-[#F3EFE6] shadow-sm">
             <Image
               src={product.imageUrl}
               alt={product.name}
@@ -114,28 +131,30 @@ export function ProductDetailView({ productId }: { productId: string }) {
             />
           </div>
 
-          <div className="space-y-5">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <Tag className="!rounded-full !bg-[#2D6A4F]/5 !border-none !text-[#2D6A4F]">
-                  {product.category}
+          <div className="space-y-5 sm:space-y-6">
+            <div className="space-y-2.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <Tag className="!m-0 !border-none !rounded-full !bg-sage-soft !px-2.5 !py-0.5 !text-sage !text-xs !font-semibold capitalize">
+                  {categoryLabel}
                 </Tag>
                 {lowStock && (
-                  <Tag color="warning" className="!rounded-full">
-                    Low stock — {product.stockQty} left
+                  <Tag color="warning" className="!m-0 !rounded-full !text-xs !font-medium">
+                    Only {product.stockQty} left
                   </Tag>
                 )}
                 {!hasStock && (
-                  <Tag color="error" className="!rounded-full">
+                  <Tag color="error" className="!m-0 !rounded-full !text-xs !font-medium">
                     Sold out
                   </Tag>
                 )}
               </div>
-              <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-stone-900">
+
+              <h1 className="text-[26px] sm:text-3xl lg:text-[34px] font-semibold tracking-tight text-stone-900">
                 {product.name}
               </h1>
-              <div className="flex items-center gap-1.5 text-sm text-stone-500 mt-1.5">
-                <StarOutlined className="text-amber-500" />
+
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-stone-500">
+                <StarFilled className="!text-sm text-amber-500" />
                 <span className="font-semibold text-stone-800">{product.rating.toFixed(1)}</span>
                 <span>· {product.ratingCount} ratings</span>
                 <span className="text-stone-300">·</span>
@@ -143,92 +162,109 @@ export function ProductDetailView({ productId }: { productId: string }) {
               </div>
             </div>
 
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-stone-900">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-stone-50 px-4 py-3.5 sm:px-5">
+              <p className="text-[26px] sm:text-3xl font-bold tracking-tight text-stone-900">
                 {formatUnitPrice(product.price, product.unit)}
-              </span>
-              {cartQty > 0 && (
-                <span className="text-xs text-[#2D6A4F] font-medium">
-                  <CheckCircleFilled /> {cartQty} in cart
+              </p>
+              {cartQty > 0 ? (
+                <span className="text-sm font-medium text-sage">
+                  <CheckCircleFilled className="mr-1" />
+                  {cartQty} in cart
                 </span>
+              ) : (
+                <span className="text-sm text-stone-400">{product.stockQty} available</span>
               )}
             </div>
 
             {hasStock && (
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-stone-500">Quantity</span>
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-medium text-stone-700">Quantity</span>
                 <InputNumber
+                  size="large"
                   min={1}
                   max={product.stockQty}
                   value={qty}
                   onChange={handleQtyChange}
-                  size="large"
-                  className="!rounded-lg"
+                  className="!w-32 !rounded-xl"
                   aria-label="Quantity"
                 />
-                <span className="text-sm text-stone-400">
-                  {product.stockQty} available
-                </span>
               </div>
             )}
 
-            <div className="hidden md:flex gap-3 pt-1">{actionButtons}</div>
+            <div className="hidden md:grid grid-cols-2 gap-3 pt-1">{actionButtons}</div>
           </div>
         </div>
 
         {seller && (
-          <div className="mt-6">
+          <section>
             <SellerCard seller={seller} />
-          </div>
+          </section>
         )}
 
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="rounded-2xl bg-white shadow-sm p-4 flex items-start gap-3">
-            <TagOutlined className="text-[#2D6A4F] text-lg mt-0.5" />
-            <div>
-              <p className="text-sm font-semibold text-stone-800">Harvest date</p>
-              <p className="text-sm text-stone-500 mt-0.5">
-                {new Date(product.harvestDate).toLocaleDateString('en-PH', {
-                  month: 'long',
-                  day: 'numeric',
-                  year: 'numeric',
-                })}
-              </p>
-            </div>
+        <section className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 items-start">
+          <div className="rounded-2xl bg-white shadow-sm p-5 sm:p-7 lg:col-span-2">
+            <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-stone-900 mb-2 sm:mb-3">
+              About this product
+            </h2>
+            <p className="text-sm sm:text-[15px] text-stone-600 leading-relaxed">
+              {product.description}
+            </p>
           </div>
-          <div className="rounded-2xl bg-white shadow-sm p-4 flex items-start gap-3">
-            <EnvironmentOutlined className="text-[#2D6A4F] text-lg mt-0.5" />
-            <div>
-              <p className="text-sm font-semibold text-stone-800">Origin</p>
-              <p className="text-sm text-stone-500 mt-0.5">{product.origin}</p>
-            </div>
-          </div>
-          <div className="rounded-2xl bg-white shadow-sm p-4 flex items-start gap-3">
-            <CheckCircleFilled className="text-[#2D6A4F] text-lg mt-0.5" />
-            <div>
-              <p className="text-sm font-semibold text-stone-800">Storage tips</p>
-              <p className="text-sm text-stone-500 mt-0.5 leading-relaxed">
-                {product.storageTips}
-              </p>
-            </div>
-          </div>
-        </div>
 
-        <div className="mt-6 rounded-2xl bg-white shadow-sm p-4 sm:p-5">
-          <h2 className="text-lg font-semibold text-stone-900 mb-2">About this product</h2>
-          <p className="text-sm text-stone-600 leading-relaxed">{product.description}</p>
-        </div>
+          <div className="rounded-2xl bg-white shadow-sm p-5 sm:p-6">
+            <h2 className="text-base font-semibold tracking-tight text-stone-900 mb-4">
+              Farm to table
+            </h2>
+            <dl className="divide-y divide-stone-100">
+              <div className="flex items-start gap-3.5 pb-4">
+                <span className="w-10 h-10 shrink-0 rounded-xl bg-sage-soft text-sage flex items-center justify-center text-lg">
+                  <CalendarOutlined />
+                </span>
+                <div className="min-w-0">
+                  <dt className="text-sm font-semibold text-stone-800">Harvest date</dt>
+                  <dd className="text-sm text-stone-500 mt-0.5">
+                    {new Date(product.harvestDate).toLocaleDateString('en-PH', {
+                      month: 'long',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}
+                  </dd>
+                </div>
+              </div>
+              <div className="flex items-start gap-3.5 py-4">
+                <span className="w-10 h-10 shrink-0 rounded-xl bg-sage-soft text-sage flex items-center justify-center text-lg">
+                  <EnvironmentOutlined />
+                </span>
+                <div className="min-w-0">
+                  <dt className="text-sm font-semibold text-stone-800">Origin</dt>
+                  <dd className="text-sm text-stone-500 mt-0.5">{product.origin}</dd>
+                </div>
+              </div>
+              <div className="flex items-start gap-3.5 pt-4">
+                <span className="w-10 h-10 shrink-0 rounded-xl bg-sage-soft text-sage flex items-center justify-center text-lg">
+                  <CloudOutlined />
+                </span>
+                <div className="min-w-0">
+                  <dt className="text-sm font-semibold text-stone-800">Storage tips</dt>
+                  <dd className="text-sm text-stone-500 mt-0.5 leading-relaxed">
+                    {product.storageTips}
+                  </dd>
+                </div>
+              </div>
+            </dl>
+          </div>
+        </section>
 
-        <div className="mt-6">
-          <h2 className="text-lg font-semibold text-stone-900 mb-3">
+        <section>
+          <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-stone-900 mb-3 sm:mb-4">
             Reviews <span className="text-stone-400 font-normal">({reviews.length})</span>
           </h2>
           <ReviewsList reviews={reviews} />
-        </div>
+        </section>
       </div>
 
       {hasStock && (
-        <div className="md:hidden fixed bottom-0 inset-x-0 z-20 bg-white/95 backdrop-blur border-t border-stone-100 pb-[env(safe-area-inset-bottom)]">
+        <div className="md:hidden fixed bottom-0 inset-x-0 z-20 bg-white/95 backdrop-blur shadow-[0_-8px_30px_-12px_rgba(28,25,23,0.15)] pb-[env(safe-area-inset-bottom)]">
           <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
             <div className="shrink-0">
               <p className="text-[11px] text-stone-400">Total</p>
@@ -236,7 +272,7 @@ export function ProductDetailView({ productId }: { productId: string }) {
                 {formatPrice(product.price * qty)}
               </p>
             </div>
-            <div className="flex-1 flex gap-3">{actionButtons}</div>
+            <div className="flex-1 grid grid-cols-2 gap-3">{actionButtons}</div>
           </div>
         </div>
       )}

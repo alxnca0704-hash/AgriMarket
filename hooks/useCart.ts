@@ -1,8 +1,8 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useSyncExternalStore } from 'react';
 import { MOCK_CATALOG } from '@/lib/mockCatalog';
-import { getSessionUser } from '@/lib/mockSession';
+import { DEMO_BUYER, getSessionUserSnapshot, subscribeSessionUser } from '@/lib/mockSession';
 import { useCartContext } from '@/components/buyer/CartProvider';
 import { CartLineItem } from '@/components/buyer/CartSellerGroup';
 import { Seller } from '@/types/product';
@@ -42,7 +42,11 @@ export function useCart() {
       });
   }, [cart.items]);
 
-  const user = getSessionUser();
+  const user = useSyncExternalStore(
+    subscribeSessionUser,
+    getSessionUserSnapshot,
+    () => DEMO_BUYER
+  );
 
   return {
     isLoading: false,

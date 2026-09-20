@@ -35,9 +35,9 @@ export function CartSellerGroup({
 
   return (
     <div className="rounded-2xl bg-white shadow-sm overflow-hidden">
-      <div className="px-4 py-3.5 flex items-center justify-between gap-2 border-b border-stone-100">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="w-8 h-8 rounded-lg bg-[#2D6A4F]/10 text-[#2D6A4F] flex items-center justify-center shrink-0">
+      <div className="px-4 sm:px-5 py-4 flex items-center justify-between gap-2 border-b border-stone-100">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="w-9 h-9 rounded-xl bg-sage-soft text-sage flex items-center justify-center shrink-0">
             <TruckOutlined />
           </span>
           <div className="min-w-0">
@@ -56,19 +56,19 @@ export function CartSellerGroup({
         {lines.map((line) => {
           const maxReached = line.qty >= line.stockQty;
           return (
-            <li key={line.productId} className="px-4 py-3.5 flex items-center gap-3">
+            <li key={line.productId} className="px-4 sm:px-5 py-4 flex items-center gap-3.5">
               <Image
                 src={line.imageUrl}
                 alt={line.name}
                 preview={false}
-                className="!w-16 !h-16 rounded-xl object-cover shrink-0"
+                className="!w-14 !h-14 sm:!w-16 sm:!h-16 rounded-xl object-cover shrink-0"
               />
-              <div className="flex-1 min-w-0 space-y-1">
+              <div className="flex-1 min-w-0 space-y-1.5">
                 <p className="text-sm font-medium text-stone-800 truncate">{line.name}</p>
                 <p className="text-xs text-stone-400">
-                  {formatPrice(line.price)}/{line.unit} · stock {line.stockQty}
+                  {formatPrice(line.price)}/{line.unit}
                 </p>
-                <div className="flex items-center gap-2 pt-0.5">
+                <div className="flex items-center gap-2">
                   <InputNumber
                     size="small"
                     min={1}

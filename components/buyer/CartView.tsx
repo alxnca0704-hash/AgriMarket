@@ -26,11 +26,11 @@ export function CartView() {
 
   if (itemCount === 0) {
     return (
-      <div className="max-w-xl mx-auto px-4 py-16">
+      <div className="max-w-xl mx-auto px-4 pt-20 pb-24">
         <Empty
           image={Empty.PRESENTED_IMAGE_SIMPLE}
           description={
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <p className="text-stone-800 font-medium">Your cart is empty</p>
               <p className="text-sm text-stone-400">
                 Farm-fresh produce is waiting. Add something you&apos;ll love.
@@ -42,7 +42,7 @@ export function CartView() {
             type="primary"
             size="large"
             onClick={() => router.push(APP_ROUTES.home)}
-            className="!rounded-xl !bg-[#2D6A4F]"
+            className="!rounded-xl"
           >
             Browse products
           </Button>
@@ -60,18 +60,16 @@ export function CartView() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-4 space-y-5">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-stone-900">
-          Cart{' '}
-          <span className="text-stone-400 font-normal">
-            ({itemCount} {itemCount === 1 ? 'item' : 'items'})
-          </span>
-        </h1>
-      </div>
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-5 sm:pt-10 pb-10 space-y-6 sm:space-y-7">
+      <h1 className="text-2xl sm:text-[28px] font-semibold tracking-tight text-stone-900">
+        Cart{' '}
+        <span className="text-stone-400 font-normal text-lg sm:text-xl">
+          ({itemCount} {itemCount === 1 ? 'item' : 'items'})
+        </span>
+      </h1>
 
-      <div className="rounded-2xl bg-white shadow-sm p-4 flex items-center gap-3">
-        <span className="w-9 h-9 rounded-xl bg-[#2D6A4F]/10 text-[#2D6A4F] flex items-center justify-center shrink-0">
+      <div className="rounded-2xl bg-white shadow-sm p-4 sm:p-5 flex items-center gap-3.5">
+        <span className="w-10 h-10 rounded-xl bg-sage-soft text-sage flex items-center justify-center shrink-0">
           <EnvironmentOutlined />
         </span>
         <button
@@ -91,7 +89,7 @@ export function CartView() {
         </span>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-4 sm:space-y-5">
         {groups.map((group) => (
           <CartSellerGroup
             key={group.seller.id}
@@ -112,7 +110,7 @@ export function CartView() {
         note="Delivery fee is charged once per farm and shown up front. Full breakdown appears at checkout."
       />
 
-      <Button type="primary" size="large" block onClick={handleCheckout} className="!h-12 !rounded-xl !bg-[#2D6A4F]">
+      <Button type="primary" size="large" block onClick={handleCheckout} className="!h-12 !rounded-xl">
         Proceed to checkout · {formatPrice(total)}
       </Button>
     </div>

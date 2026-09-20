@@ -1,10 +1,11 @@
 'use client';
 
 import React from 'react';
-import { Image } from 'antd';
-import { PlusOutlined, StarOutlined } from '@ant-design/icons';
+import { Button, Image } from 'antd';
+import { EnvironmentOutlined, ShoppingCartOutlined, StarFilled } from '@ant-design/icons';
 import { Product, Seller } from '@/types/product';
-import { formatUnitPrice } from '@/lib/format';
+import { formatDistance, formatUnitPrice } from '@/lib/format';
+import { CATEGORY_OPTIONS } from '@/constants/categories';
 
 interface ProductCardProps {
   product: Product;
@@ -14,6 +15,8 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, seller, onOpen, onQuickAdd }: ProductCardProps) {
+  const categoryLabel =
+    CATEGORY_OPTIONS.find((c) => c.key === product.category)?.label ?? product.category;
 
   return (
     <div
@@ -23,42 +26,57 @@ export function ProductCard({ product, seller, onOpen, onQuickAdd }: ProductCard
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') onOpen(product.id);
       }}
-      className="rounded-2xl bg-white shadow-sm overflow-hidden flex flex-col cursor-pointer transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/30"
+      className="group flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl bg-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-sage/30"
     >
-      <div className="relative">
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-stone-100">
         <Image
           src={product.imageUrl}
           alt={product.name}
           preview={false}
-          className="!w-full aspect-square object-cover"
+          className="!w-full aspect-[4/3] object-cover transition-transform duration-500 group-hover:scale-[1.05]"
         />
-        <button
-          type="button"
-          aria-label={`Add ${product.name} to cart`}
-          onClick={(e) => {
-            e.stopPropagation();
-            onQuickAdd(product.id);
-          }}
-          className="absolute right-2 bottom-2 w-9 h-9 rounded-full bg-[#2D6A4F] text-white flex items-center justify-center shadow-sm hover:bg-[#1B4332] cursor-pointer transition-colors"
-        >
-          <PlusOutlined />
-        </button>
-      </div>
-      <div className="p-3 flex flex-col gap-1">
-        <span className="text-[11px] font-medium uppercase tracking-wide text-[#2D6A4F]/70">
-          {seller.farmName}
+        <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-stone-600 backdrop-blur">
+          {categoryLabel}
         </span>
-        <h3 className="text-sm font-semibold text-stone-900 leading-snug line-clamp-2">
+        <span className="absolute bottom-3 left-3 flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-medium text-stone-600 backdrop-blur">
+          <EnvironmentOutlined className="!text-[10px] text-sage" />
+          {formatDistance(seller.distanceKm)}
+        </span>
+      </div>
+
+      <div className="flex flex-1 flex-col gap-1.5 p-4">
+        <span className="truncate text-[11px] font-medium text-stone-400">{seller.farmName}</span>
+
+        <h3 className="line-clamp-1 text-[15px] font-semibold leading-snug text-stone-900">
           {product.name}
         </h3>
+
         <div className="flex items-center gap-1 text-xs text-stone-500">
-          <StarOutlined className="text-amber-500 !text-xs" />
-          <span className="font-medium text-stone-700">{product.rating.toFixed(1)}</span>
-          <span>({product.ratingCount})</span>
+          <StarFilled className="!text-[11px] text-amber-500" />
+          <span className="font-semibold text-stone-700">{product.rating.toFixed(1)}</span>
+          <span className="text-stone-400">({product.ratingCount})</span>
         </div>
-        <p className="text-sm font-semibold text-stone-900 mt-1">
-          {formatUnitPrice(product.price, product.unit)}
-        </p>
+
+        <div className="mt-auto flex flex-col gap-2.5 pt-3">
+          <p className="text-lg font-bold tracking-tight text-stone-900">
+            {formatUnitPrice(product.price, product.unit)}
+          </p>
+          <Button
+            block
+            size="medium"
+            shape="round"
+            variant="solid"
+            color="primary"
+            icon={<ShoppingCartOutlined />}
+            aria-label={`Add ${product.name} to cart`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onQuickAdd(product.id);
+            }}
+          >
+            Add to cart
+          </Button>
+        </div>
       </div>
     </div>
   );

@@ -38,3 +38,24 @@ export function clearMockUser(): void {
   if (typeof window === 'undefined') return;
   window.localStorage.removeItem(STORAGE_KEY);
 }
+
+const userListeners = new Set<() => void>();
+let userSnapshot: AuthenticatedUser | null = null;
+
+export function getSessionUserSnapshot(): AuthenticatedUser {
+  if (userSnapshot === null) userSnapshot = getMockUser() ?? DEMO_BUYER;
+  return userSnapshot;
+}
+
+export function subscribeSessionUser(listener: () => void): () => void {
+  userListeners.add(listener);
+  return () => {
+    userListeners.delete(listener);
+  };
+}
+
+export function updateSessionUser(user: AuthenticatedUser): void {
+  userSnapshot = user;
+  saveMockUser(user);
+  userListeners.forEach((listener) => listener());
+}

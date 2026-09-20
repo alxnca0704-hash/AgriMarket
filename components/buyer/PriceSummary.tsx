@@ -19,7 +19,7 @@ export function PriceSummary({
   note,
 }: PriceSummaryProps) {
   return (
-    <div className="rounded-2xl bg-white shadow-sm p-4 sm:p-5 space-y-2.5 text-sm">
+    <div className="rounded-2xl bg-white shadow-sm p-4 sm:p-6 space-y-3 text-sm">
       <div className="flex items-center justify-between text-stone-600">
         <span>Subtotal ({itemCount} {itemCount === 1 ? 'item' : 'items'})</span>
         <span className="font-medium text-stone-800">{formatPrice(subtotal)}</span>
@@ -30,11 +30,11 @@ export function PriceSummary({
           {deliveryFee > 0 ? formatPrice(deliveryFee) : 'Free'}
         </span>
       </div>
-      <div className="flex items-center justify-between pt-2.5 border-t border-stone-100">
+      <div className="flex items-center justify-between pt-3 border-t border-stone-100">
         <span className="font-semibold text-stone-900">Total</span>
         <span className="text-lg font-semibold text-stone-900">{formatPrice(total)}</span>
       </div>
-      {note && <p className="text-xs text-stone-400 leading-relaxed">{note}</p>}
+      {note && <p className="text-xs text-stone-400 leading-relaxed pt-0.5">{note}</p>}
     </div>
   );
 }

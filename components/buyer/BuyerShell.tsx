@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Badge } from 'antd';
@@ -15,7 +15,7 @@ import {
 import { APP_ROUTES } from '@/constants/routes';
 import { BrandMark } from '@/components/BrandMark';
 import { useCartContext } from '@/components/buyer/CartProvider';
-import { getSessionUser } from '@/lib/mockSession';
+import { DEMO_BUYER, getSessionUserSnapshot, subscribeSessionUser } from '@/lib/mockSession';
 
 const TABS = [
   { key: 'home', label: 'Home', href: APP_ROUTES.home, icon: <HomeOutlined /> },
@@ -29,7 +29,11 @@ export function BuyerShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { itemCount } = useCartContext();
-  const user = getSessionUser();
+  const user = useSyncExternalStore(
+    subscribeSessionUser,
+    getSessionUserSnapshot,
+    () => DEMO_BUYER
+  );
 
   const TAB_ROOTS = [
     APP_ROUTES.home,

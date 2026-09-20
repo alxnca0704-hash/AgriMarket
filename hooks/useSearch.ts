@@ -1,37 +1,21 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import { App } from 'antd';
 import { MOCK_CATALOG } from '@/lib/mockCatalog';
+import { searchCatalog } from '@/lib/search';
 import {
-  getRecentSearches,
-  saveRecentSearch,
   clearRecentSearches,
+  getEmptyRecentSearchesSnapshot,
+  getRecentSearchesSnapshot,
+  saveRecentSearch,
+  subscribeRecentSearches,
   TRENDING_SEARCHES,
 } from '@/lib/mockSearch';
 import { APP_ROUTES } from '@/constants/routes';
-import { Product, Seller } from '@/types/product';
+import { Seller } from '@/types/product';
 import { useCartContext } from '@/components/buyer/CartProvider';
-
-function searchCatalog(query: string): Product[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return [];
-  return MOCK_CATALOG.products.filter((product) => {
-    const seller = MOCK_CATALOG.sellers.find((s) => s.id === product.sellerId);
-    const haystack = [
-      product.name,
-      product.category,
-      product.origin,
-      product.tags.join(' '),
-      seller?.farmName ?? '',
-      seller?.location ?? '',
-    ]
-      .join(' ')
-      .toLowerCase();
-    return haystack.includes(q);
-  });
-}
 
 export function useSearch() {
   const router = useRouter();
@@ -40,8 +24,10 @@ export function useSearch() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [query, setQuery] = useState('');
-  const [recent, setRecent] = useState<string[]>(() =>
-    typeof window === 'undefined' ? [] : getRecentSearches()
+  const recent = useSyncExternalStore(
+    subscribeRecentSearches,
+    getRecentSearchesSnapshot,
+    getEmptyRecentSearchesSnapshot
   );
 
   const trending = useMemo(() => [...TRENDING_SEARCHES], []);
@@ -67,7 +53,6 @@ export function useSearch() {
     const clean = value.trim();
     if (!clean) return;
     saveRecentSearch(clean);
-    setRecent(getRecentSearches());
     setQuery(clean);
   };
 
@@ -77,7 +62,6 @@ export function useSearch() {
 
   const handleClearRecent = () => {
     clearRecentSearches();
-    setRecent([]);
     message.info('Recent searches cleared');
   };
 

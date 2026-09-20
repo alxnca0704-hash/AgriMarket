@@ -21,16 +21,43 @@ export function getRecentSearches(): string[] {
   }
 }
 
+const recentListeners = new Set<() => void>();
+const EMPTY_RECENT: string[] = [];
+let recentSnapshot: string[] | null = null;
+
+export function getRecentSearchesSnapshot(): string[] {
+  if (recentSnapshot === null) recentSnapshot = getRecentSearches();
+  return recentSnapshot;
+}
+
+export function getEmptyRecentSearchesSnapshot(): string[] {
+  return EMPTY_RECENT;
+}
+
+export function subscribeRecentSearches(listener: () => void): () => void {
+  recentListeners.add(listener);
+  return () => {
+    recentListeners.delete(listener);
+  };
+}
+
+function commitRecentSearches(next: string[]): void {
+  recentSnapshot = next;
+  if (typeof window !== 'undefined') {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  }
+  recentListeners.forEach((listener) => listener());
+}
+
 export function saveRecentSearch(query: string): void {
-  if (typeof window === 'undefined') return;
   const clean = query.trim();
   if (!clean) return;
-  const existing = getRecentSearches().filter((q) => q.toLowerCase() !== clean.toLowerCase());
-  const next = [clean, ...existing].slice(0, 5);
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  const existing = (recentSnapshot ?? getRecentSearches()).filter(
+    (q) => q.toLowerCase() !== clean.toLowerCase()
+  );
+  commitRecentSearches([clean, ...existing].slice(0, 5));
 }
 
 export function clearRecentSearches(): void {
-  if (typeof window === 'undefined') return;
-  window.localStorage.removeItem(STORAGE_KEY);
+  commitRecentSearches([]);
 }

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { APP_ROUTES } from '@/constants/routes';
 import { ROLES } from '@/constants/roles';
 import { AuthenticatedUser } from '@/types/auth';
-import { getMockUser, saveMockUser } from '@/lib/mockSession';
+import { getMockUser, updateSessionUser } from '@/lib/mockSession';
 
 const DEMO_EMAIL = 'demo.user@gmail.com';
 
@@ -70,7 +70,7 @@ export function useSignIn() {
         '142 Rizal St, Brgy. San Lorenzo, Makati City, Metro Manila, NCR 1229',
       createdAt: new Date().toISOString(),
     };
-    saveMockUser(user);
+    updateSessionUser(user);
     router.push(APP_ROUTES.home);
   };
 

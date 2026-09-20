@@ -1,10 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import { App } from 'antd';
 import { MOCK_CATALOG } from '@/lib/mockCatalog';
-import { getSessionUser } from '@/lib/mockSession';
+import { searchCatalog } from '@/lib/search';
+import { saveRecentSearch } from '@/lib/mockSearch';
+import { DEMO_BUYER, getSessionUserSnapshot, subscribeSessionUser } from '@/lib/mockSession';
 import { APP_ROUTES } from '@/constants/routes';
 import { ProductCategory } from '@/constants/categories';
 import { SortOption } from '@/constants/sortOptions';
@@ -22,6 +24,7 @@ export function useHome() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [maxPrice, setMaxPrice] = useState<number | null>(null);
   const [minRating, setMinRating] = useState<number | null>(null);
+  const [query, setQuery] = useState('');
 
   useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 350);
@@ -77,12 +80,42 @@ export function useHome() {
       .slice(0, 4);
   }, [sellerById]);
 
-  const user = getSessionUser();
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const user = useSyncExternalStore(
+    subscribeSessionUser,
+    getSessionUserSnapshot,
+    () => DEMO_BUYER
+  );
+  const [greeting, setGreeting] = useState('Good morning');
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      const hour = new Date().getHours();
+      setGreeting(hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening');
+    });
+    return () => cancelAnimationFrame(id);
+  }, []);
+
   const firstName = user.fullName.trim().split(' ')[0] || user.fullName;
 
   const filterCount = (maxPrice != null ? 1 : 0) + (minRating != null ? 1 : 0);
+
+  const searchResults = useMemo(() => searchCatalog(query), [query]);
+  const isSearching = searchResults.length > 0 || query.trim().length > 0;
+
+  const handleQueryChange = (value: string) => {
+    setQuery(value);
+  };
+
+  const handleSubmitSearch = (value: string) => {
+    const clean = value.trim();
+    if (!clean) return;
+    saveRecentSearch(clean);
+    setQuery(clean);
+  };
+
+  const clearSearch = () => {
+    setQuery('');
+  };
 
   const handleQuickAdd = (productId: string) => {
     const product = MOCK_CATALOG.products.find((p) => p.id === productId);
@@ -121,6 +154,11 @@ export function useHome() {
     handleQuickAdd,
     handleOpenProduct,
     handleApplyFilters,
-    goToSearch: () => router.push(APP_ROUTES.search),
+    query,
+    searchResults,
+    isSearching,
+    handleQueryChange,
+    handleSubmitSearch,
+    clearSearch,
   };
 }

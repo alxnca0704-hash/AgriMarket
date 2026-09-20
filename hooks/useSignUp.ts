@@ -6,7 +6,7 @@ import { APP_ROUTES, API_ROUTES } from '@/constants/routes';
 import { ROLES, UserRole } from '@/constants/roles';
 import { COMPLETE_PH_REGIONS, NamedLocation } from '@/constants/phLocations';
 import { SignUpFormData, AuthenticatedUser } from '@/types/auth';
-import { saveMockUser } from '@/lib/mockSession';
+import { updateSessionUser } from '@/lib/mockSession';
 
 const INITIAL_FORM_DATA: SignUpFormData = {
   profile: {
@@ -399,7 +399,7 @@ export function useSignUp() {
         createdAt: new Date().toISOString(),
       };
 
-      saveMockUser(user);
+      updateSessionUser(user);
 
       await new Promise((resolve) => setTimeout(resolve, 800));
 

@@ -20,7 +20,7 @@ export function ProductGrid({
   if (products.length === 0) return null;
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-x-3 gap-y-5 sm:gap-x-4 sm:gap-y-6 md:grid-cols-3 lg:grid-cols-4">
       {products.map((product) => {
         const seller = sellers.get(product.sellerId);
         if (!seller) return null;
