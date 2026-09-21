@@ -42,9 +42,7 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
     error,
     notFound,
     order,
-    handleShip,
-    handleReceive,
-    handleReview,
+    handleConfirmDelivery,
     handleCancel,
   } = useOrderDetail(orderId);
 
@@ -108,9 +106,7 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
           <OrderActions
             order={order}
             variant="detail"
-            onShip={handleShip}
-            onReceive={handleReceive}
-            onReview={handleReview}
+            onConfirmDelivery={handleConfirmDelivery}
             onCancel={handleCancel}
           />
         </div>

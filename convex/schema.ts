@@ -2,6 +2,11 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import {
   addressValidator,
+  deliveryAddressValidator,
+  orderEventValidator,
+  orderItemValidator,
+  orderStatusValidator,
+  productInputValidator,
   stallLocationValidator,
   stallVerificationValidator,
 } from "./shared";
@@ -41,4 +46,50 @@ export default defineSchema({
     ratingCount: v.number(),
     updatedAt: v.string(),
   }).index("by_ownerId", ["ownerId"]),
+
+  products: defineTable({
+    stallId: v.id("stalls"),
+    ...productInputValidator.fields,
+    soldCount: v.number(),
+    updatedAt: v.string(),
+  }).index("by_stallId", ["stallId"]),
+
+  cartItems: defineTable({
+    userId: v.id("users"),
+    productId: v.id("products"),
+    stallId: v.id("stalls"),
+    qty: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_and_productId", ["userId", "productId"]),
+
+  orders: defineTable({
+    buyerId: v.id("users"),
+    sellerId: v.id("users"),
+    stallId: v.id("stalls"),
+    sellerName: v.string(),
+    sellerLocation: v.string(),
+    deliveryFeePeso: v.number(),
+    items: v.array(orderItemValidator),
+    subtotal: v.number(),
+    deliveryFee: v.number(),
+    total: v.number(),
+    paymentMethod: v.literal("cod"),
+    paymentStatus: v.union(v.literal("unpaid"), v.literal("paid")),
+    address: deliveryAddressValidator,
+    note: v.optional(v.string()),
+    status: orderStatusValidator,
+    events: v.array(orderEventValidator),
+    placedAt: v.string(),
+    confirmedAt: v.optional(v.string()),
+    toReceiveAt: v.optional(v.string()),
+    deliveredAt: v.optional(v.string()),
+    completedAt: v.optional(v.string()),
+    cancelledAt: v.optional(v.string()),
+    cancelReason: v.optional(v.string()),
+    updatedAt: v.string(),
+  })
+    .index("by_buyerId", ["buyerId"])
+    .index("by_sellerId", ["sellerId"])
+    .index("by_stallId", ["stallId"]),
 });

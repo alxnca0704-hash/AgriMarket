@@ -2,8 +2,7 @@ import { SellerListing } from '@/types/seller';
 import { MOCK_CATALOG } from '@/lib/mockCatalog';
 import { DEMO_SELLER_ID, getStallSnapshot } from '@/lib/mockStall';
 import { emitSellerNotification } from '@/lib/mockNotifications';
-
-export const LOW_STOCK_THRESHOLD = 20;
+import { LOW_STOCK_THRESHOLD } from '@/constants/products';
 
 const STORAGE_KEY = 'agrimarket_seller_listings';
 const EMPTY_LISTINGS: SellerListing[] = [];

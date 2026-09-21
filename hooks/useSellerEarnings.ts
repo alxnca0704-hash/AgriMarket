@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { App } from 'antd';
+import { useQuery } from 'convex/react';
+import { api } from '@/convex/_generated/api';
 import { PayoutMethod } from '@/types/seller';
 import {
   EarningsPeriod,
@@ -10,12 +12,7 @@ import {
   subscribePayout,
   savePayoutMethod,
 } from '@/lib/mockEarnings';
-import {
-  getEmptyOrdersSnapshot,
-  getOrdersSnapshot,
-  subscribeOrders,
-} from '@/lib/mockOrders';
-import { DEMO_SELLER_ID } from '@/lib/mockStall';
+import { toOrder } from '@/lib/convexSync';
 
 export const EARNINGS_PERIOD_OPTIONS: Array<{ key: EarningsPeriod; label: string }> = [
   { key: 'daily', label: 'Daily' },
@@ -25,11 +22,7 @@ export const EARNINGS_PERIOD_OPTIONS: Array<{ key: EarningsPeriod; label: string
 
 export function useSellerEarnings() {
   const { message } = App.useApp();
-  const allOrders = useSyncExternalStore(
-    subscribeOrders,
-    getOrdersSnapshot,
-    getEmptyOrdersSnapshot
-  );
+  const rawOrders = useQuery(api.orders.listSellerOrders);
   const payout = useSyncExternalStore(
     subscribePayout,
     getPayoutMethodSnapshot,
@@ -47,7 +40,10 @@ export function useSellerEarnings() {
     return () => clearTimeout(timer);
   }, []);
 
-  const sellerOrders = useMemo(() => allOrders.filter((o) => o.sellerId === DEMO_SELLER_ID), [allOrders]);
+  const sellerOrders = useMemo(
+    () => (Array.isArray(rawOrders) ? rawOrders.map(toOrder) : []),
+    [rawOrders]
+  );
 
   const summary = useMemo(() => getEarningsSummary(period, sellerOrders), [period, sellerOrders]);
 
@@ -89,8 +85,8 @@ export function useSellerEarnings() {
   };
 
   return {
-    isLoading,
-    error: null,
+    isLoading: isLoading || rawOrders === undefined,
+    error: rawOrders instanceof Error ? rawOrders.message : null,
     summary,
     period,
     setPeriod,

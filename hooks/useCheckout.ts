@@ -2,7 +2,11 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { App } from 'antd';
+import { useMutation } from 'convex/react';
+import { api } from '@/convex/_generated/api';
+import { toDeliveryAddress, toOrder } from '@/lib/convexSync';
 import { useCart } from '@/hooks/useCart';
+import { useConvexUserSync } from '@/hooks/useConvexUserSync';
 import { useCartContext } from '@/components/buyer/CartProvider';
 import { DeliveryAddress, AuthenticatedUser } from '@/types/auth';
 import { Order } from '@/types/order';
@@ -12,10 +16,6 @@ import {
   getDeliveryAddresses,
   getDefaultAddressIndex,
 } from '@/lib/mockSession';
-import {
-  createOrdersFromCheckout,
-  OrderDraftGroup,
-} from '@/lib/mockOrders';
 import { fetchProvinces, fetchCities, fetchBarangays } from '@/lib/phAddress';
 import { formatAddressSummary } from '@/lib/format';
 
@@ -72,16 +72,27 @@ export function useCheckout() {
   const cart = useCartContext();
   const { user, groups } = useCart();
   const { message } = App.useApp();
+  const placeOrdersMutation = useMutation(api.orders.placeOrders);
+  const { current, isAuthedWithConvex } = useConvexUserSync();
+  const addAddressMutation = useMutation(api.users.addAddress);
+  const updateAddressMutation = useMutation(api.users.updateAddress);
+  const setDefaultAddressConvex = useMutation(api.users.setDefaultAddress);
 
-  const initialAddresses = useMemo((): DeliveryAddress[] => {
-    const saved = getDeliveryAddresses(user);
-    return saved.length > 0 ? saved : [makeFallbackAddress(user)];
-  }, [user]);
+  const convexAddresses = useMemo(() => current?.addresses ?? [], [current]);
+  const convexDeliveryAddresses = useMemo(
+    () => convexAddresses.map(toDeliveryAddress),
+    [convexAddresses]
+  );
+  const demoAddresses = useMemo(() => getDeliveryAddresses(user), [user]);
+  const demoDefaultIndex = useMemo(() => getDefaultAddressIndex(user), [user]);
+  const convexDefaultIndex = useMemo(
+    () => Math.max(0, convexAddresses.findIndex((a) => a.isDefault)),
+    [convexAddresses]
+  );
 
-  const initialDefaultIndex = useMemo(() => getDefaultAddressIndex(user), [user]);
+  const addresses = isAuthedWithConvex ? convexDeliveryAddresses : demoAddresses;
+  const defaultIndex = isAuthedWithConvex ? convexDefaultIndex : demoDefaultIndex;
 
-  const [addresses, setAddresses] = useState<DeliveryAddress[]>(initialAddresses);
-  const [defaultIndex, setDefaultIndex] = useState(initialDefaultIndex);
   const [isLoading, setIsLoading] = useState(true);
   const [editMode, setEditMode] = useState(
     () => getDeliveryAddresses(user).length === 0
@@ -90,12 +101,30 @@ export function useCheckout() {
   const [detailsConfirmed, setDetailsConfirmed] = useState(
     () => getDeliveryAddresses(user).length > 0
   );
-  const [selectedIndex, setSelectedIndex] = useState(initialDefaultIndex);
+  const [selectedIndex, setSelectedIndex] = useState(() => demoDefaultIndex);
   const [draftAddress, setDraftAddress] = useState<DeliveryAddress>(
-    () => initialAddresses[0]
+    () => demoAddresses[0] ?? makeFallbackAddress(user)
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const [prevSourceIsConvex, setPrevSourceIsConvex] = useState(isAuthedWithConvex);
+
+  if (isAuthedWithConvex && isAuthedWithConvex !== prevSourceIsConvex) {
+    setPrevSourceIsConvex(isAuthedWithConvex);
+    if (convexDeliveryAddresses.length === 0) {
+      setSelectedIndex(0);
+      setDetailsConfirmed(false);
+      setEditMode(true);
+      setDraftAddress(makeFallbackAddress(user));
+    } else {
+      setSelectedIndex(convexDefaultIndex);
+      setDetailsConfirmed(true);
+      setEditMode(false);
+      setDraftAddress(convexDeliveryAddresses[convexDefaultIndex]);
+    }
+    setIsAdding(false);
+    setErrors({});
+  }
 
   const [provincesList, setProvincesList] = useState<NamedLocation[]>([]);
   const [citiesList, setCitiesList] = useState<NamedLocation[]>([]);
@@ -275,8 +304,22 @@ export function useCheckout() {
   const setDefaultAddress = (index: number) => {
     const def = addresses[index];
     if (!def) return;
+
+    if (isAuthedWithConvex) {
+      const doc = convexAddresses[index];
+      if (index !== defaultIndex && doc) {
+        setDefaultAddressConvex({ addressId: doc._id }).catch(() =>
+          message.error('Could not update the default address. Please try again.')
+        );
+      }
+      if (index !== selectedIndex) {
+        setSelectedIndex(index);
+      }
+      setDetailsConfirmed(true);
+      return;
+    }
+
     if (index !== defaultIndex) {
-      setDefaultIndex(index);
       const updatedUser: AuthenticatedUser = {
         ...user,
         deliveryAddresses: addresses,
@@ -327,6 +370,48 @@ export function useCheckout() {
     if (Object.keys(errs).length > 0) return;
 
     const saved = { ...draftAddress };
+    const addressInput = {
+      label: saved.label ?? 'Home',
+      receiverName: saved.receiverName,
+      receiverPhone: saved.receiverPhone,
+      region: saved.region,
+      province: saved.province,
+      cityMunicipality: saved.cityMunicipality,
+      barangay: saved.barangay,
+      streetBuilding: saved.streetBuilding,
+      postalCode: saved.postalCode,
+    };
+
+    if (isAuthedWithConvex) {
+      if (isAdding) {
+        addAddressMutation({
+          address: { ...addressInput, isDefault: convexAddresses.length === 0 },
+        })
+          .then(() => {
+            setSelectedIndex(convexAddresses.length);
+            setEditMode(false);
+            setIsAdding(false);
+            setDetailsConfirmed(true);
+          })
+          .catch(() => message.error('Could not save the address. Please try again.'));
+      } else {
+        const doc = convexAddresses[selectedIndex];
+        if (doc) {
+          updateAddressMutation({
+            addressId: doc._id,
+            address: { ...addressInput, isDefault: doc.isDefault },
+          })
+            .then(() => {
+              setEditMode(false);
+              setIsAdding(false);
+              setDetailsConfirmed(true);
+            })
+            .catch(() => message.error('Could not update the address. Please try again.'));
+        }
+      }
+      return;
+    }
+
     let next: DeliveryAddress[];
     let index: number;
     if (isAdding) {
@@ -337,7 +422,6 @@ export function useCheckout() {
       index = selectedIndex;
     }
 
-    setAddresses(next);
     setSelectedIndex(index);
     setEditMode(false);
     setIsAdding(false);
@@ -367,31 +451,26 @@ export function useCheckout() {
 
   const placeOrder = async () => {
     setIsPlacing(true);
-    await new Promise((resolve) => setTimeout(resolve, 650));
+    try {
+      const trimmedNotes: Record<string, string> = {};
+      Object.entries(notes).forEach(([key, value]) => {
+        if (value.trim()) trimmedNotes[key] = value.trim();
+      });
 
-    const drafts: OrderDraftGroup[] = groups.map((group) => ({
-      seller: group.seller,
-      subtotal: group.subtotal,
-      items: group.lines.map((line) => ({
-        productId: line.productId,
-        sellerId: group.seller.id,
-        name: line.name,
-        price: line.price,
-        unit: line.unit,
-        imageUrl: line.imageUrl,
-        qty: line.qty,
-      })),
-    }));
+      const created = await placeOrdersMutation({
+        address: { ...selectedAddress, label: selectedAddress.label ?? 'Home' },
+        notes: trimmedNotes,
+      });
 
-    const created = createOrdersFromCheckout({
-      groups: drafts,
-      address: selectedAddress,
-      notes,
-    });
-    cart.clearCart();
-    setPlacedOrders(created);
-    setConfirmOpen(false);
-    setIsPlacing(false);
+      const mapped = (Array.isArray(created) ? created : []).map(toOrder);
+      setPlacedOrders(mapped);
+      setConfirmOpen(false);
+      message.success(mapped.length > 1 ? 'Orders placed' : 'Order placed');
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : 'Could not place your order');
+    } finally {
+      setIsPlacing(false);
+    }
   };
 
   const addressKey = (address: DeliveryAddress, index: number): string =>

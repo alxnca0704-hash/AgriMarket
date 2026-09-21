@@ -30,16 +30,9 @@ export function OrdersView() {
     counts,
     visibleOrders,
     setActiveTab,
-    handleShip,
-    handleReceive,
-    handleReview,
     handleCancel,
+    handleConfirmDelivery,
   } = useOrders();
-
-  const handleCancelWithMessage = (orderId: string, reason: string) => {
-    const order = orders.find((o) => o.id === orderId);
-    if (order) handleCancel(order, reason);
-  };
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-5 sm:pt-10 pb-16 space-y-5 sm:space-y-6">
@@ -101,10 +94,8 @@ export function OrdersView() {
                 <OrderCard
                   key={order.id}
                   order={order}
-                  onShip={() => handleShip(order)}
-                  onReceive={() => handleReceive(order)}
-                  onReview={() => handleReview(order)}
-                  onCancel={(reason) => handleCancelWithMessage(order.id, reason)}
+                  onConfirmDelivery={() => handleConfirmDelivery(order)}
+                  onCancel={(reason) => handleCancel(order, reason)}
                 />
               ))}
             </div>

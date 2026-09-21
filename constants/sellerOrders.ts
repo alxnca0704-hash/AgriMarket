@@ -1,12 +1,6 @@
-import { Order } from '@/types/order';
+import { Order, OrderStatus } from '@/types/order';
 
-export type SellerOrderGroupKey =
-  | 'all'
-  | 'new'
-  | 'preparing'
-  | 'ready'
-  | 'completed'
-  | 'cancelled';
+export type SellerOrderGroupKey = 'all' | OrderStatus;
 
 export interface SellerOrderTab {
   key: SellerOrderGroupKey;
@@ -14,44 +8,33 @@ export interface SellerOrderTab {
 }
 
 export const SELLER_ORDER_TABS: SellerOrderTab[] = [
-  { key: 'new', label: 'New' },
-  { key: 'preparing', label: 'To Prepare' },
-  { key: 'ready', label: 'To Ship/Pickup' },
+  { key: 'pending', label: 'New' },
+  { key: 'confirmed', label: 'Confirmed' },
+  { key: 'to-receive', label: 'To receive' },
+  { key: 'delivered', label: 'Delivered' },
   { key: 'completed', label: 'Completed' },
   { key: 'cancelled', label: 'Cancelled' },
 ];
 
 export const SELLER_ORDER_GROUP_LABELS: Record<SellerOrderGroupKey, string> = {
-  all: 'All',
-  new: 'New',
-  preparing: 'To Prepare',
-  ready: 'To Ship/Pickup',
+  all: 'all',
+  pending: 'New',
+  confirmed: 'Confirmed',
+  'to-receive': 'To receive',
+  delivered: 'Delivered',
   completed: 'Completed',
   cancelled: 'Cancelled',
 };
 
-export const SELLER_ORDER_TAG_COLORS: Record<SellerOrderGroupKey, string> = {
-  all: 'default',
-  new: 'processing',
-  preparing: 'warning',
-  ready: 'geekblue',
+export const SELLER_ORDER_TAG_COLORS: Record<OrderStatus, string> = {
+  pending: 'gold',
+  confirmed: 'processing',
+  'to-receive': 'geekblue',
+  delivered: 'cyan',
   completed: 'success',
   cancelled: 'default',
 };
 
-export function getSellerOrderGroup(order: Order): Exclude<SellerOrderGroupKey, 'all'> {
-  if (order.status === 'completed') return 'completed';
-  if (order.status === 'cancelled') return 'cancelled';
-  if (order.status !== 'to-ship') return 'ready';
-  if (!order.acceptedAt) return 'new';
-  if (!order.readyAt) return 'preparing';
-  return 'ready';
-}
-
-export function sellerActionLabel(order: Order): string | null {
-  if (order.status !== 'to-ship') return null;
-  if (!order.acceptedAt) return 'Accept order';
-  if (!order.readyAt) return 'Mark as ready';
-  if (!order.shippedAt) return 'Mark as shipped';
-  return null;
+export function getSellerOrderGroup(order: Order): OrderStatus {
+  return order.status;
 }

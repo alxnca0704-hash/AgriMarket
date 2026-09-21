@@ -3,31 +3,18 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { App, Upload, UploadFile } from 'antd';
+import { useMutation, useQuery } from 'convex/react';
+import { api } from '@/convex/_generated/api';
+import { Id } from '@/convex/_generated/dataModel';
 import { ProductCategory } from '@/constants/categories';
 import { ProductUnit } from '@/constants/productUnits';
+import { MAX_PRODUCT_IMAGE_BYTES, MAX_PRODUCT_PHOTOS } from '@/constants/products';
+import { APP_ROUTES, API_ROUTES } from '@/constants/routes';
 import { SellerListing } from '@/types/seller';
-import { APP_ROUTES } from '@/constants/routes';
-import {
-  getListingsSnapshot,
-  createListing,
-  updateListing,
-} from '@/lib/mockListings';
+import { useCloudinaryImageUpload } from '@/hooks/useCloudinaryImageUpload';
+import { toSellerListing } from '@/lib/convexSync';
 
-export const PRODUCT_IMAGE_PLACEHOLDER = '/products/vegetables.svg';
-export const MAX_PRODUCT_PHOTOS = 6;
-
-function toUploadFile(url: string, index: number): UploadFile {
-  return {
-    uid: `img-${url.startsWith('data:') ? index : url}`.slice(0, 40),
-    name: url.startsWith('data:') ? `Photo ${index + 1}` : (url.split('/').pop() ?? `Photo ${index + 1}`),
-    url,
-    status: 'done',
-  };
-}
-
-function toUploadFiles(urls: string[]): UploadFile[] {
-  return urls.map(toUploadFile);
-}
+export { MAX_PRODUCT_PHOTOS };
 
 export interface ProductFormDraft {
   name: string;
@@ -57,7 +44,7 @@ export function makeEmptyProductDraft(): ProductFormDraft {
   };
 }
 
-function toDraft(listing: SellerListing): ProductFormDraft {
+export function toProductFormDraft(listing: SellerListing): ProductFormDraft {
   return {
     name: listing.name,
     category: listing.category,
@@ -67,14 +54,22 @@ function toDraft(listing: SellerListing): ProductFormDraft {
     harvestDate: listing.harvestDate,
     expiryDate: listing.expiryDate ?? '',
     description: listing.description,
-    imageUrls:
-      listing.imageUrls.length > 0
-        ? listing.imageUrls
-        : listing.imageUrl
-          ? [listing.imageUrl]
-          : [],
+    imageUrls: listing.imageUrls.length > 0 ? listing.imageUrls : [listing.imageUrl],
     isActive: listing.isActive,
   };
+}
+
+function toUploadFile(url: string, index: number): UploadFile {
+  return {
+    uid: `img-${url.startsWith('data:') ? index : url}`.slice(0, 40),
+    name: url.split('/').pop() ?? `Photo ${index + 1}`,
+    url,
+    status: 'done',
+  };
+}
+
+function toUploadFiles(urls: string[]): UploadFile[] {
+  return urls.map(toUploadFile);
 }
 
 function validateProduct(draft: ProductFormDraft): Record<string, string> {
@@ -97,37 +92,51 @@ function validateProduct(draft: ProductFormDraft): Record<string, string> {
   return errs;
 }
 
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+}
+
 export function useSellerProductForm(listingId?: string) {
   const router = useRouter();
   const { message } = App.useApp();
 
-  const [isLoading, setIsLoading] = useState(Boolean(listingId));
+  const mustLoad = Boolean(listingId);
+  const product = useQuery(
+    api.products.getMyProduct,
+    mustLoad ? { productId: listingId as Id<'products'> } : 'skip'
+  );
+  const createProduct = useMutation(api.products.createProduct);
+  const updateProduct = useMutation(api.products.updateProduct);
+  const {
+    isUploading,
+    error: uploadError,
+    upload,
+  } = useCloudinaryImageUpload(API_ROUTES.productImageUpload);
+
   const [isSaving, setIsSaving] = useState(false);
-  const [notFound, setNotFound] = useState(false);
   const [draft, setDraft] = useState<ProductFormDraft>(makeEmptyProductDraft);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [fileList, setFileList] = useState<UploadFile[]>([]);
 
+  const editing = mustLoad;
+  const isLoading = mustLoad && product === undefined;
+  const notFound = mustLoad && product === null;
+  const error = product instanceof Error ? product.message : null;
+
+  const existing: SellerListing | null =
+    product && !(product instanceof Error) ? toSellerListing(product) : null;
+  const existingId = existing?.id ?? null;
+
   useEffect(() => {
-    if (!listingId) return;
-    const timer = setTimeout(() => {
-      const listing = getListingsSnapshot().find((l) => l.id === listingId);
-      if (listing) {
-        setDraft(toDraft(listing));
-        const urls =
-          listing.imageUrls.length > 0
-            ? listing.imageUrls
-            : listing.imageUrl
-              ? [listing.imageUrl]
-              : [];
-        setFileList(toUploadFiles(urls));
-      } else {
-        setNotFound(true);
-      }
-      setIsLoading(false);
-    }, 200);
-    return () => clearTimeout(timer);
-  }, [listingId]);
+    if (!existing) return;
+    const loaded = existing;
+    const task = setTimeout(() => {
+      setDraft(toProductFormDraft(loaded));
+      setFileList(toUploadFiles(loaded.imageUrls));
+    }, 0);
+    return () => clearTimeout(task);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [existingId]);
 
   const updateField = <K extends keyof ProductFormDraft>(
     field: K,
@@ -143,29 +152,12 @@ export function useSellerProductForm(listingId?: string) {
     }
   };
 
-  const handleUploadChange = ({ fileList: next }: { fileList: UploadFile[] }) => {
-    setFileList(next);
-    const urls = next
-      .map((f) => f.url)
-      .filter((u): u is string => Boolean(u));
-    setDraft((prev) => ({ ...prev, imageUrls: urls }));
-    if (urls.length > 0) {
-      setErrors((prev) => {
-        const copy = { ...prev };
-        delete copy.imageUrls;
-        return copy;
-      });
-    }
-  };
-
-  const addUploadedImage = (url: string) => {
-    setFileList((prev) => [...prev, toUploadFile(url, prev.length)]);
-    setDraft((prev) => ({ ...prev, imageUrls: [...prev.imageUrls, url] }));
-    setErrors((prev) => {
-      const copy = { ...prev };
-      delete copy.imageUrls;
-      return copy;
-    });
+  const removeUploadedImage = (url: string) => {
+    setFileList((prev) => prev.filter((f) => f.url !== url));
+    setDraft((prev) => ({
+      ...prev,
+      imageUrls: prev.imageUrls.filter((u) => u !== url),
+    }));
   };
 
   const handleAddUploadedFile = (file: File) => {
@@ -173,24 +165,38 @@ export function useSellerProductForm(listingId?: string) {
       message.error('Only image files are allowed');
       return Upload.LIST_IGNORE;
     }
-    if (file.size > 2 * 1024 * 1024) {
-      message.error('Photo must be under 2MB');
+    if (file.size > MAX_PRODUCT_IMAGE_BYTES) {
+      message.error('Photo must be 5 MB or smaller');
       return Upload.LIST_IGNORE;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      addUploadedImage(reader.result as string);
-    };
-    reader.readAsDataURL(file);
-    return Upload.LIST_IGNORE;
-  };
+    if (fileList.length >= MAX_PRODUCT_PHOTOS) {
+      message.error(`You can add up to ${MAX_PRODUCT_PHOTOS} photos`);
+      return Upload.LIST_IGNORE;
+    }
 
-  const removeUploadedImage = (url: string) => {
-    setFileList((prev) => prev.filter((f) => f.url !== url));
-    setDraft((prev) => ({
-      ...prev,
-      imageUrls: prev.imageUrls.filter((u) => u !== url),
-    }));
+    const uid = `upload-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const tempFile: UploadFile = { uid, name: file.name, status: 'uploading' };
+    setFileList((prev) => [...prev, tempFile]);
+
+    void (async () => {
+      try {
+        const url = await upload(file);
+        setFileList((prev) =>
+          prev.map((f) => (f.uid === uid ? { ...f, status: 'done', url } : f))
+        );
+        setDraft((prev) => ({ ...prev, imageUrls: [...prev.imageUrls, url] }));
+        setErrors((prev) => {
+          const next = { ...prev };
+          delete next.imageUrls;
+          return next;
+        });
+      } catch (err) {
+        setFileList((prev) => prev.filter((f) => f.uid !== uid));
+        message.error(errorMessage(err));
+      }
+    })();
+
+    return Upload.LIST_IGNORE;
   };
 
   const save = async () => {
@@ -200,29 +206,33 @@ export function useSellerProductForm(listingId?: string) {
 
     setIsSaving(true);
     try {
-      const imageUrls =
-        draft.imageUrls.length > 0 ? draft.imageUrls : [PRODUCT_IMAGE_PLACEHOLDER];
-      const data = {
+      const imageUrls = draft.imageUrls;
+      const input = {
         name: draft.name.trim(),
         category: draft.category,
         price: parseFloat(draft.price),
         unit: draft.unit,
         stockQty: parseInt(draft.stockQty, 10),
         harvestDate: draft.harvestDate,
-        expiryDate: draft.expiryDate || undefined,
+        ...(draft.expiryDate ? { expiryDate: draft.expiryDate } : {}),
         description: draft.description.trim(),
         imageUrl: imageUrls[0],
         imageUrls,
         isActive: draft.isActive,
       };
-      if (listingId) {
-        updateListing(listingId, data);
-        message.success('Listing updated');
+      if (existing) {
+        await updateProduct({
+          productId: existing.id as Id<'products'>,
+          patch: input,
+        });
+        message.success('Product updated');
       } else {
-        createListing(data);
-        message.success('Listing added');
+        await createProduct(input);
+        message.success('Product added to your stall');
       }
       router.push(APP_ROUTES.sellerProducts);
+    } catch (err) {
+      message.error(errorMessage(err));
     } finally {
       setIsSaving(false);
     }
@@ -230,15 +240,15 @@ export function useSellerProductForm(listingId?: string) {
 
   return {
     isLoading,
-    error: null,
+    error: error ?? uploadError,
     notFound,
     isSaving,
-    editing: Boolean(listingId),
+    isUploading,
+    editing,
     draft,
     errors,
     fileList,
     updateField,
-    handleUploadChange,
     handleAddUploadedFile,
     removeUploadedImage,
     save,

@@ -1,40 +1,38 @@
 'use client';
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useMemo, useState } from 'react';
+import { App } from 'antd';
+import { useMutation, useQuery } from 'convex/react';
+import { api } from '@/convex/_generated/api';
+import { Id } from '@/convex/_generated/dataModel';
 import { Order, OrderStatus } from '@/types/order';
-import {
-  getEmptyOrdersSnapshot,
-  getOrdersSnapshot,
-  subscribeOrders,
-  shipOrder,
-  receiveOrder,
-  reviewOrder,
-  cancelOrder,
-} from '@/lib/mockOrders';
+import { toOrder } from '@/lib/convexSync';
 
 export type OrderTabKey = 'all' | OrderStatus;
 
 export function useOrders() {
-  const orders = useSyncExternalStore(
-    subscribeOrders,
-    getOrdersSnapshot,
-    getEmptyOrdersSnapshot
-  );
+  const { message } = App.useApp();
+  const raw = useQuery(api.orders.listMyOrders);
+  const cancelMutation = useMutation(api.orders.cancelOrder);
+  const confirmDeliveryMutation = useMutation(api.orders.confirmDelivery);
 
-  const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<OrderTabKey>('all');
 
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 300);
-    return () => clearTimeout(timer);
-  }, []);
+  const orders = useMemo(
+    () => (Array.isArray(raw) ? raw.map(toOrder) : []),
+    [raw]
+  );
+
+  const isLoading = raw === undefined;
+  const error = raw instanceof Error ? raw.message : null;
 
   const counts = useMemo(() => {
     const result: Record<OrderTabKey, number> = {
       all: orders.length,
-      'to-ship': 0,
+      pending: 0,
+      confirmed: 0,
       'to-receive': 0,
-      'to-review': 0,
+      delivered: 0,
       completed: 0,
       cancelled: 0,
     };
@@ -49,23 +47,33 @@ export function useOrders() {
     return orders.filter((order) => order.status === activeTab);
   }, [orders, activeTab]);
 
-  const handleShip = (order: Order) => shipOrder(order.id);
-  const handleReceive = (order: Order) => receiveOrder(order.id);
-  const handleReview = (order: Order) => reviewOrder(order.id);
-  const handleCancel = (order: Order, reason: string) =>
-    cancelOrder(order.id, reason);
+  const handleCancel = async (order: Order, reason: string) => {
+    try {
+      await cancelMutation({ orderId: order.id as Id<'orders'>, reason });
+      message.success('Order cancelled');
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : 'Could not cancel the order');
+    }
+  };
+
+  const handleConfirmDelivery = async (order: Order) => {
+    try {
+      await confirmDeliveryMutation({ orderId: order.id as Id<'orders'> });
+      message.success('Receipt confirmed');
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : 'Could not confirm receipt');
+    }
+  };
 
   return {
     isLoading,
-    error: null,
+    error,
     orders,
     activeTab,
     counts,
     visibleOrders,
     setActiveTab,
-    handleShip,
-    handleReceive,
-    handleReview,
     handleCancel,
+    handleConfirmDelivery,
   };
 }

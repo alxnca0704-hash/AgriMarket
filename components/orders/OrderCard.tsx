@@ -12,13 +12,11 @@ import { formatOrderTime, formatPrice } from '@/lib/format';
 
 interface OrderCardProps {
   order: Order;
-  onShip: () => void;
-  onReceive: () => void;
-  onReview: () => void;
+  onConfirmDelivery: () => void;
   onCancel: (reason: string) => void;
 }
 
-export function OrderCard({ order, onShip, onReceive, onReview, onCancel }: OrderCardProps) {
+export function OrderCard({ order, onConfirmDelivery, onCancel }: OrderCardProps) {
   const router = useRouter();
   const preview = order.items.slice(0, 3);
   const moreCount = order.items.length - preview.length;
@@ -79,16 +77,12 @@ export function OrderCard({ order, onShip, onReceive, onReview, onCancel }: Orde
         >
           View details
         </Button>
-        {order.status === 'to-ship' ||
-        order.status === 'to-receive' ||
-        order.status === 'to-review' ? (
+        {order.status === 'pending' || order.status === 'to-receive' ? (
           <div className="w-full sm:w-auto">
             <OrderActions
               order={order}
               variant="card"
-              onShip={onShip}
-              onReceive={onReceive}
-              onReview={onReview}
+              onConfirmDelivery={onConfirmDelivery}
               onCancel={onCancel}
             />
           </div>

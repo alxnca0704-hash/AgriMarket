@@ -25,12 +25,12 @@ export function ProductFormView({ listingId }: { listingId?: string }) {
     error,
     notFound,
     isSaving,
+    isUploading,
     editing,
     draft,
     errors,
     fileList,
     updateField,
-    handleUploadChange,
     handleAddUploadedFile,
     removeUploadedImage,
     save,
@@ -120,7 +120,6 @@ export function ProductFormView({ listingId }: { listingId?: string }) {
               multiple
               maxCount={MAX_PRODUCT_PHOTOS}
               fileList={fileList}
-              onChange={handleUploadChange}
               beforeUpload={(file) => handleAddUploadedFile(file)}
               onRemove={(file) => {
                 removeUploadedImage(file.url ?? '');
@@ -136,8 +135,12 @@ export function ProductFormView({ listingId }: { listingId?: string }) {
             </Upload>
             <FieldError message={errors.imageUrls} />
             <p className="text-xs text-stone-400 mt-2">
-              Up to {MAX_PRODUCT_PHOTOS} photos — the first one is the cover buyers see. JPG/PNG under 2MB.
+              Up to {MAX_PRODUCT_PHOTOS} photos — the first one is the cover buyers see. JPG/PNG up
+              to 5 MB. Photos upload securely to the cloud as you pick them.
             </p>
+            {isUploading && (
+              <p className="text-xs font-medium text-[#2D6A4F] mt-1.5">Uploading photos…</p>
+            )}
           </div>
 
           <div>

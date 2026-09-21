@@ -32,6 +32,32 @@ export const stallVerificationValidator = v.object({
   idNumber: v.string(),
 });
 
+export const productCategoryValidator = v.union(
+  v.literal("fruits"),
+  v.literal("vegetables"),
+  v.literal("grains")
+);
+
+export const productUnitValidator = v.union(
+  v.literal("kg"),
+  v.literal("bundle"),
+  v.literal("piece")
+);
+
+export const productInputValidator = v.object({
+  name: v.string(),
+  category: productCategoryValidator,
+  price: v.number(),
+  unit: productUnitValidator,
+  stockQty: v.number(),
+  harvestDate: v.string(),
+  expiryDate: v.optional(v.string()),
+  description: v.string(),
+  imageUrl: v.string(),
+  imageUrls: v.array(v.string()),
+  isActive: v.boolean(),
+});
+
 export const stallInputValidator = v.object({
   stallName: v.string(),
   description: v.string(),
@@ -42,4 +68,38 @@ export const stallInputValidator = v.object({
   pickupAvailable: v.boolean(),
   idType: v.string(),
   idNumber: v.string(),
+});
+
+export const deliveryAddressValidator = addressValidator.omit("isDefault");
+
+export const orderStatusValidator = v.union(
+  v.literal("pending"),
+  v.literal("confirmed"),
+  v.literal("to-receive"),
+  v.literal("delivered"),
+  v.literal("completed"),
+  v.literal("cancelled")
+);
+
+export const orderItemValidator = v.object({
+  productId: v.id("products"),
+  name: v.string(),
+  price: v.number(),
+  unit: v.string(),
+  imageUrl: v.string(),
+  qty: v.number(),
+});
+
+export const orderEventValidator = v.object({
+  status: v.union(
+    v.literal("placed"),
+    v.literal("pending"),
+    v.literal("confirmed"),
+    v.literal("to-receive"),
+    v.literal("delivered"),
+    v.literal("completed"),
+    v.literal("cancelled")
+  ),
+  label: v.string(),
+  at: v.string(),
 });

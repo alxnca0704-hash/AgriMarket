@@ -47,7 +47,7 @@ export function savePayoutMethod(payout: PayoutMethod): void {
 }
 
 function isSaleOrder(order: Order): boolean {
-  return order.status === 'to-receive' || order.status === 'to-review' || order.status === 'completed';
+  return order.status !== 'pending' && order.status !== 'cancelled';
 }
 
 function getWeekLabel(date: Date): string {
@@ -124,10 +124,10 @@ export function getEarningsSummary(period: EarningsPeriod, orders: Order[]): Ear
     .sort((a, b) => (a.label > b.label ? 1 : -1));
 
   const availableBalance = orders
-    .filter((o) => o.status === 'to-review' || o.status === 'completed')
+    .filter((o) => o.status === 'delivered' || o.status === 'completed')
     .reduce((sum, o) => sum + o.total, 0);
   const inTransit = orders
-    .filter((o) => o.status === 'to-receive')
+    .filter((o) => o.status === 'confirmed' || o.status === 'to-receive')
     .reduce((sum, o) => sum + o.total, 0);
 
   return {

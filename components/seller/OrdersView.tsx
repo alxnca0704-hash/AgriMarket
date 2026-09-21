@@ -27,10 +27,10 @@ export function SellerOrdersView() {
     counts,
     sortedOrders,
     setActiveTab,
-    handleAccept,
-    handleMarkReady,
-    handleMarkShipped,
-    handleCancel,
+    handleConfirm,
+    handleReject,
+    handleDispatch,
+    handleComplete,
   } = useSellerOrders();
 
   return (
@@ -123,10 +123,10 @@ export function SellerOrdersView() {
                 <SellerOrderCard
                   key={order.id}
                   order={order}
-                  onAccept={() => handleAccept(order)}
-                  onMarkReady={() => handleMarkReady(order)}
-                  onMarkShipped={() => handleMarkShipped(order)}
-                  onCancel={(reason) => handleCancel(order, reason)}
+                  onConfirm={() => handleConfirm(order)}
+                  onReject={(reason) => handleReject(order, reason)}
+                  onDispatch={() => handleDispatch(order)}
+                  onComplete={() => handleComplete(order)}
                 />
               ))}
             </div>

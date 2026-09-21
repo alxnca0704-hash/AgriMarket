@@ -1,70 +1,47 @@
 'use client';
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useMemo, useState } from 'react';
 import { App } from 'antd';
+import { useMutation, useQuery } from 'convex/react';
+import { api } from '@/convex/_generated/api';
+import { Id } from '@/convex/_generated/dataModel';
 import { ProductCategory } from '@/constants/categories';
 import { SellerListing } from '@/types/seller';
-import {
-  getListingsSnapshot,
-  getEmptyListingsSnapshot,
-  subscribeListings,
-  toggleListingActive,
-  setListingsOutOfStock,
-  deleteListings,
-  LOW_STOCK_THRESHOLD,
-} from '@/lib/mockListings';
-import { getStallSnapshot, subscribeStall } from '@/lib/mockStall';
+import { toSellerListing, toStallProfile } from '@/lib/convexSync';
+import { useConvexUserSync } from '@/hooks/useConvexUserSync';
 
-export type ListingStatusFilter = 'all' | 'active' | 'inactive' | 'low';
-
-export function getListingStockStatus(listing: SellerListing): 'active' | 'inactive' | 'low' {
-  if (!listing.isActive) return 'inactive';
-  if (listing.stockQty > 0 && listing.stockQty <= LOW_STOCK_THRESHOLD) return 'low';
-  return 'active';
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : 'Something went wrong. Please try again.';
 }
 
 export function useSellerProducts() {
   const { message, modal } = App.useApp();
-  const listings = useSyncExternalStore(
-    subscribeListings,
-    getListingsSnapshot,
-    getEmptyListingsSnapshot
-  );
-  const stall = useSyncExternalStore(
-    subscribeStall,
-    getStallSnapshot,
-    getStallSnapshot
-  );
+  const { current, isReady } = useConvexUserSync();
+  const rawProducts = useQuery(api.products.listMyProducts);
+  const setProductsOutOfStock = useMutation(api.products.setProductsOutOfStock);
+  const deleteProducts = useMutation(api.products.deleteProducts);
 
-  const [isLoading, setIsLoading] = useState(true);
+  const listings = useMemo(
+    () => (Array.isArray(rawProducts) ? rawProducts.map(toSellerListing) : []),
+    [rawProducts]
+  );
+  const stall = current?.stall ? toStallProfile(current.stall) : null;
+  const error = rawProducts instanceof Error ? rawProducts.message : null;
+
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<'all' | ProductCategory>('all');
-  const [status, setStatus] = useState<ListingStatusFilter>('all');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 300);
-    return () => clearTimeout(timer);
-  }, []);
+  const isLoading = !isReady || rawProducts === undefined;
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return listings.filter((l) => {
       if (category !== 'all' && l.category !== category) return false;
-      if (status !== 'all' && getListingStockStatus(l) !== status) return false;
       if (q && !l.name.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [listings, query, category, status]);
-
-  const counts = useMemo(() => {
-    const result = { all: listings.length, active: 0, inactive: 0, low: 0 };
-    listings.forEach((l) => {
-      const s = getListingStockStatus(l);
-      result[s] += 1;
-    });
-    return result;
-  }, [listings]);
+  }, [listings, query, category]);
 
   const allVisibleSelected =
     filtered.length > 0 && filtered.every((l) => selectedIds.has(l.id));
@@ -92,16 +69,17 @@ export function useSellerProducts() {
 
   const clearSelection = () => setSelectedIds(new Set());
 
-  const handleToggle = (id: string) => {
-    toggleListingActive(id);
-    message.success('Listing status updated');
-  };
-
-  const handleBulkMarkOutOfStock = () => {
+  const handleBulkMarkOutOfStock = async () => {
     if (selectedIds.size === 0) return;
-    setListingsOutOfStock(Array.from(selectedIds));
-    message.success(`${selectedIds.size} item(s) marked out of stock`);
-    clearSelection();
+    try {
+      await setProductsOutOfStock({
+        productIds: Array.from(selectedIds) as Id<'products'>[],
+      });
+      message.success(`${selectedIds.size} item(s) marked out of stock`);
+      clearSelection();
+    } catch (err) {
+      message.error(errorMessage(err));
+    }
   };
 
   const handleBulkDelete = () => {
@@ -112,10 +90,16 @@ export function useSellerProducts() {
       okText: 'Delete',
       okType: 'danger',
       cancelText: 'Keep them',
-      onOk: () => {
-        deleteListings(Array.from(selectedIds));
-        message.success('Listings deleted');
-        clearSelection();
+      onOk: async () => {
+        try {
+          await deleteProducts({
+            productIds: Array.from(selectedIds) as Id<'products'>[],
+          });
+          message.success('Listings deleted');
+          clearSelection();
+        } catch (err) {
+          message.error(errorMessage(err));
+        }
       },
     });
   };
@@ -127,32 +111,32 @@ export function useSellerProducts() {
       okText: 'Delete',
       okType: 'danger',
       cancelText: 'Keep it',
-      onOk: () => {
-        deleteListings([listing.id]);
-        message.success('Listing deleted');
+      onOk: async () => {
+        try {
+          await deleteProducts({ productIds: [listing.id as Id<'products'>] });
+          message.success('Listing deleted');
+        } catch (err) {
+          message.error(errorMessage(err));
+        }
       },
     });
   };
 
   return {
     isLoading,
-    error: null,
+    error,
     listings,
     stall,
     filtered,
-    counts,
     query,
     setQuery,
     category,
     setCategory,
-    status,
-    setStatus,
     selectedIds,
     allVisibleSelected,
     toggleSelection,
     toggleSelectVisible,
     clearSelection,
-    handleToggle,
     handleBulkMarkOutOfStock,
     handleBulkDelete,
     handleDeleteOne,

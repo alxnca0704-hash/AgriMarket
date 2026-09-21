@@ -1,115 +1,96 @@
 'use client';
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useMemo, useState } from 'react';
 import { App } from 'antd';
+import { useMutation, useQuery } from 'convex/react';
+import { api } from '@/convex/_generated/api';
+import { Id } from '@/convex/_generated/dataModel';
 import { Order } from '@/types/order';
 import { SellerOrderGroupKey } from '@/constants/sellerOrders';
-import {
-  getEmptyOrdersSnapshot,
-  getOrdersSnapshot,
-  subscribeOrders,
-  acceptOrder,
-  markOrderReady,
-  shipOrder,
-  cancelOrder,
-} from '@/lib/mockOrders';
-import { DEMO_SELLER_ID } from '@/lib/mockStall';
+import { toOrder } from '@/lib/convexSync';
 
 export function useSellerOrders() {
   const { message } = App.useApp();
-  const allOrders = useSyncExternalStore(
-    subscribeOrders,
-    getOrdersSnapshot,
-    getEmptyOrdersSnapshot
-  );
+  const raw = useQuery(api.orders.listSellerOrders);
+  const confirmMutation = useMutation(api.orders.confirmOrder);
+  const rejectMutation = useMutation(api.orders.rejectOrder);
+  const dispatchMutation = useMutation(api.orders.dispatchOrder);
+  const completeMutation = useMutation(api.orders.completeOrder);
 
-  const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<SellerOrderGroupKey>('all');
 
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 300);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const orders: Order[] = useMemo(
-    () => allOrders.filter((o) => o.sellerId === DEMO_SELLER_ID),
-    [allOrders]
+  const orders = useMemo(
+    () => (Array.isArray(raw) ? raw.map(toOrder) : []),
+    [raw]
   );
+
+  const isLoading = raw === undefined;
+  const error = raw instanceof Error ? raw.message : null;
 
   const counts = useMemo(() => {
     const result: Record<SellerOrderGroupKey, number> = {
       all: orders.length,
-      new: 0,
-      preparing: 0,
-      ready: 0,
+      pending: 0,
+      confirmed: 0,
+      'to-receive': 0,
+      delivered: 0,
       completed: 0,
       cancelled: 0,
     };
     orders.forEach((order) => {
-      if (order.status === 'to-ship' && !order.acceptedAt) result.new += 1;
-      else if (order.status === 'to-ship' && order.acceptedAt && !order.readyAt) result.preparing += 1;
-      else if (order.status === 'completed') result.completed += 1;
-      else if (order.status === 'cancelled') result.cancelled += 1;
-      else result.ready += 1;
+      result[order.status] += 1;
     });
     return result;
   }, [orders]);
 
-  const visibleOrders = useMemo(() => {
-    if (activeTab === 'all') return orders;
-    return orders.filter((o) => {
-      if (activeTab === 'new') return o.status === 'to-ship' && !o.acceptedAt;
-      if (activeTab === 'preparing') return o.status === 'to-ship' && !!o.acceptedAt && !o.readyAt;
-      if (activeTab === 'ready') {
-        return (
-          o.status === 'to-ship' ||
-          o.status === 'to-receive' ||
-          o.status === 'to-review'
-        );
-      }
-      return o.status === activeTab;
-    });
+  const sortedOrders = useMemo(() => {
+    const visible =
+      activeTab === 'all'
+        ? orders
+        : orders.filter((order) => order.status === activeTab);
+    return [...visible].sort(
+      (a, b) => new Date(b.placedAt).getTime() - new Date(a.placedAt).getTime()
+    );
   }, [orders, activeTab]);
 
-  const sortedOrders = useMemo(
-    () =>
-      [...visibleOrders].sort(
-        (a, b) => new Date(b.placedAt).getTime() - new Date(a.placedAt).getTime()
-      ),
-    [visibleOrders]
-  );
-
-  const handleAccept = (order: Order) => {
-    acceptOrder(order.id);
-    message.success('Order accepted');
+  const run = async (action: () => Promise<unknown>, success: string) => {
+    try {
+      await action();
+      message.success(success);
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : 'Something went wrong');
+    }
   };
 
-  const handleMarkReady = (order: Order) => {
-    markOrderReady(order.id);
-    message.success('Marked as ready for dispatch');
-  };
+  const handleConfirm = (order: Order) =>
+    run(() => confirmMutation({ orderId: order.id as Id<'orders'> }), 'Order confirmed');
 
-  const handleMarkShipped = (order: Order) => {
-    shipOrder(order.id);
-    message.success('Order marked as shipped');
-  };
+  const handleReject = (order: Order, reason: string) =>
+    run(
+      () => rejectMutation({ orderId: order.id as Id<'orders'>, reason }),
+      'Order rejected'
+    );
 
-  const handleCancel = (order: Order, reason: string) => {
-    cancelOrder(order.id, reason);
-    message.success('Order cancelled');
-  };
+  const handleDispatch = (order: Order) =>
+    run(
+      () => dispatchMutation({ orderId: order.id as Id<'orders'> }),
+      'Order marked as to receive'
+    );
+
+  const handleComplete = (order: Order) =>
+    run(() => completeMutation({ orderId: order.id as Id<'orders'> }), 'Order completed');
 
   return {
     isLoading,
-    error: null,
+    error,
     orders,
     activeTab,
     counts,
     sortedOrders,
     setActiveTab,
-    handleAccept,
-    handleMarkReady,
-    handleMarkShipped,
-    handleCancel,
+    handleConfirm,
+    handleReject,
+    handleDispatch,
+    handleComplete,
   };
 }

@@ -24,11 +24,30 @@ function PublicStallSkeleton() {
 }
 
 export function PublicStallView({ stallId }: { stallId: string }) {
-  void stallId;
   const router = useRouter();
-  const { isLoading, stall, activeListings, reviews, activeView } = usePublicStall();
+  const { isLoading, notFound, stall, activeListings, reviews, activeView } =
+    usePublicStall(stallId);
 
   if (isLoading) return <PublicStallSkeleton />;
+
+  if (notFound) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-8 pb-16">
+        <Empty
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description={<span className="text-stone-500">This farm could not be found.</span>}
+        >
+          <Button
+            type="primary"
+            onClick={() => router.push(APP_ROUTES.home)}
+            className="!rounded-xl"
+          >
+            Back to store
+          </Button>
+        </Empty>
+      </div>
+    );
+  }
 
   const averageRating =
     reviews.length > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : stall.rating;

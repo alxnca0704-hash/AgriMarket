@@ -12,18 +12,18 @@ import { formatOrderTime, formatPrice } from '@/lib/format';
 
 interface SellerOrderCardProps {
   order: Order;
-  onAccept: () => void;
-  onMarkReady: () => void;
-  onMarkShipped: () => void;
-  onCancel: (reason: string) => void;
+  onConfirm: () => void;
+  onReject: (reason: string) => void;
+  onDispatch: () => void;
+  onComplete: () => void;
 }
 
 export function SellerOrderCard({
   order,
-  onAccept,
-  onMarkReady,
-  onMarkShipped,
-  onCancel,
+  onConfirm,
+  onReject,
+  onDispatch,
+  onComplete,
 }: SellerOrderCardProps) {
   const router = useRouter();
   const preview = order.items.slice(0, 3);
@@ -90,10 +90,10 @@ export function SellerOrderCard({
           <SellerOrderActions
             order={order}
             variant="card"
-            onAccept={onAccept}
-            onMarkReady={onMarkReady}
-            onMarkShipped={onMarkShipped}
-            onCancel={onCancel}
+            onConfirm={onConfirm}
+            onReject={onReject}
+            onDispatch={onDispatch}
+            onComplete={onComplete}
           />
         </div>
       </div>

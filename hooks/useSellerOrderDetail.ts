@@ -1,72 +1,76 @@
 'use client';
 
-import { useEffect, useState, useSyncExternalStore } from 'react';
 import { App } from 'antd';
+import { useMutation, useQuery } from 'convex/react';
+import { api } from '@/convex/_generated/api';
+import { Id } from '@/convex/_generated/dataModel';
 import { Order } from '@/types/order';
-import {
-  getEmptyOrdersSnapshot,
-  getOrdersSnapshot,
-  subscribeOrders,
-  acceptOrder,
-  markOrderReady,
-  shipOrder,
-  cancelOrder,
-} from '@/lib/mockOrders';
-import { DEMO_SELLER_ID } from '@/lib/mockStall';
+import { toOrder } from '@/lib/convexSync';
+
+function isValidOrderId(value: string): boolean {
+  return /^[a-z0-9]{32}$/.test(value);
+}
 
 export function useSellerOrderDetail(orderId: string) {
   const { message } = App.useApp();
-  const allOrders = useSyncExternalStore(
-    subscribeOrders,
-    getOrdersSnapshot,
-    getEmptyOrdersSnapshot
+  const skip = !isValidOrderId(orderId);
+  const raw = useQuery(
+    api.orders.getSellerOrder,
+    skip ? 'skip' : { orderId: orderId as Id<'orders'> }
   );
+  const confirmMutation = useMutation(api.orders.confirmOrder);
+  const rejectMutation = useMutation(api.orders.rejectOrder);
+  const dispatchMutation = useMutation(api.orders.dispatchOrder);
+  const completeMutation = useMutation(api.orders.completeOrder);
 
-  const [isLoading, setIsLoading] = useState(true);
+  const isLoading = !skip && raw === undefined;
+  const order: Order | undefined = !skip && raw ? toOrder(raw) : undefined;
+  const error = raw instanceof Error ? raw.message : null;
+  const notFound = skip || (!isLoading && !order);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 250);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const order: Order | undefined = allOrders.find(
-    (o) => o.id === orderId && o.sellerId === DEMO_SELLER_ID
-  );
-
-  const notFound = !isLoading && !order;
-
-  const handleAccept = () => {
-    if (!order) return;
-    acceptOrder(order.id);
-    message.success('Order accepted');
+  const run = async (action: () => Promise<unknown>, success: string) => {
+    try {
+      await action();
+      message.success(success);
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : 'Something went wrong');
+    }
   };
 
-  const handleMarkReady = () => {
+  const handleConfirm = () => {
     if (!order) return;
-    markOrderReady(order.id);
-    message.success('Marked as ready for dispatch');
+    return run(() => confirmMutation({ orderId: order.id as Id<'orders'> }), 'Order confirmed');
   };
 
-  const handleMarkShipped = () => {
+  const handleReject = (reason: string) => {
     if (!order) return;
-    shipOrder(order.id);
-    message.success('Order marked as shipped');
+    return run(
+      () => rejectMutation({ orderId: order.id as Id<'orders'>, reason }),
+      'Order rejected'
+    );
   };
 
-  const handleCancel = (reason: string) => {
+  const handleDispatch = () => {
     if (!order) return;
-    cancelOrder(order.id, reason);
-    message.success('Order cancelled');
+    return run(
+      () => dispatchMutation({ orderId: order.id as Id<'orders'> }),
+      'Order marked as to receive'
+    );
+  };
+
+  const handleComplete = () => {
+    if (!order) return;
+    return run(() => completeMutation({ orderId: order.id as Id<'orders'> }), 'Order completed');
   };
 
   return {
     isLoading,
-    error: null,
+    error,
     notFound,
     order,
-    handleAccept,
-    handleMarkReady,
-    handleMarkShipped,
-    handleCancel,
+    handleConfirm,
+    handleReject,
+    handleDispatch,
+    handleComplete,
   };
 }

@@ -7,38 +7,42 @@ export const PAYMENT_METHOD = {
 export type PaymentMethod = (typeof PAYMENT_METHOD)[keyof typeof PAYMENT_METHOD];
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
-  'to-ship': 'To Ship',
-  'to-receive': 'To Receive',
-  'to-review': 'To Review',
+  pending: 'Pending',
+  confirmed: 'Confirmed',
+  'to-receive': 'To receive',
+  delivered: 'Delivered',
   completed: 'Completed',
   cancelled: 'Cancelled',
 };
 
 export const ORDER_STATUS_TAG_COLORS: Record<OrderStatus, string> = {
-  'to-ship': 'processing',
+  pending: 'gold',
+  confirmed: 'processing',
   'to-receive': 'geekblue',
-  'to-review': 'warning',
+  delivered: 'cyan',
   completed: 'success',
   cancelled: 'default',
 };
 
 export interface OrderStatusTab {
-  key: 'all' | OrderStatus;
+  key: OrderStatus;
   label: string;
 }
 
 export const ORDER_STATUS_TABS: OrderStatusTab[] = [
-  { key: 'to-ship', label: 'To Ship' },
-  { key: 'to-receive', label: 'To Receive' },
-  { key: 'to-review', label: 'To Review' },
+  { key: 'pending', label: 'Pending' },
+  { key: 'confirmed', label: 'Confirmed' },
+  { key: 'to-receive', label: 'To receive' },
+  { key: 'delivered', label: 'Delivered' },
   { key: 'completed', label: 'Completed' },
   { key: 'cancelled', label: 'Cancelled' },
 ];
 
 export const ORDER_STATUSES: OrderStatus[] = [
-  'to-ship',
+  'pending',
+  'confirmed',
   'to-receive',
-  'to-review',
+  'delivered',
   'completed',
   'cancelled',
 ];

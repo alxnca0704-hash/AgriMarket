@@ -1,34 +1,37 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { App } from 'antd';
-import { MOCK_CATALOG } from '@/lib/mockCatalog';
+import { useQuery } from 'convex/react';
+import { api } from '@/convex/_generated/api';
+import { Id } from '@/convex/_generated/dataModel';
 import { APP_ROUTES } from '@/constants/routes';
 import { Product, Review, Seller } from '@/types/product';
+import { toBuyerProduct, toBuyerSeller } from '@/lib/convexSync';
 import { useCartContext } from '@/components/buyer/CartProvider';
+import { MOCK_CATALOG } from '@/lib/mockCatalog';
 
 export function useProductDetail(productId: string) {
   const router = useRouter();
   const { message } = App.useApp();
   const cart = useCartContext();
 
-  const [isLoading, setIsLoading] = useState(true);
   const [qty, setQty] = useState(1);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 300);
-    return () => clearTimeout(timer);
-  }, []);
+  const raw = useQuery(api.market.getPublicProduct, { productId: productId as Id<'products'> });
+
+  const isLoading = raw === undefined;
+  const isFailed = raw instanceof Error;
 
   const product: Product | undefined = useMemo(
-    () => MOCK_CATALOG.products.find((p) => p.id === productId),
-    [productId]
+    () => (raw == null || isFailed ? undefined : toBuyerProduct(raw.product, raw.stall)),
+    [raw, isFailed]
   );
 
   const seller: Seller | undefined = useMemo(
-    () => MOCK_CATALOG.sellers.find((s) => s.id === product?.sellerId),
-    [product]
+    () => (raw == null || isFailed ? undefined : toBuyerSeller(raw.stall, raw.ownerName)),
+    [raw, isFailed]
   );
 
   const reviews: Review[] = useMemo(
@@ -53,9 +56,9 @@ export function useProductDetail(productId: string) {
     message.success(`${product.name} added to cart`);
   };
 
-  const handleBuyNow = () => {
+  const handleBuyNow = async () => {
     if (!product) return;
-    cart.addItem(product.id, qty);
+    await cart.addItem(product.id, qty);
     router.push(APP_ROUTES.checkout);
   };
 
@@ -63,7 +66,7 @@ export function useProductDetail(productId: string) {
 
   return {
     isLoading,
-    error: null,
+    error: isFailed && raw instanceof Error ? raw.message : null,
     notFound,
     product,
     seller,

@@ -1,23 +1,16 @@
 'use client';
 
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useMemo, useSyncExternalStore } from 'react';
+import { useQuery } from 'convex/react';
+import { api } from '@/convex/_generated/api';
+import { Id } from '@/convex/_generated/dataModel';
 import { StallProfile } from '@/types/seller';
-import { getStallSnapshot, subscribeStall } from '@/lib/mockStall';
-import { getListingsSnapshot, subscribeListings } from '@/lib/mockListings';
+import { toSellerListing, toStallProfile } from '@/lib/convexSync';
 import { getSellerReviews, subscribeReviews } from '@/lib/mockReviews';
 import { getActiveViewSnapshot, getBuyerViewSnapshot, subscribeActiveView } from '@/lib/mockSession';
 
-export function usePublicStall() {
-  const stall = useSyncExternalStore(
-    subscribeStall,
-    getStallSnapshot,
-    () => getStallSnapshot()
-  ) as StallProfile;
-  const listings = useSyncExternalStore(
-    subscribeListings,
-    getListingsSnapshot,
-    () => getListingsSnapshot()
-  );
+export function usePublicStall(stallId: string) {
+  const raw = useQuery(api.market.getPublicStall, { stallId: stallId as Id<'stalls'> });
   const reviews = useSyncExternalStore(subscribeReviews, getSellerReviews, () => getSellerReviews());
   const activeView = useSyncExternalStore(
     subscribeActiveView,
@@ -25,19 +18,48 @@ export function usePublicStall() {
     getBuyerViewSnapshot
   );
 
-  const [isLoading, setIsLoading] = useState(true);
+  const stall: StallProfile = useMemo(() => {
+    if (raw == null || raw instanceof Error) {
+      return {
+        stallName: 'Farm',
+        description: '',
+        photoUrl: '',
+        farmType: '',
+        location: {
+          region: '',
+          province: '',
+          cityMunicipality: '',
+          barangay: '',
+          streetBuilding: '',
+          postalCode: '',
+        },
+        deliveryFeePeso: 0,
+        pickupAvailable: false,
+        verification: { status: 'unverified', idType: '', idNumber: '' },
+        rating: 0,
+        ratingCount: 0,
+        createdAt: '',
+        updatedAt: '',
+      };
+    }
+    return toStallProfile(raw.stall);
+  }, [raw]);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 250);
-    return () => clearTimeout(timer);
-  }, []);
+  const activeListings = useMemo(
+    () =>
+      raw == null || raw instanceof Error
+        ? []
+        : raw.products.map((p) => toSellerListing(p)),
+    [raw]
+  );
 
   return {
-    isLoading,
-    error: null,
+    isLoading: raw === undefined,
+    error: raw instanceof Error ? raw.message : null,
+    notFound: raw === null,
     activeView,
     stall,
-    activeListings: listings.filter((l) => l.isActive),
+    activeListings,
     reviews,
   };
 }

@@ -2,112 +2,104 @@
 
 import React, { useState } from 'react';
 import { Button, Input, Modal, Typography } from 'antd';
-import { CarOutlined, CheckCircleOutlined, CloseCircleOutlined, SendOutlined } from '@ant-design/icons';
+import { CarOutlined, CheckCircleOutlined, CloseCircleOutlined, CheckOutlined } from '@ant-design/icons';
 import { Order } from '@/types/order';
 
 interface SellerOrderActionsProps {
   order: Order;
   variant?: 'card' | 'detail';
-  onAccept: () => void;
-  onMarkReady: () => void;
-  onMarkShipped: () => void;
-  onCancel: (reason: string) => void;
+  onConfirm: () => void;
+  onReject: (reason: string) => void;
+  onDispatch: () => void;
+  onComplete: () => void;
 }
 
 export function SellerOrderActions({
   order,
   variant = 'card',
-  onAccept,
-  onMarkReady,
-  onMarkShipped,
-  onCancel,
+  onConfirm,
+  onReject,
+  onDispatch,
+  onComplete,
 }: SellerOrderActionsProps) {
-  const [cancelOpen, setCancelOpen] = useState(false);
+  const [rejectOpen, setRejectOpen] = useState(false);
   const [reason, setReason] = useState('');
 
   const compact = variant === 'card';
-  const actionable = order.status === 'to-ship';
 
-  const openCancel = () => {
+  const openReject = () => {
     setReason('');
-    setCancelOpen(true);
+    setRejectOpen(true);
   };
 
-  const confirmCancel = () => {
-    onCancel(reason);
-    setCancelOpen(false);
+  const confirmReject = () => {
+    onReject(reason);
+    setRejectOpen(false);
   };
 
   return (
     <div className={compact ? 'flex flex-wrap items-center justify-end gap-2' : 'flex flex-wrap gap-2.5'}>
-      {actionable && !order.acceptedAt && (
-        <Button
-          type="primary"
-          size={compact ? 'middle' : 'large'}
-          icon={<CheckCircleOutlined />}
-          onClick={onAccept}
-          className="!rounded-xl !font-semibold"
-        >
-          Accept order
-        </Button>
+      {order.status === 'pending' && (
+        <>
+          <Button
+            type="primary"
+            size={compact ? 'middle' : 'large'}
+            icon={<CheckCircleOutlined />}
+            onClick={onConfirm}
+            className="!rounded-xl !font-semibold"
+          >
+            Confirm order
+          </Button>
+          <Button
+            size={compact ? 'middle' : 'large'}
+            onClick={openReject}
+            danger
+            icon={<CloseCircleOutlined />}
+            className="!rounded-xl"
+          >
+            Reject
+          </Button>
+        </>
       )}
 
-      {actionable && order.acceptedAt && !order.readyAt && (
-        <Button
-          type="primary"
-          size={compact ? 'middle' : 'large'}
-          icon={<CheckCircleOutlined />}
-          onClick={onMarkReady}
-          className="!rounded-xl !font-semibold"
-        >
-          Mark as ready
-        </Button>
-      )}
-
-      {actionable && order.acceptedAt && order.readyAt && !order.shippedAt && (
+      {order.status === 'confirmed' && (
         <Button
           type="primary"
           size={compact ? 'middle' : 'large'}
           icon={<CarOutlined />}
-          onClick={onMarkShipped}
+          onClick={onDispatch}
           className="!rounded-xl !font-semibold"
         >
-          Mark as shipped
+          Mark as to receive
         </Button>
       )}
 
-      {actionable && (
+      {order.status === 'delivered' && (
         <Button
+          type="primary"
           size={compact ? 'middle' : 'large'}
-          onClick={openCancel}
-          danger
-          icon={<CloseCircleOutlined />}
-          className="!rounded-xl"
+          icon={<CheckOutlined />}
+          onClick={onComplete}
+          className="!rounded-xl !font-semibold"
         >
-          Cancel
+          Mark as completed
         </Button>
-      )}
-
-      {order.shippedAt && (
-        <span className="inline-flex items-center gap-1 text-xs font-medium text-sage">
-          <SendOutlined /> Shipped
-        </span>
       )}
 
       <Modal
-        open={cancelOpen}
-        onCancel={() => setCancelOpen(false)}
-        onOk={confirmCancel}
-        okText="Cancel order"
+        open={rejectOpen}
+        onCancel={() => setRejectOpen(false)}
+        onOk={confirmReject}
+        okText="Reject order"
         okButtonProps={{ danger: true, className: '!rounded-lg' }}
         cancelText="Keep order"
         cancelButtonProps={{ className: '!rounded-lg' }}
-        title="Cancel this order?"
+        title="Reject this order?"
         width="min(92%, 420px)"
         centered
       >
         <p className="text-sm text-stone-500 leading-relaxed mb-3">
-          Cancel order #{order.id}? This can&apos;t be undone.
+          Rejecting the order from {order.address.receiverName}. This can&apos;t be undone.
         </p>
         <Typography.Text type="secondary" className="text-xs">
           Reason (optional)

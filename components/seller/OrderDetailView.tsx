@@ -34,10 +34,10 @@ export function SellerOrderDetailView({ orderId }: { orderId: string }) {
     error,
     notFound,
     order,
-    handleAccept,
-    handleMarkReady,
-    handleMarkShipped,
-    handleCancel,
+    handleConfirm,
+    handleReject,
+    handleDispatch,
+    handleComplete,
   } = useSellerOrderDetail(orderId);
 
   if (isLoading) return <DetailSkeleton />;
@@ -102,10 +102,10 @@ export function SellerOrderDetailView({ orderId }: { orderId: string }) {
           <SellerOrderActions
             order={order}
             variant="detail"
-            onAccept={handleAccept}
-            onMarkReady={handleMarkReady}
-            onMarkShipped={handleMarkShipped}
-            onCancel={handleCancel}
+            onConfirm={handleConfirm}
+            onReject={handleReject}
+            onDispatch={handleDispatch}
+            onComplete={handleComplete}
           />
         </div>
 

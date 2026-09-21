@@ -1,12 +1,17 @@
 import { DeliveryAddress } from '@/types/auth';
 
-export type OrderStatus = 'to-ship' | 'to-receive' | 'to-review' | 'completed' | 'cancelled';
+export type OrderStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'to-receive'
+  | 'delivered'
+  | 'completed'
+  | 'cancelled';
 
 export type PaymentStatus = 'unpaid' | 'paid';
 
 export interface OrderLineItem {
   productId: string;
-  sellerId: string;
   name: string;
   price: number;
   unit: string;
@@ -22,7 +27,9 @@ export interface OrderEvent {
 
 export interface Order {
   id: string;
+  buyerId: string;
   sellerId: string;
+  stallId: string;
   sellerName: string;
   sellerLocation: string;
   deliveryFeePeso: number;
@@ -39,10 +46,19 @@ export interface Order {
   status: OrderStatus;
   events: OrderEvent[];
   placedAt: string;
-  acceptedAt?: string;
-  readyAt?: string;
-  shippedAt?: string;
+  confirmedAt?: string;
+  toReceiveAt?: string;
+  deliveredAt?: string;
+  completedAt?: string;
   cancelledAt?: string;
   cancelReason?: string;
-  completedAt?: string;
+}
+
+export interface SellerOrderStats {
+  todayOrders: number;
+  pendingOrders: number;
+  inTransitOrders: number;
+  completedOrders: number;
+  cancelledOrders: number;
+  totalSales: number;
 }

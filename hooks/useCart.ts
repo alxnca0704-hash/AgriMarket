@@ -1,11 +1,13 @@
 'use client';
 
 import { useMemo, useSyncExternalStore } from 'react';
-import { MOCK_CATALOG } from '@/lib/mockCatalog';
+import { useQuery } from 'convex/react';
+import { api } from '@/convex/_generated/api';
+import { toBuyerProduct, toBuyerSeller } from '@/lib/convexSync';
 import { DEMO_BUYER, getSessionUserSnapshot, subscribeSessionUser } from '@/lib/mockSession';
 import { useCartContext } from '@/components/buyer/CartProvider';
 import { CartLineItem } from '@/components/buyer/CartSellerGroup';
-import { Seller } from '@/types/product';
+import { Product, Seller } from '@/types/product';
 
 export interface CartSellerGroupInfo {
   seller: Seller;
@@ -16,14 +18,52 @@ export interface CartSellerGroupInfo {
 export function useCart() {
   const cart = useCartContext();
 
+  const rawStalls = useQuery(api.market.listStalls);
+  const rawProducts = useQuery(api.market.listActiveProducts);
+
+  const stallById = useMemo(() => {
+    const map = new Map<string, NonNullable<typeof rawStalls>[number]['stall']>();
+    (Array.isArray(rawStalls) ? rawStalls : []).forEach(({ stall }) => map.set(stall._id, stall));
+    return map;
+  }, [rawStalls]);
+
+  const sellerById = useMemo(() => {
+    const map = new Map<string, Seller>();
+    (Array.isArray(rawStalls) ? rawStalls : []).forEach(({ stall, ownerName }) => {
+      map.set(stall._id, toBuyerSeller(stall, ownerName));
+    });
+    return map;
+  }, [rawStalls]);
+
+  const productById = useMemo(() => {
+    const map = new Map<string, Product>();
+    if (Array.isArray(rawProducts)) {
+      for (const raw of rawProducts) {
+        const stall = stallById.get(raw.stallId);
+        if (!stall) continue;
+        map.set(raw._id, toBuyerProduct(raw, stall));
+      }
+    }
+    return map;
+  }, [rawProducts, stallById]);
+
+  const isLoading =
+    rawStalls === undefined || rawProducts === undefined || cart.isLoading;
+  const error =
+    rawStalls instanceof Error
+      ? rawStalls.message
+      : rawProducts instanceof Error
+        ? rawProducts.message
+        : null;
+
   const groups: CartSellerGroupInfo[] = useMemo(() => {
-    return MOCK_CATALOG.sellers
+    return Array.from(sellerById.values())
       .filter((seller) => cart.items.some((i) => i.sellerId === seller.id))
       .map((seller) => {
         const lines = cart.items
           .filter((i) => i.sellerId === seller.id)
           .map((item) => {
-            const product = MOCK_CATALOG.products.find((p) => p.id === item.productId);
+            const product = productById.get(item.productId);
             return {
               productId: item.productId,
               name: product?.name ?? 'Unknown product',
@@ -40,7 +80,7 @@ export function useCart() {
           subtotal: lines.reduce((sum, line) => sum + line.price * line.qty, 0),
         };
       });
-  }, [cart.items]);
+  }, [cart.items, sellerById, productById]);
 
   const user = useSyncExternalStore(
     subscribeSessionUser,
@@ -49,8 +89,8 @@ export function useCart() {
   );
 
   return {
-    isLoading: false,
-    error: null,
+    isLoading,
+    error,
     user,
     groups,
     itemCount: cart.itemCount,

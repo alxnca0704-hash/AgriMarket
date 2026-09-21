@@ -2,19 +2,22 @@
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
-import { MOCK_CATALOG } from '@/lib/mockCatalog';
-import { searchCatalog } from '@/lib/search';
+import { useQuery } from 'convex/react';
+import { api } from '@/convex/_generated/api';
 import { saveRecentSearch } from '@/lib/mockSearch';
 import { DEMO_BUYER, getSessionUserSnapshot, subscribeSessionUser } from '@/lib/mockSession';
+import { toBuyerProduct, toBuyerSeller } from '@/lib/convexSync';
 import { APP_ROUTES } from '@/constants/routes';
 import { ProductCategory } from '@/constants/categories';
 import { SortOption } from '@/constants/sortOptions';
-import { Seller } from '@/types/product';
+import { Product, Seller } from '@/types/product';
 
 export function useHome() {
   const router = useRouter();
 
-  const [isLoading, setIsLoading] = useState(true);
+  const rawStalls = useQuery(api.market.listStalls);
+  const rawProducts = useQuery(api.market.listActiveProducts);
+
   const [activeCategory, setActiveCategory] = useState<'all' | ProductCategory>('all');
   const [sort, setSort] = useState<SortOption>('featured');
   const [filterOpen, setFilterOpen] = useState(false);
@@ -22,21 +25,42 @@ export function useHome() {
   const [minRating, setMinRating] = useState<number | null>(null);
   const [query, setQuery] = useState('');
 
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 350);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const sellers = MOCK_CATALOG.sellers;
+  const isLoading = rawStalls === undefined || rawProducts === undefined;
 
   const sellerById = useMemo(() => {
     const map = new Map<string, Seller>();
-    sellers.forEach((s) => map.set(s.id, s));
+    (Array.isArray(rawStalls) ? rawStalls : []).forEach(({ stall, ownerName }) => {
+      map.set(stall._id, toBuyerSeller(stall, ownerName));
+    });
     return map;
-  }, [sellers]);
+  }, [rawStalls]);
+
+  const stallById = useMemo(() => {
+    const map = new Map<string, NonNullable<typeof rawStalls>[number]['stall']>();
+    (Array.isArray(rawStalls) ? rawStalls : []).forEach(({ stall }) => map.set(stall._id, stall));
+    return map;
+  }, [rawStalls]);
+
+  const allProducts = useMemo(() => {
+    if (!Array.isArray(rawProducts)) return [];
+    const products: Product[] = [];
+    for (const raw of rawProducts) {
+      const stall = stallById.get(raw.stallId);
+      if (!stall) continue;
+      products.push(toBuyerProduct(raw, stall));
+    }
+    return products;
+  }, [rawProducts, stallById]);
+
+  const error =
+    rawStalls instanceof Error
+      ? rawStalls.message
+      : rawProducts instanceof Error
+        ? rawProducts.message
+        : null;
 
   const filtered = useMemo(() => {
-    let list = MOCK_CATALOG.products.filter((p) =>
+    let list = allProducts.filter((p) =>
       activeCategory === 'all' ? true : p.category === activeCategory
     );
 
@@ -64,7 +88,7 @@ export function useHome() {
         break;
     }
     return sorted;
-  }, [activeCategory, sort, maxPrice, minRating]);
+  }, [allProducts, activeCategory, sort, maxPrice, minRating]);
 
   const user = useSyncExternalStore(
     subscribeSessionUser,
@@ -85,7 +109,18 @@ export function useHome() {
 
   const filterCount = (maxPrice != null ? 1 : 0) + (minRating != null ? 1 : 0);
 
-  const searchResults = useMemo(() => searchCatalog(query), [query]);
+  const searchResults = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return allProducts.filter((p) => {
+      const seller = sellerById.get(p.sellerId);
+      const inName = p.name.toLowerCase().includes(q);
+      const inFarm = seller ? seller.farmName.toLowerCase().includes(q) : false;
+      const inCategory = p.category.toLowerCase().includes(q);
+      return inName || inFarm || inCategory;
+    });
+  }, [query, allProducts, sellerById]);
+
   const isSearching = searchResults.length > 0 || query.trim().length > 0;
 
   const handleQueryChange = (value: string) => {
@@ -115,7 +150,7 @@ export function useHome() {
 
   return {
     isLoading,
-    error: null,
+    error,
     greeting,
     firstName,
     deliveryAddress: user.defaultAddressSummary,

@@ -56,12 +56,12 @@ export function DashboardView() {
         <StatTile
           label="Pending"
           value={String(stats.pendingOrders)}
-          hint="New or preparing"
+          hint="New or confirmed"
         />
         <StatTile
           label="Total sales"
           value={formatPrice(stats.totalSales)}
-          hint="Shipped + completed"
+          hint="Confirmed + delivered"
         />
         <StatTile
           label="Low stock"
