@@ -143,3 +143,40 @@ export function persistUserAddresses(
     defaultAddressSummary: def ? formatAddressSummary(def) : '',
   });
 }
+
+export type ActiveView = 'buyer' | 'seller';
+
+const VIEW_STORAGE_KEY = 'agrimarket_active_view';
+
+export function getActiveView(): ActiveView {
+  if (typeof window === 'undefined') return 'buyer';
+  const raw = window.localStorage.getItem(VIEW_STORAGE_KEY);
+  return raw === 'seller' ? 'seller' : 'buyer';
+}
+
+const viewListeners = new Set<() => void>();
+let viewSnapshot: ActiveView | null = null;
+
+export function getActiveViewSnapshot(): ActiveView {
+  if (viewSnapshot === null) viewSnapshot = getActiveView();
+  return viewSnapshot;
+}
+
+export function getBuyerViewSnapshot(): ActiveView {
+  return 'buyer';
+}
+
+export function subscribeActiveView(listener: () => void): () => void {
+  viewListeners.add(listener);
+  return () => {
+    viewListeners.delete(listener);
+  };
+}
+
+export function setActiveView(view: ActiveView): void {
+  viewSnapshot = view;
+  if (typeof window !== 'undefined') {
+    window.localStorage.setItem(VIEW_STORAGE_KEY, view);
+  }
+  viewListeners.forEach((listener) => listener());
+}

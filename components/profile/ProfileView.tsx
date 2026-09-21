@@ -217,6 +217,21 @@ export function ProfileView() {
                 <p className="text-xs text-stone-400">Coming soon</p>
               </div>
             </div>
+            <Link
+              href={APP_ROUTES.sellerOnboarding}
+              className="flex items-center gap-3 px-5 sm:px-6 py-4 border-t border-stone-100 hover:bg-stone-50 transition-colors"
+            >
+              <span className="w-10 h-10 shrink-0 rounded-xl bg-sage-soft text-sage flex items-center justify-center">
+                <RightOutlined />
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-stone-800">Become a seller</p>
+                <p className="text-xs text-stone-400">
+                  Set up your stall and list your produce
+                </p>
+              </div>
+              <RightOutlined className="text-stone-300" />
+            </Link>
           </section>
 
           <EditProfileModal

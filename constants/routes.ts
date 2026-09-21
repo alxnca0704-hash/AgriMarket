@@ -13,6 +13,20 @@ export const APP_ROUTES = {
   orderDetail: (id: string) => `/orders/${id}`,
   profile: '/profile',
   profileAddresses: '/profile/addresses',
+  seller: '/seller',
+  sellerOnboarding: '/seller/onboarding',
+  sellerDashboard: '/seller/dashboard',
+  sellerProducts: '/seller/products',
+  sellerProductNew: '/seller/products/new',
+  sellerProductEdit: (id: string) => `/seller/products/${id}`,
+  sellerOrders: '/seller/orders',
+  sellerOrderDetail: (id: string) => `/seller/orders/${id}`,
+  sellerStall: '/seller/stall',
+  sellerEarnings: '/seller/earnings',
+  sellerReviews: '/seller/reviews',
+  sellerNotifications: '/seller/notifications',
+  sellerSettings: '/seller/settings',
+  publicSellerProfile: (id: string) => `/sellers/${id}`,
 } as const;
 
 export const API_ROUTES = {

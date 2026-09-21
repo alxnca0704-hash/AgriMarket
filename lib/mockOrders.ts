@@ -1,6 +1,7 @@
 import { DeliveryAddress } from '@/types/auth';
 import { Order, OrderEvent, OrderLineItem, OrderStatus } from '@/types/order';
 import { Seller } from '@/types/product';
+import { emitSellerNotification } from '@/lib/mockNotifications';
 
 const STORAGE_KEY = 'agrimarket_orders';
 const EMPTY_ORDERS: Order[] = [];
@@ -114,7 +115,10 @@ export function shipOrder(orderId: string): void {
   appendEvent(
     order,
     { status: 'to-receive', label: 'Out for delivery', at: nowIso() },
-    { status: 'to-receive' }
+    {
+      status: 'to-receive',
+      shippedAt: order.shippedAt ?? nowIso(),
+    }
   );
 }
 
@@ -156,4 +160,86 @@ export function cancelOrder(orderId: string, reason: string): void {
       cancelReason: reason.trim() || undefined,
     }
   );
+  emitSellerNotification({
+    type: 'order-cancelled',
+    title: 'Order cancelled',
+    body: `Order ${order.id} from ${order.sellerName} was cancelled.`,
+    refId: orderId,
+  });
+}
+
+export function acceptOrder(orderId: string): void {
+  const order = getOrderById(orderId);
+  if (!order || order.status !== 'to-ship' || order.acceptedAt) return;
+  appendEvent(
+    order,
+    { status: 'to-ship', label: 'Order accepted · preparing', at: nowIso() },
+    { acceptedAt: nowIso() }
+  );
+}
+
+export function markOrderReady(orderId: string): void {
+  const order = getOrderById(orderId);
+  if (!order || order.status !== 'to-ship' || !order.acceptedAt || order.readyAt) return;
+  appendEvent(
+    order,
+    { status: 'to-ship', label: 'Marked ready for dispatch', at: nowIso() },
+    { readyAt: nowIso() }
+  );
+}
+
+export function getSellerOrders(sellerId: string): Order[] {
+  return getOrdersSnapshot().filter((o) => o.sellerId === sellerId);
+}
+
+export function bootstrapOrders(orders: Order[]): void {
+  const existing = getOrdersSnapshot();
+  const byId = new Set(existing.map((o) => o.id));
+  updateOrdersSnapshot([...existing, ...orders.filter((o) => !byId.has(o.id))]);
+}
+
+export function isPlacedToday(order: Order): boolean {
+  const today = new Date().toDateString();
+  return new Date(order.placedAt).toDateString() === today;
+}
+
+export interface SellerOrderStats {
+  todayOrders: number;
+  pendingOrders: number;
+  inTransitOrders: number;
+  completedOrders: number;
+  cancelledOrders: number;
+  totalSales: number;
+}
+
+export function getSellerOrderStats(sellerId: string): SellerOrderStats {
+  const orders = getSellerOrders(sellerId);
+  let todayOrders = 0;
+  let pendingOrders = 0;
+  let inTransitOrders = 0;
+  let completedOrders = 0;
+  let cancelledOrders = 0;
+  let totalSales = 0;
+
+  orders.forEach((order) => {
+    if (isPlacedToday(order)) todayOrders += 1;
+    if (order.status === 'to-ship' && !order.acceptedAt) pendingOrders += 1;
+    else if (order.status === 'to-ship' && order.acceptedAt && !order.readyAt) pendingOrders += 1;
+    else if (order.status === 'to-receive' || order.status === 'to-review') inTransitOrders += 1;
+    else if (order.status === 'completed') completedOrders += 1;
+    else if (order.status === 'cancelled') cancelledOrders += 1;
+
+    if (order.status === 'completed' || order.status === 'to-receive' || order.status === 'to-review') {
+      totalSales += order.total;
+    }
+  });
+
+  return {
+    todayOrders,
+    pendingOrders,
+    inTransitOrders,
+    completedOrders,
+    cancelledOrders,
+    totalSales,
+  };
 }

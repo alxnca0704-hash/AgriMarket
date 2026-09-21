@@ -39,6 +39,9 @@ export interface Order {
   status: OrderStatus;
   events: OrderEvent[];
   placedAt: string;
+  acceptedAt?: string;
+  readyAt?: string;
+  shippedAt?: string;
   cancelledAt?: string;
   cancelReason?: string;
   completedAt?: string;
