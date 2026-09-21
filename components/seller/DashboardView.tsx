@@ -41,7 +41,7 @@ export function DashboardView() {
       <div>
         <p className="text-xs font-medium uppercase tracking-wide text-stone-400">Seller dashboard</p>
         <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-stone-900">
-          {stall.stallName}
+          {stall?.stallName ?? 'Seller dashboard'}
         </h1>
       </div>
 

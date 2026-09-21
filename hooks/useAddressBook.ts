@@ -2,6 +2,8 @@
 
 import { useMemo, useState, useSyncExternalStore } from 'react';
 import { App } from 'antd';
+import { useMutation } from 'convex/react';
+import { api } from '@/convex/_generated/api';
 import { DeliveryAddress } from '@/types/auth';
 import {
   DEMO_BUYER,
@@ -12,6 +14,8 @@ import {
   subscribeSessionUser,
 } from '@/lib/mockSession';
 import { formatAddressSummary } from '@/lib/format';
+import { toDeliveryAddress } from '@/lib/convexSync';
+import { useConvexUserSync } from '@/hooks/useConvexUserSync';
 import { AddressEditorApi, makeEmptyAddress, useAddressEditor } from '@/hooks/useAddressEditor';
 
 export type AddressEditorMode = 'add' | 'edit';
@@ -34,6 +38,12 @@ export interface AddressBookApi {
 
 export function useAddressBook(): AddressBookApi {
   const { message, modal } = App.useApp();
+  const { current, isAuthedWithConvex } = useConvexUserSync();
+  const addAddress = useMutation(api.users.addAddress);
+  const updateAddress = useMutation(api.users.updateAddress);
+  const removeAddressConvex = useMutation(api.users.removeAddress);
+  const setDefaultConvexAddress = useMutation(api.users.setDefaultAddress);
+
   const user = useSyncExternalStore(
     subscribeSessionUser,
     getSessionUserSnapshot,
@@ -41,7 +51,24 @@ export function useAddressBook(): AddressBookApi {
   );
   const editor = useAddressEditor();
 
-  const defaultIndex = useMemo(() => getDefaultAddressIndex(user), [user]);
+  const convexAddresses = useMemo(() => current?.addresses ?? [], [current]);
+
+  const convexDeliveryAddresses = useMemo(
+    () => convexAddresses.map(toDeliveryAddress),
+    [convexAddresses]
+  );
+  const demoAddresses = getDeliveryAddresses(user);
+
+  const addresses = isAuthedWithConvex ? convexDeliveryAddresses : demoAddresses;
+
+  const sessionDefaultIndex = getDefaultAddressIndex(user);
+  const convexDefaultIndex = Math.max(
+    0,
+    convexAddresses.findIndex((a) => a.isDefault)
+  );
+  const defaultIndex = isAuthedWithConvex
+    ? convexDefaultIndex
+    : sessionDefaultIndex;
 
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorMode, setEditorMode] = useState<AddressEditorMode>('add');
@@ -49,7 +76,7 @@ export function useAddressBook(): AddressBookApi {
 
   const openAdd = () => {
     setEditorMode('add');
-    setEditingIndex(getDeliveryAddresses(user).length);
+    setEditingIndex(addresses.length);
     editor.open(
       makeEmptyAddress({
         receiverName: user.fullName,
@@ -60,7 +87,11 @@ export function useAddressBook(): AddressBookApi {
   };
 
   const openEdit = async (index: number) => {
-    const target = getDeliveryAddresses(user)[index];
+    const target: DeliveryAddress | undefined = isAuthedWithConvex
+      ? convexAddresses[index]
+        ? toDeliveryAddress(convexAddresses[index])
+        : undefined
+      : demoAddresses[index];
     if (!target) return;
     setEditorMode('edit');
     setEditingIndex(index);
@@ -77,16 +108,47 @@ export function useAddressBook(): AddressBookApi {
     const errs = editor.validate();
     if (Object.keys(errs).length > 0) return;
 
-    const addresses = getDeliveryAddresses(user);
     const saved = { ...editor.draftAddress };
+    const addressInput = {
+      label: saved.label ?? 'Home',
+      receiverName: saved.receiverName,
+      receiverPhone: saved.receiverPhone,
+      region: saved.region,
+      province: saved.province,
+      cityMunicipality: saved.cityMunicipality,
+      barangay: saved.barangay,
+      streetBuilding: saved.streetBuilding,
+      postalCode: saved.postalCode,
+    };
+
+    if (isAuthedWithConvex) {
+      if (editorMode === 'add') {
+        addAddress({
+          address: { ...addressInput, isDefault: convexAddresses.length === 0 },
+        }).catch(() => message.error('Could not save the address. Please try again.'));
+      } else {
+        const doc = convexAddresses[editingIndex];
+        if (doc) {
+          updateAddress({
+            addressId: doc._id,
+            address: { ...addressInput, isDefault: doc.isDefault },
+          }).catch(() => message.error('Could not update the address. Please try again.'));
+        }
+      }
+      closeEditor();
+      message.success(editorMode === 'add' ? 'New address added' : 'Address updated');
+      return;
+    }
+
+    const demo = getDeliveryAddresses(user);
     let next: DeliveryAddress[];
     let defIndex = defaultIndex;
 
     if (editorMode === 'add') {
-      next = [...addresses, saved];
-      if (addresses.length === 0) defIndex = 0;
+      next = [...demo, saved];
+      if (demo.length === 0) defIndex = 0;
     } else {
-      next = addresses.map((a, i) => (i === editingIndex ? saved : a));
+      next = demo.map((a, i) => (i === editingIndex ? saved : a));
     }
 
     if (defIndex >= next.length) defIndex = Math.max(0, next.length - 1);
@@ -98,13 +160,21 @@ export function useAddressBook(): AddressBookApi {
 
   const setDefaultAddress = (index: number) => {
     if (index === defaultIndex) return;
-    const addresses = getDeliveryAddresses(user);
-    persistUserAddresses(user, addresses, index);
+    if (isAuthedWithConvex) {
+      const doc = convexAddresses[index];
+      if (!doc) return;
+      setDefaultConvexAddress({ addressId: doc._id }).catch(() =>
+        message.error('Could not update the default address. Please try again.')
+      );
+      message.success('Default address updated');
+      return;
+    }
+    const demo = getDeliveryAddresses(user);
+    persistUserAddresses(user, demo, index);
     message.success('Default address updated');
   };
 
   const removeAddress = (index: number) => {
-    const addresses = getDeliveryAddresses(user);
     const target = addresses[index];
     if (!target) return;
     modal.confirm({
@@ -114,7 +184,18 @@ export function useAddressBook(): AddressBookApi {
       okType: 'danger',
       cancelText: 'Keep it',
       onOk: () => {
-        const next = addresses.filter((_, i) => i !== index);
+        if (isAuthedWithConvex) {
+          const doc = convexAddresses[index];
+          if (doc) {
+            removeAddressConvex({ addressId: doc._id }).catch(() =>
+              message.error('Could not remove the address. Please try again.')
+            );
+            message.success('Address removed');
+          }
+          return;
+        }
+        const demo = getDeliveryAddresses(user);
+        const next = demo.filter((_, i) => i !== index);
         const defIndex = next.length === 0 ? 0 : Math.min(defaultIndex, next.length - 1);
         persistUserAddresses(user, next, defIndex);
         message.success('Address removed');
@@ -123,7 +204,7 @@ export function useAddressBook(): AddressBookApi {
   };
 
   return {
-    addresses: getDeliveryAddresses(user),
+    addresses,
     defaultIndex,
     editor,
     editorOpen,

@@ -87,12 +87,10 @@ export function SellerShell({ children }: { children: React.ReactNode }) {
     if (tab) router.push(tab.href);
   };
 
-  const switchToBuyer = () => {
-    setDrawerOpen(false);
-    router.push(APP_ROUTES.home);
-  };
-
-  const initial = stall.stallName.trim().charAt(0).toUpperCase() || user.fullName.trim().charAt(0).toUpperCase() || 'S';
+  const initial =
+    stall?.stallName.trim().charAt(0).toUpperCase() ||
+    user?.fullName.trim().charAt(0).toUpperCase() ||
+    'S';
 
   const renderSidebar = (closeButton?: React.ReactNode) => (
     <div className="flex h-full flex-col">
@@ -127,23 +125,12 @@ export function SellerShell({ children }: { children: React.ReactNode }) {
             {initial}
           </span>
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-stone-800 truncate">{stall.stallName}</p>
+            <p className="text-sm font-semibold text-stone-800 truncate">
+              {stall?.stallName ?? user?.fullName ?? 'My stall'}
+            </p>
             <p className="text-xs text-stone-400 truncate">View stall profile</p>
           </div>
         </Link>
-        <button
-          type="button"
-          onClick={switchToBuyer}
-          className="w-full flex items-center gap-3 text-left rounded-xl p-2 hover:bg-stone-50 transition-colors cursor-pointer"
-        >
-          <span className="w-10 h-10 shrink-0 rounded-full bg-stone-100 text-stone-500 flex items-center justify-center text-sm font-semibold">
-            B
-          </span>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-stone-800">Switch to buyer view</p>
-            <p className="text-xs text-stone-400 truncate">Browse and shop as a buyer</p>
-          </div>
-        </button>
       </div>
     </div>
   );

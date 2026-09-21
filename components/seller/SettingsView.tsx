@@ -1,17 +1,18 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import { Alert, Button, Input, Modal, Skeleton } from 'antd';
 import {
   LogoutOutlined,
   MailOutlined,
   PhoneOutlined,
   ShopOutlined,
-  SwapOutlined,
   UserOutlined,
   WalletOutlined,
 } from '@ant-design/icons';
 import { useSellerSettings } from '@/hooks/useSellerSettings';
+import { APP_ROUTES } from '@/constants/routes';
 import { formatPrice } from '@/lib/format';
 
 function SettingsSkeleton() {
@@ -26,12 +27,11 @@ function SettingsSkeleton() {
 }
 
 export function SettingsView() {
+  const router = useRouter();
   const {
     isLoading,
     error,
     user,
-    activeView,
-    switchView,
     stall,
     payout,
     isEditOpen,
@@ -45,6 +45,14 @@ export function SettingsView() {
   } = useSellerSettings();
 
   if (isLoading) return <SettingsSkeleton />;
+
+  if (!user) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 pt-8 pb-16">
+        <Alert type="error" title={error ?? 'Account information is unavailable.'} showIcon />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 pt-6 pb-16 space-y-6">
@@ -85,38 +93,31 @@ export function SettingsView() {
         </button>
       </section>
 
-      <section className="rounded-2xl bg-white shadow-sm p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-sm font-semibold text-stone-900">Switch view</h2>
-          <p className="text-sm text-stone-500 mt-0.5">
-            Currently browsing as a <strong className="text-stone-800">{activeView}</strong>.
-          </p>
-        </div>
-        <Button
-          icon={<SwapOutlined />}
-          onClick={() => switchView(activeView === 'buyer' ? 'seller' : 'buyer')}
-          className="!rounded-xl shrink-0"
-        >
-          Switch to {activeView === 'buyer' ? 'seller' : 'buyer'} view
-        </Button>
-      </section>
-
-      <section className="rounded-2xl bg-white shadow-sm overflow-hidden">
-        <div className="px-5 sm:px-6 pt-5 pb-2">
-          <h2 className="text-sm font-semibold text-stone-900">Your business</h2>
-        </div>
-        <div className="flex items-center gap-3 px-5 sm:px-6 py-4">
-          <span className="w-10 h-10 shrink-0 rounded-xl bg-sage-soft text-sage flex items-center justify-center">
-            <ShopOutlined />
-          </span>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-stone-800">{stall.stallName}</p>
-            <p className="text-xs text-stone-400">
-              Stall profile · {formatPrice(stall.deliveryFeePeso)} delivery
-            </p>
+      {stall && (
+        <section className="rounded-2xl bg-white shadow-sm overflow-hidden">
+          <div className="px-5 sm:px-6 pt-5 pb-2">
+            <h2 className="text-sm font-semibold text-stone-900">Your business</h2>
           </div>
-        </div>
-      </section>
+          <div className="flex items-center gap-3 px-5 sm:px-6 py-4">
+            <span className="w-10 h-10 shrink-0 rounded-xl bg-sage-soft text-sage flex items-center justify-center">
+              <ShopOutlined />
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-stone-800">{stall.stallName}</p>
+              <p className="text-xs text-stone-400">
+                Stall profile · {formatPrice(stall.deliveryFeePeso)} delivery
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => router.push(APP_ROUTES.sellerStall)}
+              className="text-sm text-sage hover:underline font-medium cursor-pointer shrink-0"
+            >
+              Manage
+            </button>
+          </div>
+        </section>
+      )}
 
       <section className="rounded-2xl bg-white shadow-sm overflow-hidden">
         <div className="px-5 sm:px-6 pt-5 pb-2">

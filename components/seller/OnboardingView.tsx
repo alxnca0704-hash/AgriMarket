@@ -8,7 +8,7 @@ import {
   CheckCircleOutlined,
   GlobalOutlined,
   HeartOutlined,
-  SafetyCertificateOutlined,
+  ShopOutlined,
 } from '@ant-design/icons';
 import { useSellerOnboarding } from '@/hooks/useSellerOnboarding';
 import { StallFormFields } from '@/components/seller/StallFormFields';
@@ -26,9 +26,9 @@ const PERKS = [
     desc: 'No commission on first sales. You set your own prices.',
   },
   {
-    icon: <SafetyCertificateOutlined />,
-    title: 'Verified stall',
-    desc: 'Build trust with buyers through ID verification.',
+    icon: <ShopOutlined />,
+    title: 'Own your storefront',
+    desc: 'A dedicated public stall page where buyers can find and order from you.',
   },
 ];
 

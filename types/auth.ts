@@ -1,26 +1,14 @@
 import { AddressLabel } from '@/constants/phLocations';
 import { UserRole } from '@/constants/roles';
+import type { StallFormDraft } from '@/hooks/useSellerOnboarding';
 
 export interface ProfileStepData {
   role: UserRole;
   firstName: string;
   lastName: string;
   birthday: string;
-  farmName?: string;
+  mobileNumber: string;
   photoUrl?: string;
-}
-
-export interface AddressStepData {
-  label: AddressLabel;
-  receiverName: string;
-  receiverPhone: string;
-  region: string;
-  province: string;
-  cityMunicipality: string;
-  barangay: string;
-  streetBuilding: string;
-  postalCode: string;
-  isDefault: boolean;
 }
 
 export interface DeliveryAddress {
@@ -37,7 +25,7 @@ export interface DeliveryAddress {
 
 export interface SignUpFormData {
   profile: ProfileStepData;
-  address: AddressStepData;
+  stall: StallFormDraft;
 }
 
 export interface AuthenticatedUser {

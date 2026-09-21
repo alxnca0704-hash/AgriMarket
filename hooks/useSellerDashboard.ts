@@ -10,15 +10,16 @@ import {
   getLowStockListings,
   getActiveListings,
 } from '@/lib/mockListings';
-import { getStallSnapshot, subscribeStall } from '@/lib/mockStall';
+import { toStallProfile } from '@/lib/convexSync';
+import { useConvexUserSync } from '@/hooks/useConvexUserSync';
 
 export function useSellerDashboard() {
+  const { current, isReady } = useConvexUserSync();
   const listings = useSyncExternalStore(
     subscribeListings,
     getListingsSnapshot,
     getEmptyListingsSnapshot
   );
-  const stall = useSyncExternalStore(subscribeStall, getStallSnapshot, () => getStallSnapshot());
 
   const [isLoading, setIsLoading] = useState(true);
 
@@ -27,13 +28,14 @@ export function useSellerDashboard() {
     return () => clearTimeout(timer);
   }, []);
 
+  const stall = current?.stall ? toStallProfile(current.stall) : null;
   const stats = getSellerOrderStats(DEMO_SELLER_ID);
   const activeListings = getActiveListings();
   const lowStock = getLowStockListings();
   const outOfStockCount = listings.filter((l) => !l.isActive).length;
 
   return {
-    isLoading,
+    isLoading: isLoading || !isReady,
     error: null,
     stall,
     stats,

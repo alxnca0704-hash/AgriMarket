@@ -1,25 +1,27 @@
 'use client';
 
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import { App } from 'antd';
+import { useMutation } from 'convex/react';
+import { api } from '@/convex/_generated/api';
 import { AuthenticatedUser } from '@/types/auth';
 import { ProfileEditData } from '@/types/profile';
-import {
-  DEMO_BUYER,
-  getSessionUserSnapshot,
-  subscribeSessionUser,
-  updateSessionUser,
-  clearMockUser,
-  ActiveView,
-  getActiveViewSnapshot,
-  getBuyerViewSnapshot,
-  subscribeActiveView,
-  setActiveView,
-} from '@/lib/mockSession';
-import { getStallSnapshot, subscribeStall } from '@/lib/mockStall';
+import { toSessionUser, toStallProfile } from '@/lib/convexSync';
+import { useConvexUserSync } from '@/hooks/useConvexUserSync';
+import { clearMockUser, setActiveView, updateSessionUser } from '@/lib/mockSession';
 import { getPayoutMethodSnapshot, subscribePayout } from '@/lib/mockEarnings';
 import { APP_ROUTES } from '@/constants/routes';
+
+const EMPTY_USER: AuthenticatedUser = {
+  id: '',
+  role: 'buyer',
+  fullName: '',
+  mobileNumber: '',
+  email: '',
+  defaultAddressSummary: '',
+  createdAt: new Date().toISOString(),
+};
 
 function toProfileDraft(user: AuthenticatedUser): ProfileEditData {
   return {
@@ -51,36 +53,24 @@ function validateProfile(draft: ProfileEditData): Record<string, string> {
 export function useSellerSettings() {
   const router = useRouter();
   const { message } = App.useApp();
+  const { current, isReady, isAuthedWithConvex } = useConvexUserSync();
+  const updateProfileConvex = useMutation(api.users.updateProfile);
 
-  const user = useSyncExternalStore(
-    subscribeSessionUser,
-    getSessionUserSnapshot,
-    () => DEMO_BUYER
-  );
-  const activeView = useSyncExternalStore(
-    subscribeActiveView,
-    getActiveViewSnapshot,
-    getBuyerViewSnapshot
-  );
-  const stall = useSyncExternalStore(subscribeStall, getStallSnapshot, () => getStallSnapshot());
+  const user =
+    isAuthedWithConvex && current ? toSessionUser(current.user, current.addresses, current.email) : null;
+  const stall = current?.stall ? toStallProfile(current.stall) : null;
   const payout = useSyncExternalStore(
     subscribePayout,
     getPayoutMethodSnapshot,
     () => getPayoutMethodSnapshot()
   );
 
-  const [isLoading, setIsLoading] = useState(true);
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [draft, setDraft] = useState<ProfileEditData>(() => toProfileDraft(DEMO_BUYER));
+  const [draft, setDraft] = useState<ProfileEditData>(() => toProfileDraft(EMPTY_USER));
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 250);
-    return () => clearTimeout(timer);
-  }, []);
-
   const openEdit = () => {
-    setDraft(toProfileDraft(user));
+    setDraft(toProfileDraft(user ?? EMPTY_USER));
     setErrors({});
     setIsEditOpen(true);
   };
@@ -101,23 +91,30 @@ export function useSellerSettings() {
     }
   };
 
-  const saveProfile = () => {
+  const saveProfile = async () => {
+    if (!user) return;
     const errs = validateProfile(draft);
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
-    updateSessionUser({
-      ...user,
-      fullName: draft.fullName.trim(),
-      mobileNumber: draft.mobileNumber.trim(),
-      email: draft.email.trim() || undefined,
-    });
-    setIsEditOpen(false);
-    message.success('Account details updated');
-  };
 
-  const switchView = (view: ActiveView) => {
-    setActiveView(view);
-    message.success(view === 'seller' ? 'Switched to seller view' : 'Switched to buyer view');
+    try {
+      await updateProfileConvex({
+        fullName: draft.fullName.trim(),
+        mobileNumber: draft.mobileNumber.trim(),
+      });
+      updateSessionUser({
+        ...user,
+        fullName: draft.fullName.trim(),
+        mobileNumber: draft.mobileNumber.trim(),
+        email: draft.email.trim() || undefined,
+      });
+      setIsEditOpen(false);
+      message.success('Account details updated');
+    } catch (err) {
+      message.error(
+        err instanceof Error ? err.message : 'Could not save your profile. Please try again.'
+      );
+    }
   };
 
   const signOut = () => {
@@ -128,11 +125,9 @@ export function useSellerSettings() {
   };
 
   return {
-    isLoading,
+    isLoading: !isReady,
     error: null,
     user,
-    activeView,
-    switchView,
     stall,
     payout,
     isEditOpen,

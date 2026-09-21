@@ -4,47 +4,64 @@ import React from 'react';
 import { Steps, Button, Alert, Skeleton } from 'antd';
 import { SignUpAuthStep } from '@/components/SignUpAuthStep';
 import { SignUpProfileStep } from '@/components/SignUpProfileStep';
-import { SignUpAddressStep } from '@/components/SignUpAddressStep';
+import { SignUpStallStep } from '@/components/SignUpStallStep';
 import { SignUpReviewStep } from '@/components/SignUpReviewStep';
 import { useSignUp } from '@/hooks/useSignUp';
 import { APP_ROUTES } from '@/constants/routes';
 import { BrandMark } from '@/components/BrandMark';
 
-const STEP_ITEMS = [
-  { title: 'Sign-in' },
+const BUYER_STEP_ITEMS = [
+  { title: 'Account' },
   { title: 'Role & Profile' },
-  { title: 'Address' },
+  { title: 'Review' },
+];
+
+const SELLER_STEP_ITEMS = [
+  { title: 'Account' },
+  { title: 'Role & Profile' },
+  { title: 'Stall' },
   { title: 'Review' },
 ];
 
 export function SignUpWizard() {
   const {
     currentStep,
+    isSeller,
     formData,
     errors,
+    stallErrors,
+    stallLocation,
     isAuthLoaded,
     isSignedIn,
     userEmail,
     isLoading,
-    isGoogleLoading,
+    isCreating,
     submitError,
     authError,
-    regionOptions,
-    provinceOptions,
-    cityOptions,
-    barangayOptions,
-    isProvincesLoading,
-    isCitiesLoading,
-    isBarangaysLoading,
+    authNotice,
+    authView,
+    credentials,
+    credentialErrors,
+    pendingEmail,
+    verificationCode,
+    resendCooldown,
     updateProfileField,
-    updateAddressField,
+    updateStallField,
     handleRoleChange,
-    handleGoogleSignUp,
+    handleCredentialChange,
+    handleCodeChange,
+    handleCreateAccount,
+    handleVerifyCode,
+    handleResendCode,
+    handleCancelVerification,
     handleNext,
     handleBack,
     handleJumpToStep,
     handleSubmit,
   } = useSignUp();
+
+  const stepItems = isSeller ? SELLER_STEP_ITEMS : BUYER_STEP_ITEMS;
+  const isReviewStep = isSeller ? currentStep === 3 : currentStep === 2;
 
   return (
     <main className="min-h-screen flex flex-col justify-between bg-stone-50 p-4 sm:p-8">
@@ -75,7 +92,7 @@ export function SignUpWizard() {
                 <Steps
                   current={currentStep}
                   size="small"
-                  items={STEP_ITEMS}
+                  items={stepItems}
                   responsive={false}
                 />
               </div>
@@ -93,8 +110,20 @@ export function SignUpWizard() {
                     isSignedIn={isSignedIn}
                     email={userEmail}
                     error={authError}
-                    isLoading={isGoogleLoading}
-                    onGoogleSignUp={handleGoogleSignUp}
+                    notice={authNotice}
+                    authView={authView}
+                    pendingEmail={pendingEmail}
+                    credentials={credentials}
+                    credentialErrors={credentialErrors}
+                    verificationCode={verificationCode}
+                    resendCooldown={resendCooldown}
+                    isCreating={isCreating}
+                    onCredentialChange={handleCredentialChange}
+                    onCodeChange={handleCodeChange}
+                    onCreateAccount={handleCreateAccount}
+                    onVerifyCode={handleVerifyCode}
+                    onResendCode={handleResendCode}
+                    onCancelVerification={handleCancelVerification}
                   />
                 )}
 
@@ -107,22 +136,16 @@ export function SignUpWizard() {
                   />
                 )}
 
-                {currentStep === 2 && (
-                  <SignUpAddressStep
-                    address={formData.address}
-                    errors={errors}
-                    regionOptions={regionOptions}
-                    provinceOptions={provinceOptions}
-                    cityOptions={cityOptions}
-                    barangayOptions={barangayOptions}
-                    isProvincesLoading={isProvincesLoading}
-                    isCitiesLoading={isCitiesLoading}
-                    isBarangaysLoading={isBarangaysLoading}
-                    onUpdate={updateAddressField}
+                {currentStep === 2 && isSeller && (
+                  <SignUpStallStep
+                    stall={formData.stall}
+                    errors={stallErrors}
+                    updateField={updateStallField}
+                    location={stallLocation}
                   />
                 )}
 
-                {currentStep === 3 && (
+                {isReviewStep && (
                   <SignUpReviewStep
                     formData={formData}
                     email={userEmail}
@@ -143,7 +166,7 @@ export function SignUpWizard() {
                   {currentStep === 0 ? 'Cancel' : 'Back'}
                 </Button>
 
-                {currentStep < 3 ? (
+                {!isReviewStep ? (
                   currentStep === 0 && !isSignedIn ? null : (
                     <Button
                       type="primary"
@@ -172,7 +195,7 @@ export function SignUpWizard() {
 
         {isAuthLoaded && (
           <p className="text-center text-sm text-stone-400 mt-4">
-            Step {currentStep + 1} of 4 • {STEP_ITEMS[currentStep].title}
+            Step {currentStep + 1} of {stepItems.length} • {stepItems[currentStep].title}
           </p>
         )}
       </div>

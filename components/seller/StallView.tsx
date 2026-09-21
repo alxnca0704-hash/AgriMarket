@@ -2,8 +2,9 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Alert, Button, Image, Rate, Skeleton, Tag } from 'antd';
-import { EditOutlined, EnvironmentOutlined } from '@ant-design/icons';
+import { useRouter } from 'next/navigation';
+import { Alert, Button, Image, Rate, Skeleton } from 'antd';
+import { EditOutlined, EnvironmentOutlined, ShopOutlined } from '@ant-design/icons';
 import { useSellerStall } from '@/hooks/useSellerStall';
 import { StallFormFields } from '@/components/seller/StallFormFields';
 import { FARM_TYPE_LABELS } from '@/constants/stall';
@@ -19,10 +20,30 @@ function StallSkeleton() {
   );
 }
 
-function verificationTag(status: string) {
-  if (status === 'verified') return <Tag color="success" className="!m-0 !border-none !rounded-full">Verified</Tag>;
-  if (status === 'pending') return <Tag color="warning" className="!m-0 !border-none !rounded-full">Verification pending</Tag>;
-  return <Tag className="!m-0 !border-none !rounded-full">Unverified</Tag>;
+function NoStallEmptyState() {
+  const router = useRouter();
+  return (
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-12 pb-16">
+      <div className="rounded-2xl bg-white shadow-sm p-8 sm:p-10 text-center">
+        <div className="mx-auto w-14 h-14 rounded-2xl bg-sage-soft text-sage flex items-center justify-center text-2xl">
+          <ShopOutlined />
+        </div>
+        <h2 className="mt-4 text-xl font-semibold text-stone-900">No stall yet</h2>
+        <p className="mt-1 text-sm text-stone-500 max-w-sm mx-auto">
+          Create your stall profile with your farm details, location, and photo so buyers can find
+          you.
+        </p>
+        <Button
+          type="primary"
+          size="large"
+          onClick={() => router.push(APP_ROUTES.sellerOnboarding)}
+          className="!rounded-xl mt-6"
+        >
+          Create stall
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 export function StallView() {
@@ -43,7 +64,10 @@ export function StallView() {
 
   if (isLoading) return <StallSkeleton />;
 
+  if (!stall) return <NoStallEmptyState />;
+
   if (isEditing) {
+    if (!draft) return <StallSkeleton />;
     return (
       <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-6 pb-16 space-y-5">
         <div>
@@ -102,10 +126,9 @@ export function StallView() {
             className="!w-20 !h-20 !rounded-2xl object-cover shrink-0"
           />
           <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-lg font-semibold text-stone-900">{stall.stallName}</h2>
-              {verificationTag(stall.verification.status)}
-            </div>
+<div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-lg font-semibold text-stone-900">{stall.stallName}</h2>
+          </div>
             <div className="flex items-center gap-2 mt-1">
               <Rate disabled allowHalf value={stall.rating} className="!text-sm" />
               <span className="text-sm text-stone-500">
@@ -117,7 +140,7 @@ export function StallView() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         <div className="rounded-2xl bg-white shadow-sm p-4">
           <p className="text-xs font-medium uppercase tracking-wide text-stone-400">Farm type</p>
           <p className="text-sm font-semibold text-stone-800 mt-1">
@@ -132,13 +155,6 @@ export function StallView() {
           <p className="text-xs font-medium uppercase tracking-wide text-stone-400">Pickup</p>
           <p className="text-sm font-semibold text-stone-800 mt-1">
             {stall.pickupAvailable ? 'Allowed' : 'Not offered'}
-          </p>
-        </div>
-        <div className="rounded-2xl bg-white shadow-sm p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-stone-400">Verification</p>
-          <p className="text-sm font-semibold text-stone-800 mt-1">
-            {stall.verification.idType}
-            {stall.verification.idNumber ? ` · ${stall.verification.idNumber}` : ''}
           </p>
         </div>
       </div>

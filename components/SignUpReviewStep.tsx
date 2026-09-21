@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { SignUpFormData } from '@/types/auth';
-import { ROLE_DETAILS } from '@/constants/roles';
+import { ROLE_DETAILS, ROLES } from '@/constants/roles';
 
 interface SignUpReviewStepProps {
   formData: SignUpFormData;
@@ -11,8 +11,9 @@ interface SignUpReviewStepProps {
 }
 
 export function SignUpReviewStep({ formData, email, onEditStep }: SignUpReviewStepProps) {
-  const { profile, address } = formData;
+  const { profile, stall } = formData;
   const roleInfo = ROLE_DETAILS[profile.role];
+  const isSeller = profile.role === ROLES.SELLER;
 
   return (
     <div className="space-y-5">
@@ -38,8 +39,8 @@ export function SignUpReviewStep({ formData, email, onEditStep }: SignUpReviewSt
           </button>
         </div>
         <div className="text-sm">
-          <span className="text-stone-400 block">Google account</span>
-          <span className="font-medium text-stone-800">{email || 'Connected with Google'}</span>
+          <span className="text-stone-400 block">Account</span>
+          <span className="font-medium text-stone-800">{email || 'Email & password account'}</span>
         </div>
       </div>
 
@@ -70,12 +71,10 @@ export function SignUpReviewStep({ formData, email, onEditStep }: SignUpReviewSt
               {profile.firstName} {profile.lastName}
             </span>
           </div>
-          {profile.farmName && (
-            <div className="sm:col-span-2">
-              <span className="text-stone-400 block">Farm name</span>
-              <span className="font-medium text-stone-800">{profile.farmName}</span>
-            </div>
-          )}
+          <div>
+            <span className="text-stone-400 block">Mobile number</span>
+            <span className="font-medium text-stone-800 font-mono">{profile.mobileNumber}</span>
+          </div>
           {profile.birthday && (
             <div>
               <span className="text-stone-400 block">Birthday</span>
@@ -85,36 +84,47 @@ export function SignUpReviewStep({ formData, email, onEditStep }: SignUpReviewSt
         </div>
       </div>
 
-      {/* Address Section */}
-      <div className="bg-stone-50/80 p-5 rounded-xl border border-stone-200/70">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-semibold text-stone-400 uppercase tracking-[0.16em]">
-            3. Address & Routing
-          </span>
-          <button
-            type="button"
-            onClick={() => onEditStep(2)}
-            className="text-sm font-medium text-sage hover:underline cursor-pointer"
-          >
-            Edit
-          </button>
-        </div>
-        <div className="space-y-1 text-sm">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-stone-800">{address.receiverName}</span>
-            <span className="text-stone-400">•</span>
-            <span className="text-stone-600 font-mono">{address.receiverPhone}</span>
-            <span className="text-stone-400">•</span>
-            <span className="text-stone-500 font-medium">
-              {address.label}
+      {/* Stall Section */}
+      {isSeller && (
+        <div className="bg-stone-50/80 p-5 rounded-xl border border-stone-200/70">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-semibold text-stone-400 uppercase tracking-[0.16em]">
+              3. Stall
             </span>
+            <button
+              type="button"
+              onClick={() => onEditStep(2)}
+              className="text-sm font-medium text-sage hover:underline cursor-pointer"
+            >
+              Edit
+            </button>
           </div>
-          <p className="text-stone-600 pt-0.5 leading-relaxed">
-            {address.streetBuilding}, Brgy. {address.barangay}, {address.cityMunicipality},{' '}
-            {address.province}, {address.region} {address.postalCode}
-          </p>
+          <div className="space-y-1 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-stone-800">
+                {stall.stallName || 'Your stall'}
+              </span>
+              <span className="text-stone-400">•</span>
+              <span className="text-stone-500 font-medium">
+                {stall.farmType || 'Farm type'}
+              </span>
+            </div>
+            <p className="text-stone-600 pt-0.5 leading-relaxed">
+              {stall.streetBuilding}, Brgy. {stall.barangay}, {stall.cityMunicipality},{' '}
+              {stall.province}, {stall.region} {stall.postalCode}
+            </p>
+            <div className="flex items-center gap-4 pt-1">
+              <span className="text-stone-500">
+                {Number.isFinite(parseFloat(stall.deliveryFee)) ? `₱${stall.deliveryFee} delivery` : 'Delivery fee'}
+              </span>
+              <span className="text-stone-400">•</span>
+              <span className="text-stone-500">
+                {stall.pickupAvailable ? 'Pickup available' : 'Delivery only'}
+              </span>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

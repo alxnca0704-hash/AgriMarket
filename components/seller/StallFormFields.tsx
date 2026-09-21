@@ -1,10 +1,12 @@
 'use client';
 
 import React from 'react';
-import { Input, InputNumber, Select, Switch } from 'antd';
+import { App, Button, Image, Input, InputNumber, Select, Switch, Upload } from 'antd';
+import { PictureOutlined, UploadOutlined } from '@ant-design/icons';
 import { FARM_TYPE_OPTIONS } from '@/constants/stall';
 import { StallFormDraft } from '@/hooks/useSellerOnboarding';
 import { useLocationCascade } from '@/hooks/useLocationCascade';
+import { useStallImageUpload } from '@/hooks/useStallImageUpload';
 import { ASSET_ROUTES } from '@/constants/routes';
 
 const STALL_PHOTO_OPTIONS = [
@@ -37,6 +39,21 @@ export function StallFormFields({
   updateField,
   location,
 }: StallFormFieldsProps) {
+  const { message } = App.useApp();
+  const { isUploading, upload } = useStallImageUpload();
+
+  const handleUpload = async (file: File) => {
+    try {
+      const url = await upload(file);
+      updateField('photoUrl', url);
+      message.success('Stall photo uploaded');
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : 'Image upload failed. Please try again.');
+    }
+  };
+
+  const isStockPhoto = STALL_PHOTO_OPTIONS.some((o) => o.value === draft.photoUrl);
+
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -90,17 +107,47 @@ export function StallFormFields({
           <FieldError message={errors.farmType} />
         </div>
 
-        <div>
+        <div className="md:col-span-2">
           <label className="block text-sm font-medium text-stone-700 mb-1.5">
             Stall photo
           </label>
-          <Select
-            size="large"
-            className="w-full"
-            options={STALL_PHOTO_OPTIONS}
-            value={draft.photoUrl || undefined}
-            onChange={(value) => updateField('photoUrl', value)}
-          />
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="w-16 h-16 shrink-0 rounded-2xl bg-stone-100 overflow-hidden flex items-center justify-center">
+              {draft.photoUrl ? (
+                <Image
+                  src={draft.photoUrl}
+                  alt="Stall photo preview"
+                  preview={false}
+                  className="!w-16 !h-16 object-cover"
+                />
+              ) : (
+                <span className="text-stone-300 text-xl">
+                  <PictureOutlined />
+                </span>
+              )}
+            </div>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto">
+              <Upload
+                accept="image/*"
+                showUploadList={false}
+                beforeUpload={(file) => {
+                  void handleUpload(file as File);
+                  return false;
+                }}
+              >
+                <Button icon={<UploadOutlined />} loading={isUploading} className="!rounded-xl">
+                  Upload from device
+                </Button>
+              </Upload>
+              <Select
+                className="sm:min-w-[220px]"
+                placeholder="or pick a stock photo"
+                options={STALL_PHOTO_OPTIONS}
+                value={isStockPhoto ? draft.photoUrl : undefined}
+                onChange={(value) => updateField('photoUrl', value)}
+              />
+            </div>
+          </div>
         </div>
 
         <div>
@@ -236,46 +283,6 @@ export function StallFormFields({
               className="!rounded-lg"
             />
             <FieldError message={errors.postalCode} />
-          </div>
-        </div>
-      </div>
-
-      <div className="pt-2">
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-stone-800">Verification (UI only)</p>
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">
-            Not real verification
-          </span>
-        </div>
-        <p className="text-xs text-stone-400 mb-4">
-          Shared with buyers so they know your farm is vetted.
-        </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="idType" className="block text-sm font-medium text-stone-700 mb-1.5">
-              ID type
-            </label>
-            <Input
-              id="idType"
-              size="large"
-              placeholder="e.g. Barangay Clearance"
-              value={draft.idType}
-              onChange={(e) => updateField('idType', e.target.value)}
-              className="!rounded-lg"
-            />
-          </div>
-          <div>
-            <label htmlFor="idNumber" className="block text-sm font-medium text-stone-700 mb-1.5">
-              ID number
-            </label>
-            <Input
-              id="idNumber"
-              size="large"
-              placeholder="Reference number"
-              value={draft.idNumber}
-              onChange={(e) => updateField('idNumber', e.target.value)}
-              className="!rounded-lg"
-            />
           </div>
         </div>
       </div>

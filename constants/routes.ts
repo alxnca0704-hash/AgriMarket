@@ -31,6 +31,8 @@ export const APP_ROUTES = {
 
 export const API_ROUTES = {
   locations: '/api/locations',
+  clerkRole: '/api/clerk/role',
+  stallImageUpload: '/api/uploads/stall-image',
 } as const;
 
 export const ASSET_ROUTES = {

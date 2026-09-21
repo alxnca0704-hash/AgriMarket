@@ -2,42 +2,37 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { App } from 'antd';
+import { useSignIn as useClerkSignIn } from '@clerk/nextjs';
 import { APP_ROUTES } from '@/constants/routes';
-import { ROLES } from '@/constants/roles';
-import { AuthenticatedUser } from '@/types/auth';
-import { getMockUser, updateSessionUser } from '@/lib/mockSession';
-
-const DEMO_EMAIL = 'demo.user@gmail.com';
 
 export function useSignIn() {
   const router = useRouter();
+  const { message } = App.useApp();
+  const { signIn } = useClerkSignIn();
 
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ identifier?: string; password?: string }>({});
-  const [forgotPasswordNotice, setForgotPasswordNotice] = useState(false);
 
   const validate = (): boolean => {
     const errors: { identifier?: string; password?: string } = {};
 
     if (!identifier.trim()) {
-      errors.identifier = 'Please enter your mobile number or email';
+      errors.identifier = 'Please enter your email address';
     } else {
       const cleanIdent = identifier.trim();
       const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanIdent);
       const isPhone = /^(\+?63|0)?9\d{9}$/.test(cleanIdent.replace(/\s|-/g, ''));
       if (!isEmail && !isPhone) {
-        errors.identifier = 'Enter a valid 11-digit PH mobile (e.g. 0917 123 4567) or email address';
+        errors.identifier = 'Enter a valid email address or PH mobile number';
       }
     }
 
     if (!password) {
       errors.password = 'Please enter your password';
-    } else if (password.length < 6) {
-      errors.password = 'Password must be at least 6 characters';
     }
 
     setFieldErrors(errors);
@@ -58,37 +53,8 @@ export function useSignIn() {
     }
   };
 
-  const completeSignIn = (email: string) => {
-    const existing = getMockUser();
-    const user: AuthenticatedUser = existing ?? {
-      id: `mock-${Date.now()}`,
-      role: ROLES.BUYER,
-      fullName: 'Demo Buyer',
-      mobileNumber: '09171234567',
-      email,
-      defaultAddressSummary:
-        '142 Rizal St, Brgy. San Lorenzo, Makati City, Metro Manila, NCR 1229',
-      createdAt: new Date().toISOString(),
-    };
-    updateSessionUser(user);
-    router.push(APP_ROUTES.home);
-  };
-
-  const handleGoogleSignIn = () => {
-    setError(null);
-    setIsGoogleLoading(true);
-    setTimeout(() => {
-      setIsGoogleLoading(false);
-      completeSignIn(DEMO_EMAIL);
-    }, 900);
-  };
-
   const handleForgotPassword = () => {
-    setForgotPasswordNotice(true);
-  };
-
-  const closeForgotPasswordNotice = () => {
-    setForgotPasswordNotice(false);
+    message.info('Password reset is not available in this prototype yet.');
   };
 
   const handleNavigateToSignUp = () => {
@@ -99,30 +65,66 @@ export function useSignIn() {
     router.push(APP_ROUTES.landing);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setError(null);
     if (!validate()) return;
+    if (!signIn) {
+      setError('Sign-in is still loading. Please wait a moment and try again.');
+      return;
+    }
 
     setIsLoading(true);
-    setTimeout(() => {
+    try {
+      const createResult = await signIn.create({
+        identifier: identifier.trim(),
+        password,
+      });
+      if (createResult.error) {
+        setError(createResult.error.message);
+        return;
+      }
+
+      if (signIn.status === 'complete') {
+        await signIn.finalize();
+        router.push(APP_ROUTES.home);
+        return;
+      }
+
+      if (signIn.status === 'needs_first_factor') {
+        const passwordResult = await signIn.password({ password });
+        if (passwordResult.error) {
+          setError(passwordResult.error.message);
+          return;
+        }
+        if (signIn.status as string === 'complete') {
+          await signIn.finalize();
+          router.push(APP_ROUTES.home);
+          return;
+        }
+      }
+
+      if (signIn.status === 'needs_second_factor') {
+        setError('This account requires two-factor authentication.');
+        return;
+      }
+
+      setError('Sign-in could not be completed. Please try again.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Sign-in failed. Please try again.');
+    } finally {
       setIsLoading(false);
-      completeSignIn(identifier.trim());
-    }, 900);
+    }
   };
 
   return {
     identifier,
     password,
     isLoading,
-    isGoogleLoading,
     error,
     fieldErrors,
-    forgotPasswordNotice,
     handleIdentifierChange,
     handlePasswordChange,
-    handleGoogleSignIn,
     handleForgotPassword,
-    closeForgotPasswordNotice,
     handleSubmit,
     handleNavigateToSignUp,
     handleNavigateToLanding,

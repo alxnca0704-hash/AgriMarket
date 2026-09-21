@@ -88,28 +88,27 @@ export function SignUpProfileStep({
         </div>
       </div>
 
-      {/* Optional Farm Name for Farmer role */}
-      {profile.role === ROLES.SELLER && (
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label
-              htmlFor="farmName"
-              className="block text-sm font-medium text-stone-700"
-            >
-              Farm or collective name
-            </label>
-            <span className="text-sm text-stone-400">Optional</span>
-          </div>
-          <Input
-            id="farmName"
-            size="large"
-            placeholder="e.g. Green Valley Farm"
-            value={profile.farmName || ''}
-            onChange={(e) => onUpdate('farmName', e.target.value)}
-            className="!rounded-lg"
-          />
-        </div>
-      )}
+      {/* Mobile Number */}
+      <div>
+        <label
+          htmlFor="mobileNumber"
+          className="block text-sm font-medium text-stone-700 mb-1.5"
+        >
+          Mobile number <span className="text-error">*</span>
+        </label>
+        <Input
+          id="mobileNumber"
+          size="large"
+          placeholder="0917 123 4567"
+          value={profile.mobileNumber}
+          onChange={(e) => onUpdate('mobileNumber', e.target.value)}
+          status={errors.mobileNumber ? 'error' : ''}
+          className="!rounded-lg"
+        />
+        {errors.mobileNumber && (
+          <p className="text-sm text-error mt-1">{errors.mobileNumber}</p>
+        )}
+      </div>
 
       {/* First & Last Name */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

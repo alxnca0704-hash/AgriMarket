@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { App } from 'antd';
+import { useMutation } from 'convex/react';
+import { api } from '@/convex/_generated/api';
 import { AuthenticatedUser } from '@/types/auth';
 import { ProfileEditData } from '@/types/profile';
 import { ROLE_DETAILS } from '@/constants/roles';
@@ -12,6 +14,7 @@ import {
   updateSessionUser,
 } from '@/lib/mockSession';
 import { useAddressBook } from '@/hooks/useAddressBook';
+import { useConvexUserSync } from '@/hooks/useConvexUserSync';
 
 function toProfileDraft(user: AuthenticatedUser): ProfileEditData {
   return {
@@ -46,6 +49,8 @@ function validateProfile(draft: ProfileEditData): Record<string, string> {
 
 export function useProfile() {
   const { message } = App.useApp();
+  const { isAuthedWithConvex } = useConvexUserSync();
+  const updateProfileConvex = useMutation(api.users.updateProfile);
   const user = useSyncExternalStore(
     subscribeSessionUser,
     getSessionUserSnapshot,
@@ -90,10 +95,19 @@ export function useProfile() {
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
+    const fullName = draft.fullName.trim();
+    const mobileNumber = draft.mobileNumber.trim();
+
+    if (isAuthedWithConvex) {
+      updateProfileConvex({ fullName, mobileNumber }).catch(() =>
+        message.error('Could not save your profile. Please try again.')
+      );
+    }
+
     const updated: AuthenticatedUser = {
       ...user,
-      fullName: draft.fullName.trim(),
-      mobileNumber: draft.mobileNumber.trim(),
+      fullName,
+      mobileNumber,
       email: draft.email.trim() || undefined,
     };
     updateSessionUser(updated);

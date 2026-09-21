@@ -1,12 +1,25 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useSignUp as useClerkSignUp } from '@clerk/nextjs';
+import { useUser } from '@clerk/nextjs';
+import { useMutation } from 'convex/react';
+import { api } from '@/convex/_generated/api';
 import { APP_ROUTES, API_ROUTES } from '@/constants/routes';
 import { ROLES, UserRole } from '@/constants/roles';
-import { COMPLETE_PH_REGIONS, NamedLocation } from '@/constants/phLocations';
-import { SignUpFormData, AuthenticatedUser } from '@/types/auth';
-import { updateSessionUser } from '@/lib/mockSession';
+import { SignUpFormData } from '@/types/auth';
+import { updateSessionUser, setActiveView } from '@/lib/mockSession';
+import { toSessionUser } from '@/lib/convexSync';
+import { createStall } from '@/lib/mockStall';
+import { useLocationCascade } from '@/hooks/useLocationCascade';
+import {
+  buildStallPayload,
+  makeEmptyStallDraft,
+  StallFormDraft,
+  toLocationDraft,
+  validateStall,
+} from '@/hooks/useSellerOnboarding';
 
 const INITIAL_FORM_DATA: SignUpFormData = {
   profile: {
@@ -14,28 +27,20 @@ const INITIAL_FORM_DATA: SignUpFormData = {
     firstName: '',
     lastName: '',
     birthday: '',
-    farmName: '',
+    mobileNumber: '',
     photoUrl: '',
   },
-  address: {
-    label: 'Home',
-    receiverName: '',
-    receiverPhone: '',
-    region: '',
-    province: '',
-    cityMunicipality: '',
-    barangay: '',
-    streetBuilding: '',
-    postalCode: '',
-    isDefault: true,
-  },
+  stall: makeEmptyStallDraft(),
 };
-
-const DEMO_EMAIL = 'demo.user@gmail.com';
 
 export function useSignUp() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { signUp } = useClerkSignUp();
+  const { isLoaded, isSignedIn, user } = useUser();
+  const completeOnboarding = useMutation(api.users.completeOnboarding);
+  const createStallConvex = useMutation(api.stalls.createStall);
+  const didPrefill = useRef(false);
 
   const initialRoleParam = searchParams.get('role');
   const initialRole: UserRole =
@@ -51,46 +56,58 @@ export function useSignUp() {
     },
   }));
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [stallErrors, setStallErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [verifiedEmail, setVerifiedEmail] = useState<string | null>(null);
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
 
-  // Complete Cascading Address State
-  const [provincesList, setProvincesList] = useState<NamedLocation[]>([]);
-  const [citiesList, setCitiesList] = useState<NamedLocation[]>([]);
-  const [barangaysList, setBarangaysList] = useState<NamedLocation[]>([]);
+  // Email + password create-account step
+  const [authView, setAuthView] = useState<'form' | 'verify'>('form');
+  const [credentials, setCredentials] = useState({
+    email: '',
+    password: '',
+    confirmPassword: '',
+  });
+  const [credentialErrors, setCredentialErrors] = useState<Record<string, string>>({});
+  const [pendingEmail, setPendingEmail] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [resendCooldown, setResendCooldown] = useState(0);
 
-  const [isProvincesLoading, setIsProvincesLoading] = useState(false);
-  const [isCitiesLoading, setIsCitiesLoading] = useState(false);
-  const [isBarangaysLoading, setIsBarangaysLoading] = useState(false);
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const id = window.setTimeout(() => setResendCooldown((s) => s - 1), 1000);
+    return () => window.clearTimeout(id);
+  }, [resendCooldown]);
 
-  const isSignedIn = verifiedEmail !== null;
-  const userEmail = verifiedEmail ?? '';
+  const isSeller = formData.profile.role === ROLES.SELLER;
 
-  // An unsigned visitor can never advance past the Google verification step.
-  const currentStep = !isSignedIn && step > 0 ? 0 : step;
+  const stallLocation = useLocationCascade(
+    toLocationDraft(formData.stall),
+    (patch) =>
+      setFormData((prev) => ({ ...prev, stall: { ...prev.stall, ...patch } }))
+  );
 
-  // Without a real identity provider, the profile starts blank.
-  const profileWithDefaults: SignUpFormData['profile'] = formData.profile;
+  const signedIn = isSignedIn === true;
+  const userEmail = user?.primaryEmailAddress?.emailAddress ?? '';
 
-  // Region options (all 18 Philippine regions)
-  const regionOptions = useMemo(() => {
-    return COMPLETE_PH_REGIONS.map((r) => ({ label: r.name, value: r.name }));
-  }, []);
+  // An unsigned visitor can never advance past the account-creation step.
+  const currentStep = signedIn || !isLoaded ? step : 0;
 
-  const provinceOptions = useMemo(() => {
-    return provincesList.map((p) => ({ label: p.name, value: p.name }));
-  }, [provincesList]);
-
-  const cityOptions = useMemo(() => {
-    return citiesList.map((c) => ({ label: c.name, value: c.name }));
-  }, [citiesList]);
-
-  const barangayOptions = useMemo(() => {
-    return barangaysList.map((b) => ({ label: b.name, value: b.name }));
-  }, [barangaysList]);
+  // Prefill names from the signed-in account once.
+  useEffect(() => {
+    if (!isLoaded || !signedIn || !user || didPrefill.current) return;
+    didPrefill.current = true;
+    setFormData((prev) => ({
+      ...prev,
+      profile: {
+        ...prev.profile,
+        firstName: prev.profile.firstName || user.firstName || '',
+        lastName: prev.profile.lastName || user.lastName || '',
+      },
+    }));
+  }, [isLoaded, signedIn, user]);
 
   // Profile field updater
   const updateProfileField = <K extends keyof SignUpFormData['profile']>(
@@ -110,154 +127,14 @@ export function useSignUp() {
     }
   };
 
-  // Load Provinces when Region changes
-  const handleSelectRegion = async (regionName: string) => {
-    const matchedRegion = COMPLETE_PH_REGIONS.find((r) => r.name === regionName);
-
-    setFormData((prev) => ({
-      ...prev,
-      address: {
-        ...prev.address,
-        region: regionName,
-        province: '',
-        cityMunicipality: '',
-        barangay: '',
-      },
-    }));
-
-    setProvincesList([]);
-    setCitiesList([]);
-    setBarangaysList([]);
-
-    if (errors.region) {
-      setErrors((prev) => {
-        const next = { ...prev };
-        delete next.region;
-        return next;
-      });
-    }
-
-    if (!matchedRegion) return;
-
-    setIsProvincesLoading(true);
-    try {
-      const res = await fetch(`${API_ROUTES.locations}?type=provinces&code=${matchedRegion.code}`);
-      const json = await res.json();
-      if (Array.isArray(json.data)) {
-        setProvincesList(json.data);
-      }
-    } catch (err) {
-      console.error('Failed to load provinces:', err);
-    } finally {
-      setIsProvincesLoading(false);
-    }
-  };
-
-  // Load Cities when Province changes
-  const handleSelectProvince = async (provinceName: string) => {
-    const matchedProvince = provincesList.find((p) => p.name === provinceName);
-
-    setFormData((prev) => ({
-      ...prev,
-      address: {
-        ...prev.address,
-        province: provinceName,
-        cityMunicipality: '',
-        barangay: '',
-      },
-    }));
-
-    setCitiesList([]);
-    setBarangaysList([]);
-
-    if (errors.province) {
-      setErrors((prev) => {
-        const next = { ...prev };
-        delete next.province;
-        return next;
-      });
-    }
-
-    if (!matchedProvince) return;
-
-    setIsCitiesLoading(true);
-    try {
-      const res = await fetch(`${API_ROUTES.locations}?type=cities&code=${matchedProvince.code}`);
-      const json = await res.json();
-      if (Array.isArray(json.data)) {
-        setCitiesList(json.data);
-      }
-    } catch (err) {
-      console.error('Failed to load cities:', err);
-    } finally {
-      setIsCitiesLoading(false);
-    }
-  };
-
-  // Load Barangays when City changes
-  const handleSelectCity = async (cityName: string) => {
-    const matchedCity = citiesList.find((c) => c.name === cityName);
-
-    setFormData((prev) => ({
-      ...prev,
-      address: {
-        ...prev.address,
-        cityMunicipality: cityName,
-        barangay: '',
-      },
-    }));
-
-    setBarangaysList([]);
-
-    if (errors.cityMunicipality) {
-      setErrors((prev) => {
-        const next = { ...prev };
-        delete next.cityMunicipality;
-        return next;
-      });
-    }
-
-    if (!matchedCity) return;
-
-    setIsBarangaysLoading(true);
-    try {
-      const res = await fetch(`${API_ROUTES.locations}?type=barangays&code=${matchedCity.code}`);
-      const json = await res.json();
-      if (Array.isArray(json.data)) {
-        setBarangaysList(json.data);
-      }
-    } catch (err) {
-      console.error('Failed to load barangays:', err);
-    } finally {
-      setIsBarangaysLoading(false);
-    }
-  };
-
-  // Address field updater
-  const updateAddressField = <K extends keyof SignUpFormData['address']>(
+  // Stall field updater
+  const updateStallField = <K extends keyof StallFormDraft>(
     field: K,
-    value: SignUpFormData['address'][K]
+    value: StallFormDraft[K]
   ) => {
-    if (field === 'region') {
-      handleSelectRegion(value as string);
-      return;
-    }
-    if (field === 'province') {
-      handleSelectProvince(value as string);
-      return;
-    }
-    if (field === 'cityMunicipality') {
-      handleSelectCity(value as string);
-      return;
-    }
-
-    setFormData((prev) => ({
-      ...prev,
-      address: { ...prev.address, [field]: value },
-    }));
-
-    if (errors[field]) {
-      setErrors((prev) => {
+    setFormData((prev) => ({ ...prev, stall: { ...prev.stall, [field]: value } }));
+    if (stallErrors[field]) {
+      setStallErrors((prev) => {
         const next = { ...prev };
         delete next[field];
         return next;
@@ -265,10 +142,16 @@ export function useSignUp() {
     }
   };
 
+  const validateStallStep = (): boolean => {
+    const errs = validateStall(formData.stall);
+    setStallErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
   // Validations per step
   const validateProfileStep = (): boolean => {
     const errs: Record<string, string> = {};
-    const { firstName, lastName, role, farmName } = profileWithDefaults;
+    const { firstName, lastName, mobileNumber } = formData.profile;
 
     if (!firstName.trim()) {
       errs.firstName = 'First name is required';
@@ -276,77 +159,168 @@ export function useSignUp() {
     if (!lastName.trim()) {
       errs.lastName = 'Last name is required';
     }
-    if (role === ROLES.SELLER && farmName && farmName.length < 2) {
-      errs.farmName = 'Farm name is too short';
-    }
 
-    setErrors(errs);
-    return Object.keys(errs).length === 0;
-  };
-
-  const validateAddressStep = (): boolean => {
-    const errs: Record<string, string> = {};
-    const { receiverName, receiverPhone, region, province, cityMunicipality, barangay, streetBuilding, postalCode } =
-      formData.address;
-
-    if (!receiverName.trim()) {
-      errs.receiverName = 'Contact person name is required';
-    }
-
-    const cleanPhone = receiverPhone.replace(/\s|-/g, '');
+    const cleanPhone = mobileNumber.replace(/\s|-/g, '');
     if (!cleanPhone) {
-      errs.receiverPhone = 'Contact mobile number is required';
+      errs.mobileNumber = 'Mobile number is required';
     } else if (!/^(\+?63|0)?9\d{9}$/.test(cleanPhone)) {
-      errs.receiverPhone = 'Enter a valid 11-digit mobile number';
-    }
-
-    if (!region) errs.region = 'Please select a region';
-    if (!province) errs.province = 'Please select a province';
-    if (!cityMunicipality) errs.cityMunicipality = 'Please select a city or municipality';
-    if (!barangay) errs.barangay = 'Please select a barangay';
-
-    if (!streetBuilding.trim()) {
-      errs.streetBuilding = 'Street address or building number is required';
-    }
-
-    if (!postalCode.trim()) {
-      errs.postalCode = 'Postal code is required';
-    } else if (!/^\d{4}$/.test(postalCode.trim())) {
-      errs.postalCode = 'Enter a 4-digit postal code';
+      errs.mobileNumber = 'Enter a valid 11-digit mobile number';
     }
 
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
-  const handleGoogleSignUp = () => {
-    setAuthError(null);
-    setIsGoogleLoading(true);
+  const handleCredentialChange = (
+    field: 'email' | 'password' | 'confirmPassword',
+    value: string
+  ) => {
+    setCredentials((prev) => ({ ...prev, [field]: value }));
+    if (credentialErrors[field]) {
+      setCredentialErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
+    if (authError) setAuthError(null);
+  };
 
-    setTimeout(() => {
-      setIsGoogleLoading(false);
-      setVerifiedEmail(DEMO_EMAIL);
-    }, 900);
+  const validateCredentials = (): boolean => {
+    const errs: Record<string, string> = {};
+    const { email, password } = credentials;
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      errs.email = 'Enter a valid email address';
+    }
+    if (password.length < 8) {
+      errs.password = 'Password must be at least 8 characters';
+    }
+    if (credentials.confirmPassword !== password) {
+      errs.confirmPassword = 'Passwords do not match';
+    }
+
+    setCredentialErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const handleCreateAccount = async () => {
+    setAuthError(null);
+    if (!validateCredentials()) return;
+    if (!signUp) {
+      setAuthError('Sign-up is still loading. Please wait a moment and try again.');
+      return;
+    }
+
+    setIsCreating(true);
+    try {
+      const result = await signUp.create({
+        emailAddress: credentials.email.trim(),
+        password: credentials.password,
+      });
+      if (result.error) {
+        setAuthError(result.error.message);
+        return;
+      }
+
+      if (signUp.status === 'complete') {
+        const finalResult = await signUp.finalize();
+        if (finalResult.error) setAuthError(finalResult.error.message);
+        return;
+      }
+
+      setPendingEmail(credentials.email.trim());
+      setAuthView('verify');
+      setResendCooldown(30);
+      const sendResult = await signUp.verifications.sendEmailCode();
+      if (sendResult.error) {
+        setAuthNotice('Check your inbox for the verification code.');
+      }
+    } catch (err) {
+      setAuthError(
+        err instanceof Error ? err.message : 'Failed to create account. Please try again.'
+      );
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const handleCodeChange = (value: string) => {
+    setVerificationCode(value.replace(/\D/g, ''));
+    if (authError) setAuthError(null);
+    if (authNotice) setAuthNotice(null);
+  };
+
+  const handleVerifyCode = async (code: string) => {
+    setAuthError(null);
+    setAuthNotice(null);
+    if (!signUp) return;
+    if (!code) return;
+
+    setIsCreating(true);
+    try {
+      const result = await signUp.verifications.verifyEmailCode({ code });
+      if (result.error) {
+        setAuthError(result.error.message);
+        return;
+      }
+      if (signUp.status === 'complete') {
+        const finalResult = await signUp.finalize();
+        if (finalResult.error) setAuthError(finalResult.error.message);
+      }
+      setVerificationCode('');
+      setResendCooldown(0);
+    } catch (err) {
+      setAuthError(
+        err instanceof Error ? err.message : 'Verification failed. Please try again.'
+      );
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    setAuthError(null);
+    setAuthNotice(null);
+    if (!signUp) return;
+    try {
+      const result = await signUp.verifications.sendEmailCode();
+      if (result.error) {
+        setAuthError(result.error.message);
+        return;
+      }
+      setResendCooldown(30);
+      setAuthNotice('A new verification code has been sent to your email.');
+    } catch (err) {
+      setAuthError(
+        err instanceof Error ? err.message : 'Failed to resend the code. Please try again.'
+      );
+    }
+  };
+
+  const handleCancelVerification = async () => {
+    setAuthError(null);
+    setAuthNotice(null);
+    setVerificationCode('');
+    setResendCooldown(0);
+    if (signUp) await signUp.reset();
+    setAuthView('form');
   };
 
   const handleNext = () => {
     if (currentStep === 0) {
-      if (!isSignedIn) {
-        setAuthError('Continue with Google to verify your account first.');
+      if (!signedIn) {
+        setAuthError('Create an account and verify your email to continue.');
         return;
       }
       setAuthError(null);
       setStep(1);
     } else if (currentStep === 1) {
       if (validateProfileStep()) {
-        if (!formData.address.receiverName && (profileWithDefaults.firstName || profileWithDefaults.lastName)) {
-          const defaultName = `${profileWithDefaults.firstName} ${profileWithDefaults.lastName}`.trim();
-          updateAddressField('receiverName', defaultName);
-        }
         setStep(2);
       }
-    } else if (currentStep === 2) {
-      if (validateAddressStep()) {
+    } else if (currentStep === 2 && isSeller) {
+      if (validateStallStep()) {
         setStep(3);
       }
     }
@@ -355,6 +329,7 @@ export function useSignUp() {
   const handleBack = () => {
     if (currentStep > 0) {
       setErrors({});
+      setStallErrors({});
       setStep(currentStep - 1);
     } else {
       router.push(APP_ROUTES.landing);
@@ -363,6 +338,7 @@ export function useSignUp() {
 
   const handleJumpToStep = (stepIndex: number) => {
     setErrors({});
+    setStallErrors({});
     setStep(stepIndex);
   };
 
@@ -370,11 +346,19 @@ export function useSignUp() {
     updateProfileField('role', role);
   };
 
+  const syncMockSession = (
+    result: Awaited<ReturnType<typeof completeOnboarding>> | null,
+    userEmailAddress: string
+  ) => {
+    if (!result) return;
+    updateSessionUser(toSessionUser(result.user, result.addresses, userEmailAddress));
+  };
+
   const handleSubmit = async () => {
     setSubmitError(null);
 
-    if (!isSignedIn) {
-      setSubmitError('Please verify your account with Google to continue.');
+    if (!signedIn) {
+      setSubmitError('Please finish creating your account to continue.');
       setStep(0);
       return;
     }
@@ -382,42 +366,33 @@ export function useSignUp() {
     setIsLoading(true);
 
     try {
-      const profile = profileWithDefaults;
-      const { address } = formData;
-      const addressSummary = `${address.streetBuilding}, Brgy. ${address.barangay}, ${address.cityMunicipality}, ${address.province}, ${address.region} ${address.postalCode}`;
-      const cleanPhone = address.receiverPhone.replace(/\s|-/g, '');
+      const profile = formData.profile;
+      const cleanPhone = profile.mobileNumber.replace(/\s|-/g, '');
       const mobileNumber = cleanPhone.startsWith('0') ? cleanPhone : `0${cleanPhone}`;
 
-      const deliveryAddress: AuthenticatedUser['deliveryAddress'] = {
-        label: address.label,
-        receiverName: address.receiverName,
-        receiverPhone: address.receiverPhone,
-        region: address.region,
-        province: address.province,
-        cityMunicipality: address.cityMunicipality,
-        barangay: address.barangay,
-        streetBuilding: address.streetBuilding,
-        postalCode: address.postalCode,
-      };
-
-      const user: AuthenticatedUser = {
-        id: `mock-${Date.now()}`,
+      const result = await completeOnboarding({
         role: profile.role,
         fullName: `${profile.firstName.trim()} ${profile.lastName.trim()}`,
         mobileNumber,
-        email: userEmail || undefined,
-        photoUrl: profile.photoUrl || undefined,
-        defaultAddressSummary: addressSummary,
-        deliveryAddress: deliveryAddress,
-        deliveryAddresses: [deliveryAddress],
-        createdAt: new Date().toISOString(),
-      };
+      });
 
-      updateSessionUser(user);
+      await fetch(API_ROUTES.clerkRole, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: profile.role }),
+      });
 
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      syncMockSession(result, userEmail);
 
-      router.push(APP_ROUTES.home);
+      if (profile.role === ROLES.SELLER) {
+        const { profile: stall, mutationInput } = buildStallPayload(formData.stall);
+        await createStallConvex({ stall: mutationInput });
+        createStall(stall);
+        setActiveView('seller');
+        router.push(APP_ROUTES.sellerDashboard);
+      } else {
+        router.push(APP_ROUTES.home);
+      }
     } catch (err) {
       setSubmitError(
         err instanceof Error ? err.message : 'Failed to create account. Please try again.'
@@ -429,26 +404,34 @@ export function useSignUp() {
 
   return {
     currentStep,
-    formData: { ...formData, profile: profileWithDefaults },
+    isSeller,
+    formData,
     errors,
-    isAuthLoaded: true,
-    isSignedIn,
+    stallErrors,
+    stallLocation,
+    isAuthLoaded: isLoaded,
+    isSignedIn: signedIn,
     userEmail,
     isLoading,
-    isGoogleLoading,
     submitError,
     authError,
-    regionOptions,
-    provinceOptions,
-    cityOptions,
-    barangayOptions,
-    isProvincesLoading,
-    isCitiesLoading,
-    isBarangaysLoading,
+    authNotice,
+    authView,
+    credentials,
+    credentialErrors,
+    pendingEmail,
+    verificationCode,
+    resendCooldown,
+    isCreating,
     updateProfileField,
-    updateAddressField,
+    updateStallField,
     handleRoleChange,
-    handleGoogleSignUp,
+    handleCredentialChange,
+    handleCodeChange,
+    handleCreateAccount,
+    handleVerifyCode,
+    handleResendCode,
+    handleCancelVerification,
     handleNext,
     handleBack,
     handleJumpToStep,

@@ -1,17 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { AuthenticatedUser } from '@/types/auth';
-import {
-  DEMO_BUYER,
-  getSessionUserSnapshot,
-  subscribeSessionUser,
-  getActiveViewSnapshot,
-  getBuyerViewSnapshot,
-  subscribeActiveView,
-  setActiveView,
-} from '@/lib/mockSession';
-import { getStallSnapshot, subscribeStall } from '@/lib/mockStall';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { useConvexUserSync } from '@/hooks/useConvexUserSync';
+import { toSessionUser, toStallProfile } from '@/lib/convexSync';
 import {
   getNotificationsSnapshot,
   getEmptyNotificationsSnapshot,
@@ -21,34 +12,14 @@ import { ensureSellerDemoData } from '@/lib/demoSeed';
 import { notifyLowStockIfNeeded } from '@/lib/mockListings';
 
 export function useSellerShell() {
-  const user = useSyncExternalStore(
-    subscribeSessionUser,
-    getSessionUserSnapshot,
-    () => DEMO_BUYER
-  );
-  const stall = useSyncExternalStore(
-    subscribeStall,
-    getStallSnapshot,
-    () => getStallSnapshot()
-  );
-  const activeView = useSyncExternalStore(
-    subscribeActiveView,
-    getActiveViewSnapshot,
-    getBuyerViewSnapshot
-  );
+  const { current, isReady, isAuthedWithConvex } = useConvexUserSync();
   const notifications = useSyncExternalStore(
     subscribeNotifications,
     getNotificationsSnapshot,
     getEmptyNotificationsSnapshot
   );
 
-  const [isLoading, setIsLoading] = useState(true);
   const seeded = useRef(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 250);
-    return () => clearTimeout(timer);
-  }, []);
 
   useEffect(() => {
     if (seeded.current) return;
@@ -57,16 +28,17 @@ export function useSellerShell() {
     notifyLowStockIfNeeded();
   }, []);
 
+  const user =
+    isAuthedWithConvex && current ? toSessionUser(current.user, current.addresses, current.email) : null;
+  const stall = current?.stall ? toStallProfile(current.stall) : null;
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   return {
-    isLoading,
+    isLoading: !isReady,
     error: null,
-    user: user as AuthenticatedUser,
+    user,
     stall,
-    activeView,
     unreadCount,
-    setActiveView,
-    sellerTitle: stall.stallName,
+    sellerTitle: stall?.stallName ?? user?.fullName ?? '',
   };
 }
