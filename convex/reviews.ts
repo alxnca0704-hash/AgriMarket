@@ -202,6 +202,36 @@ export const listReviewsForProduct = query({
   },
 });
 
+/** Public: list reviews for a specific stall/shop (buyer-facing shop page). */
+export const listReviewsForStall = query({
+  args: { stallId: v.id("stalls") },
+  async handler(ctx, args) {
+    const rawReviews = await ctx.db
+      .query("reviews")
+      .withIndex("by_stallId", (q) => q.eq("stallId", args.stallId))
+      .order("desc")
+      .take(SELLER_REVIEW_LIMIT);
+
+    const enriched = await Promise.all(
+      rawReviews.map(async (review) => {
+        if (review.productName) return review;
+        const order = await ctx.db.get("orders", review.orderId);
+        if (!order) return review;
+        const item = review.productId
+          ? order.items.find((i) => i.productId === review.productId)
+          : order.items[0];
+        if (!item) return review;
+        return {
+          ...review,
+          productId: item.productId,
+          productName: item.name,
+        };
+      })
+    );
+    return enriched;
+  },
+});
+
 /** Seller lists all reviews for their stall (newest first).
  *  Enriches legacy reviews (missing productId/productName) by joining
  *  the order's items so every review carries a product name. */

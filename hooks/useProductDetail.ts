@@ -110,6 +110,11 @@ export function useProductDetail(productId: string) {
     router.push(APP_ROUTES.checkout);
   };
 
+  const handleVisitShop = () => {
+    if (!seller) return;
+    router.push(APP_ROUTES.shop(seller.id));
+  };
+
   const notFound = skip || (!isLoading && !product);
 
   return {
@@ -128,5 +133,6 @@ export function useProductDetail(productId: string) {
     handleQtyChange,
     handleAddToCart,
     handleBuyNow,
+    handleVisitShop,
   };
 }

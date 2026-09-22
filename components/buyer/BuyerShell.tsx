@@ -46,15 +46,18 @@ export function BuyerShell({ children }: { children: React.ReactNode }) {
     APP_ROUTES.profile,
   ];
 
-  const activeKey = pathname === APP_ROUTES.home || pathname.startsWith('/products')
-    ? 'home'
-    : pathname === APP_ROUTES.cart
-    ? 'cart'
-    : pathname === APP_ROUTES.orders || pathname.startsWith('/orders')
-    ? 'orders'
-    : pathname === APP_ROUTES.profile || pathname.startsWith('/profile')
-    ? 'profile'
-    : null;
+  const activeKey =
+    pathname === APP_ROUTES.home ||
+    pathname.startsWith('/products') ||
+    pathname.startsWith('/shops')
+      ? 'home'
+      : pathname === APP_ROUTES.cart
+        ? 'cart'
+        : pathname === APP_ROUTES.orders || pathname.startsWith('/orders')
+          ? 'orders'
+          : pathname === APP_ROUTES.profile || pathname.startsWith('/profile')
+            ? 'profile'
+            : null;
 
   const showBack = !TAB_ROOTS.includes(pathname as (typeof TAB_ROOTS)[number]);
 

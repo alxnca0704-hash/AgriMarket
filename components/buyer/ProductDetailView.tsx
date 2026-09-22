@@ -12,6 +12,7 @@ import {
   MinusOutlined,
   PlusOutlined,
   SafetyCertificateOutlined,
+  ShopOutlined,
   ShoppingCartOutlined,
   ShoppingOutlined,
   StarFilled,
@@ -70,6 +71,7 @@ export function ProductDetailView({ productId }: { productId: string }) {
     handleQtyChange,
     handleAddToCart,
     handleBuyNow,
+    handleVisitShop,
   } = useProductDetail(productId);
 
   const productRating =
@@ -342,7 +344,17 @@ export function ProductDetailView({ productId }: { productId: string }) {
               <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-stone-900">
                 From the farm
               </h2>
-              <SellerCard seller={seller} />
+              <div className="rounded-2xl bg-white shadow-sm p-4 sm:p-5 space-y-4">
+                <SellerCard seller={seller} />
+                <Button
+                  block
+                  icon={<ShopOutlined />}
+                  onClick={handleVisitShop}
+                  className="!rounded-xl !h-11 !font-medium !border-stone-200 hover:!border-sage hover:!text-sage"
+                >
+                  Visit shop
+                </Button>
+              </div>
             </section>
           )}
         </div>
