@@ -52,7 +52,7 @@ export function SignInView() {
 
           {error && (
             <div className="mb-4">
-              <Alert type="error" message={error} showIcon />
+              <Alert type="error" title={error} showIcon />
             </div>
           )}
 

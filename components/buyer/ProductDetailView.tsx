@@ -61,6 +61,8 @@ export function ProductDetailView({ productId }: { productId: string }) {
     product,
     seller,
     reviews,
+    reviewsLoading,
+    reviewsError,
     qty,
     cartQty,
     hasStock,
@@ -69,6 +71,12 @@ export function ProductDetailView({ productId }: { productId: string }) {
     handleAddToCart,
     handleBuyNow,
   } = useProductDetail(productId);
+
+  const productRating =
+    reviews.length > 0
+      ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+      : product?.rating ?? 0;
+  const productRatingCount = reviews.length > 0 ? reviews.length : product?.ratingCount ?? 0;
 
   if (isLoading) {
     return <ProductDetailSkeleton />;
@@ -177,8 +185,8 @@ export function ProductDetailView({ productId }: { productId: string }) {
               <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm text-stone-500">
                 <div className="flex items-center gap-1">
                   <StarFilled className="!text-xs text-amber-500" />
-                  <span className="font-semibold text-stone-800">{product.rating.toFixed(1)}</span>
-                  <span className="text-stone-400">({product.ratingCount})</span>
+                  <span className="font-semibold text-stone-800">{productRating.toFixed(1)}</span>
+                  <span className="text-stone-400">({productRatingCount})</span>
                 </div>
                 {seller && (
                   <>
@@ -339,17 +347,17 @@ export function ProductDetailView({ productId }: { productId: string }) {
           )}
         </div>
 
-        {/* Reviews Section */}
+        {/* Reviews Section — per product */}
         <section className="space-y-5">
           <div className="flex items-baseline justify-between">
             <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-stone-900">
               Customer reviews
             </h2>
             <span className="text-xs sm:text-sm text-stone-400">
-              {reviews.length} review{reviews.length === 1 ? '' : 's'}
+              {reviewsLoading ? 'loading…' : `${reviews.length} review${reviews.length === 1 ? '' : 's'} for this product`}
             </span>
           </div>
-          <ReviewsList reviews={reviews} />
+          <ReviewsList reviews={reviews} isLoading={reviewsLoading} error={reviewsError} />
         </section>
       </div>
 

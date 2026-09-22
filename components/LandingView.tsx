@@ -80,7 +80,7 @@ export function LandingView() {
 
       {error && (
         <div className="max-w-5xl mx-auto px-4 pt-4 w-full">
-          <Alert type="error" message={error} showIcon />
+          <Alert type="error" title={error} showIcon />
         </div>
       )}
 

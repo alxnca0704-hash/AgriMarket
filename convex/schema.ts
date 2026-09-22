@@ -92,4 +92,27 @@ export default defineSchema({
     .index("by_buyerId", ["buyerId"])
     .index("by_sellerId", ["sellerId"])
     .index("by_stallId", ["stallId"]),
+
+  reviews: defineTable({
+    orderId: v.id("orders"),
+    productId: v.optional(v.id("products")),
+    productName: v.optional(v.string()),
+    buyerId: v.id("users"),
+    sellerId: v.id("users"),
+    stallId: v.id("stalls"),
+    /** buyer-facing display name snapshot */
+    buyerName: v.string(),
+    rating: v.number(), // 1-5
+    comment: v.string(),
+    /** Optional seller reply */
+    reply: v.optional(v.string()),
+    repliedAt: v.optional(v.string()),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index("by_orderId", ["orderId"])
+    .index("by_productId", ["productId"])
+    .index("by_sellerId", ["sellerId"])
+    .index("by_stallId", ["stallId"])
+    .index("by_buyerId", ["buyerId"]),
 });

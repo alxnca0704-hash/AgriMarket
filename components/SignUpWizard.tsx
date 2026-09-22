@@ -99,7 +99,7 @@ export function SignUpWizard() {
 
               {submitError && (
                 <div className="mb-5">
-                  <Alert type="error" message={submitError} showIcon />
+                  <Alert type="error" title={submitError} showIcon />
                 </div>
               )}
 

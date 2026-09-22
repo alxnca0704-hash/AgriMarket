@@ -7,10 +7,48 @@ import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { APP_ROUTES } from '@/constants/routes';
-import { Product, Review, Seller } from '@/types/product';
+import { Product, Seller } from '@/types/product';
+import { Review } from '@/types/review';
 import { toBuyerProduct, toBuyerSeller } from '@/lib/convexSync';
 import { useCartContext } from '@/components/buyer/CartProvider';
-import { MOCK_CATALOG } from '@/lib/mockCatalog';
+
+function isValidConvexId(value: string): boolean {
+  return /^[a-z0-9]{32}$/.test(value);
+}
+
+function toReview(raw: {
+  _id: string;
+  orderId: string;
+  productId?: string;
+  productName?: string;
+  buyerId: string;
+  sellerId: string;
+  stallId: string;
+  buyerName: string;
+  rating: number;
+  comment: string;
+  reply?: string;
+  repliedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}): Review {
+  return {
+    id: raw._id,
+    orderId: raw.orderId,
+    productId: raw.productId,
+    productName: raw.productName,
+    buyerId: raw.buyerId,
+    sellerId: raw.sellerId,
+    stallId: raw.stallId,
+    buyerName: raw.buyerName,
+    rating: raw.rating,
+    comment: raw.comment,
+    reply: raw.reply,
+    repliedAt: raw.repliedAt,
+    createdAt: raw.createdAt,
+    updatedAt: raw.updatedAt,
+  };
+}
 
 export function useProductDetail(productId: string) {
   const router = useRouter();
@@ -19,9 +57,17 @@ export function useProductDetail(productId: string) {
 
   const [qty, setQty] = useState(1);
 
-  const raw = useQuery(api.market.getPublicProduct, { productId: productId as Id<'products'> });
+  const skip = !isValidConvexId(productId);
+  const raw = useQuery(
+    api.market.getPublicProduct,
+    skip ? 'skip' : { productId: productId as Id<'products'> }
+  );
+  const rawReviews = useQuery(
+    api.reviews.listReviewsForProduct,
+    skip ? 'skip' : { productId: productId as Id<'products'> }
+  );
 
-  const isLoading = raw === undefined;
+  const isLoading = !skip && raw === undefined;
   const isFailed = raw instanceof Error;
 
   const product: Product | undefined = useMemo(
@@ -35,9 +81,11 @@ export function useProductDetail(productId: string) {
   );
 
   const reviews: Review[] = useMemo(
-    () => MOCK_CATALOG.reviews.filter((r) => r.productId === productId),
-    [productId]
+    () => (Array.isArray(rawReviews) ? rawReviews.map(toReview) : []),
+    [rawReviews]
   );
+  const reviewsLoading = !skip && rawReviews === undefined;
+  const reviewsError = rawReviews instanceof Error ? rawReviews.message : null;
 
   const cartQty =
     cart.items.find((i) => i.productId === productId)?.qty ?? 0;
@@ -62,7 +110,7 @@ export function useProductDetail(productId: string) {
     router.push(APP_ROUTES.checkout);
   };
 
-  const notFound = !isLoading && !product;
+  const notFound = skip || (!isLoading && !product);
 
   return {
     isLoading,
@@ -71,6 +119,8 @@ export function useProductDetail(productId: string) {
     product,
     seller,
     reviews,
+    reviewsLoading,
+    reviewsError,
     qty,
     cartQty,
     hasStock,

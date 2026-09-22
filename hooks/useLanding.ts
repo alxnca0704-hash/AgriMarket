@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useUser } from '@clerk/nextjs';
 import { APP_ROUTES } from '@/constants/routes';
 import { ROLES } from '@/constants/roles';
 
@@ -24,16 +25,33 @@ export interface RegionalHub {
 
 export function useLanding() {
   const router = useRouter();
+  const { isLoaded, isSignedIn, user } = useUser();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<'all' | 'fruits' | 'vegetables' | 'grains'>('all');
 
+  // Redirect already-signed-in users to their home
   useEffect(() => {
+    if (!isLoaded) return;
+    if (isSignedIn) {
+      const role = user?.publicMetadata?.role as string | undefined;
+      if (role === ROLES.SELLER) {
+        router.replace(APP_ROUTES.sellerDashboard);
+      } else {
+        router.replace(APP_ROUTES.home);
+      }
+    }
+  }, [isLoaded, isSignedIn, user, router]);
+
+  useEffect(() => {
+    // Keep skeleton visible until Clerk has resolved auth state — prevents
+    // flashing the marketing page for a signed-in user before redirect fires.
+    if (!isLoaded) return;
     const timer = setTimeout(() => {
       setIsLoading(false);
     }, 80);
     return () => clearTimeout(timer);
-  }, []);
+  }, [isLoaded]);
 
   const produceList: ProduceItem[] = [
     {

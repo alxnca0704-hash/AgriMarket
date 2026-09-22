@@ -2,18 +2,20 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { Alert, Button, Result, Skeleton, Tag } from 'antd';
+import { Alert, Button, Rate, Result, Skeleton, Tag } from 'antd';
 import {
   ArrowLeftOutlined,
   BankOutlined,
   EnvironmentOutlined,
   HomeOutlined,
   MobileOutlined,
+  StarOutlined,
 } from '@ant-design/icons';
 import { useOrderDetail } from '@/hooks/useOrderDetail';
 import { OrderItems } from '@/components/orders/OrderItems';
 import { OrderSteps } from '@/components/orders/OrderSteps';
 import { OrderActions } from '@/components/orders/OrderActions';
+import { ReviewModal } from '@/components/orders/ReviewModal';
 import { ORDER_STATUS_LABELS, ORDER_STATUS_TAG_COLORS } from '@/constants/orders';
 import { APP_ROUTES } from '@/constants/routes';
 import { formatAddressSummary, formatOrderTime, formatPrice } from '@/lib/format';
@@ -42,6 +44,20 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
     error,
     notFound,
     order,
+    reviews,
+    reviewsByProductId,
+    canReview,
+    canReviewProduct,
+    reviewModalOpen,
+    reviewProductName,
+    reviewRating,
+    reviewComment,
+    reviewSubmitting,
+    setReviewRating,
+    setReviewComment,
+    handleOpenReviewModal,
+    handleCloseReviewModal,
+    handleSubmitReview,
     handleConfirmDelivery,
     handleCancel,
   } = useOrderDetail(orderId);
@@ -188,6 +204,76 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
               )}
             </div>
           </section>
+
+          {/* Review section — shown only for delivered/completed orders */}
+          {(canReview || reviews.length > 0) && (
+            <section className="rounded-2xl bg-white shadow-sm p-4 sm:p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <span className="w-9 h-9 rounded-xl bg-sage-soft text-sage flex items-center justify-center shrink-0">
+                  <StarOutlined />
+                </span>
+                <div>
+                  <h2 className="text-sm font-semibold text-stone-900">Product reviews</h2>
+                  <p className="text-xs text-stone-400">Rate each product you received</p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {order.items.map((item) => {
+                  const reviewed = reviewsByProductId.get(item.productId);
+                  return (
+                    <div
+                      key={item.productId}
+                      className="rounded-xl bg-stone-50/70 p-3 flex flex-col gap-2"
+                    >
+                      <div className="flex items-center justify-between gap-3 flex-wrap">
+                        <p className="text-sm font-medium text-stone-800 truncate">{item.name}</p>
+                        {reviewed ? (
+                          <Rate disabled value={reviewed.rating} className="!text-xs shrink-0" />
+                        ) : canReviewProduct(item.productId) ? (
+                          <Button
+                            size="small"
+                            icon={<StarOutlined />}
+                            onClick={() => handleOpenReviewModal(item.productId, item.name)}
+                            className="!rounded-lg !text-xs !border-[#2D6A4F] !text-[#2D6A4F] hover:!bg-[#E9F0EB] shrink-0"
+                          >
+                            Rate
+                          </Button>
+                        ) : null}
+                      </div>
+
+                      {reviewed && (
+                        <>
+                          <p className="text-sm text-stone-600 leading-relaxed">{reviewed.comment}</p>
+                          {reviewed.reply && (
+                            <div className="mt-1 rounded-xl bg-sage-soft/50 px-3.5 py-3">
+                              <p className="text-xs font-semibold text-[#2D6A4F] mb-1">
+                                Seller&apos;s reply
+                                {reviewed.repliedAt && (
+                                  <span className="font-normal text-stone-400">
+                                    {' '}
+                                    ·{' '}
+                                    {new Date(reviewed.repliedAt).toLocaleDateString('en-PH', {
+                                      month: 'short',
+                                      day: 'numeric',
+                                      year: 'numeric',
+                                    })}
+                                  </span>
+                                )}
+                              </p>
+                              <p className="text-sm text-stone-700 leading-relaxed">
+                                {reviewed.reply}
+                              </p>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
         </div>
 
         <div className="lg:col-span-5 space-y-5">
@@ -232,6 +318,20 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
           </section>
         </div>
       </div>
+
+      {/* Review modal */}
+      <ReviewModal
+        open={reviewModalOpen}
+        sellerName={order.sellerName}
+        productName={reviewProductName}
+        rating={reviewRating}
+        comment={reviewComment}
+        submitting={reviewSubmitting}
+        onRatingChange={setReviewRating}
+        onCommentChange={setReviewComment}
+        onSubmit={handleSubmitReview}
+        onCancel={handleCloseReviewModal}
+      />
     </div>
   );
 }

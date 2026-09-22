@@ -83,8 +83,8 @@ export function SignUpAuthStep({
           </p>
         </div>
 
-        {error && <Alert type="error" message={error} showIcon />}
-        {notice && <Alert type="success" message={notice} showIcon />}
+        {error && <Alert type="error" title={error} showIcon />}
+        {notice && <Alert type="success" title={notice} showIcon />}
 
         <form
           onSubmit={(e) => {
@@ -159,7 +159,7 @@ export function SignUpAuthStep({
         </p>
       </div>
 
-      {error && <Alert type="error" message={error} showIcon />}
+      {error && <Alert type="error" title={error} showIcon />}
 
       <form
         onSubmit={(e) => {
