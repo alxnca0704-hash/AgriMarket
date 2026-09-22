@@ -10,6 +10,7 @@ import {
   CloseOutlined,
   HomeOutlined,
   MenuOutlined,
+  ShopOutlined,
   ShoppingCartOutlined,
   UnorderedListOutlined,
   UserOutlined,
@@ -23,6 +24,7 @@ const { Sider, Content } = Layout;
 
 const TABS = [
   { key: 'home', label: 'Home', href: APP_ROUTES.home, icon: <HomeOutlined /> },
+  { key: 'shops', label: 'Shops', href: APP_ROUTES.shops, icon: <ShopOutlined /> },
   { key: 'cart', label: 'Cart', href: APP_ROUTES.cart, icon: <ShoppingCartOutlined /> },
   { key: 'orders', label: 'Orders', href: APP_ROUTES.orders, icon: <UnorderedListOutlined /> },
   { key: 'profile', label: 'Profile', href: APP_ROUTES.profile, icon: <UserOutlined /> },
@@ -41,23 +43,24 @@ export function BuyerShell({ children }: { children: React.ReactNode }) {
 
   const TAB_ROOTS = [
     APP_ROUTES.home,
+    APP_ROUTES.shops,
     APP_ROUTES.cart,
     APP_ROUTES.orders,
     APP_ROUTES.profile,
   ];
 
   const activeKey =
-    pathname === APP_ROUTES.home ||
-    pathname.startsWith('/products') ||
-    pathname.startsWith('/shops')
+    pathname === APP_ROUTES.home || pathname.startsWith('/products')
       ? 'home'
-      : pathname === APP_ROUTES.cart
-        ? 'cart'
-        : pathname === APP_ROUTES.orders || pathname.startsWith('/orders')
-          ? 'orders'
-          : pathname === APP_ROUTES.profile || pathname.startsWith('/profile')
-            ? 'profile'
-            : null;
+      : pathname === APP_ROUTES.shops || pathname.startsWith('/shops')
+        ? 'shops'
+        : pathname === APP_ROUTES.cart
+          ? 'cart'
+          : pathname === APP_ROUTES.orders || pathname.startsWith('/orders')
+            ? 'orders'
+            : pathname === APP_ROUTES.profile || pathname.startsWith('/profile')
+              ? 'profile'
+              : null;
 
   const showBack = !TAB_ROOTS.includes(pathname as (typeof TAB_ROOTS)[number]);
 

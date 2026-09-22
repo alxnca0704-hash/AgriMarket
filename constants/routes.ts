@@ -26,6 +26,7 @@ export const APP_ROUTES = {
   sellerReviews: '/seller/reviews',
   sellerNotifications: '/seller/notifications',
   sellerSettings: '/seller/settings',
+  shops: '/shops',
   shop: (id: string) => `/shops/${id}`,
   publicSellerProfile: (id: string) => `/sellers/${id}`,
 } as const;
