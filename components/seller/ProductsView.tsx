@@ -53,15 +53,17 @@ export function ProductsView() {
     return (
       <div
         key={listing.id}
-        className="flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-sm"
+        className="group flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-sm transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-md"
       >
-        <div className="relative aspect-[18/10] w-full bg-white p-1.5">
-          <Image
-            src={listing.imageUrl}
-            alt={listing.name}
-            preview={false}
-            className="!h-full !w-full rounded-xl object-cover"
-          />
+        <div className="relative w-full bg-white p-1.5" style={{ aspectRatio: '735 / 919' }}>
+          <div className="h-full w-full overflow-hidden rounded-xl">
+            <Image
+              src={listing.imageUrl}
+              alt={listing.name}
+              preview={false}
+              className="!h-full !w-full rounded-xl object-cover transition-transform duration-300 ease-out group-hover:scale-[1.04]"
+            />
+          </div>
         </div>
 
         <div className="flex flex-1 flex-col gap-1 px-2.5 pb-1 pt-1">
@@ -109,7 +111,7 @@ export function ProductsView() {
 
   if (!isLoading && !stall) {
     return (
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-12 pb-16">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-12 pb-16">
         <div className="rounded-2xl bg-white shadow-sm p-8 sm:p-10 text-center">
           <div className="mx-auto w-14 h-14 rounded-2xl bg-stone-100 text-stone-500 flex items-center justify-center text-2xl">
             <ShopOutlined />
@@ -133,7 +135,7 @@ export function ProductsView() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-6 pb-16 space-y-5">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 pb-16 space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-stone-400">Listings</p>
@@ -175,7 +177,7 @@ export function ProductsView() {
       </div>
 
       {isLoading && (
-        <div className="grid grid-cols-2 gap-x-2.5 gap-y-3 sm:grid-cols-3 sm:gap-x-4 sm:gap-y-6 lg:grid-cols-4 xl:grid-cols-5 xl:gap-x-5">
+        <div className="mx-auto grid max-w-6xl grid-cols-2 justify-center gap-x-2.5 gap-y-3 sm:grid-cols-3 sm:gap-x-4 sm:gap-y-6 lg:grid-cols-4 xl:grid-cols-5 xl:gap-x-5">
           {[0, 1, 2, 3, 4].map((i) => (
             <Skeleton.Button key={i} active block className="!h-40 !rounded-xl" />
           ))}
@@ -213,7 +215,7 @@ export function ProductsView() {
       {!isLoading &&
         filtered.length > 0 &&
         (category === 'all' ? (
-          <div className="space-y-8">
+          <div className="mx-auto max-w-6xl space-y-8">
             {sections.map((s) => (
               <section key={s.label}>
                 <div className="mb-3 flex items-baseline gap-2">
@@ -222,14 +224,14 @@ export function ProductsView() {
                   </h2>
                   <span className="text-xs text-stone-400">{s.items.length}</span>
                 </div>
-                <div className="grid grid-cols-2 gap-x-2.5 gap-y-5 sm:grid-cols-3 sm:gap-x-4 sm:gap-y-6 lg:grid-cols-4 xl:grid-cols-5 xl:gap-x-5">
+                <div className="grid grid-cols-2 justify-center gap-x-2.5 gap-y-5 sm:grid-cols-3 sm:gap-x-4 sm:gap-y-6 lg:grid-cols-4 xl:grid-cols-5 xl:gap-x-5">
                   {s.items.map(renderCard)}
                 </div>
               </section>
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-x-2.5 gap-y-5 sm:grid-cols-3 sm:gap-x-4 sm:gap-y-6 lg:grid-cols-4 xl:grid-cols-5 xl:gap-x-5">
+          <div className="mx-auto grid max-w-6xl grid-cols-2 justify-center gap-x-2.5 gap-y-5 sm:grid-cols-3 sm:gap-x-4 sm:gap-y-6 lg:grid-cols-4 xl:grid-cols-5 xl:gap-x-5">
             {filtered.map(renderCard)}
           </div>
         ))}

@@ -18,8 +18,10 @@ function HomeSkeleton() {
         <Skeleton.Input active className="!w-44" />
         <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="bg-white rounded-2xl shadow-sm p-2 space-y-2">
-              <Skeleton.Image active className="!aspect-[18/10] !w-full !rounded-xl" />
+            <div key={i} className="bg-white rounded-2xl shadow-sm p-1.5 space-y-2">
+              <div className="w-full overflow-hidden rounded-xl bg-stone-50" style={{ aspectRatio: '735 / 919' }}>
+                <Skeleton.Image active className="!h-full !w-full !rounded-xl" style={{ width: '100%', height: '100%' }} />
+              </div>
               <Skeleton active paragraph={{ rows: 2 }} title={false} />
             </div>
           ))}

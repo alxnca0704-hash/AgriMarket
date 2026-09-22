@@ -1,10 +1,9 @@
 'use client';
 
 import React from 'react';
-import { Image } from 'antd';
 import { CheckCircleFilled } from '@ant-design/icons';
 import { Product, Seller } from '@/types/product';
-import { formatCount, formatUnitPrice } from '@/lib/format';
+import { formatCount, formatUnitPrice, getProductImageUrl } from '@/lib/format';
 
 interface ProductCardProps {
   product: Product;
@@ -21,15 +20,20 @@ export function ProductCard({ product, seller, onOpen }: ProductCardProps) {
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') onOpen(product.id);
       }}
-      className="flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl bg-white shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-sage/30"
+      className="group flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl bg-white shadow-sm transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-sage/30"
     >
-      <div className="aspect-[18/10] w-full bg-white p-1.5">
-        <Image
-          src={product.imageUrl}
-          alt={product.name}
-          preview={false}
-          className="!h-full !w-full rounded-xl object-cover"
-        />
+      <div className="w-full bg-white p-1.5">
+        <div className="w-full overflow-hidden rounded-xl bg-stone-50" style={{ aspectRatio: '735 / 919' }}>
+          <img
+            src={getProductImageUrl(product.imageUrl)}
+            alt={product.name}
+            width={735}
+            height={919}
+            className="h-full w-full object-cover object-center transition-transform duration-300 ease-out group-hover:scale-[1.04]"
+            loading="lazy"
+            draggable={false}
+          />
+        </div>
       </div>
 
       <div className="flex flex-1 flex-col gap-1 px-2.5 pb-2.5 pt-1">

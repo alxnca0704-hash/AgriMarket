@@ -32,3 +32,13 @@ export function formatOrderTime(iso: string): string {
     minute: '2-digit',
   });
 }
+
+export function getProductImageUrl(url: string, w = 735, h = 919): string {
+  if (!url || !url.includes('res.cloudinary.com')) return url;
+  // Inject Cloudinary fill transform so every image is exactly w×h, prevents inconsistent heights from varying source aspect
+  // e.g. https://res.cloudinary.com/.../image/upload/v123/file.jpg → .../image/upload/c_fill,w_735,h_919,q_auto,f_auto/v123/file.jpg
+  if (url.includes('/image/upload/')) {
+    return url.replace('/image/upload/', `/image/upload/c_fill,w_${w},h_${h},q_auto,f_auto/`);
+  }
+  return url;
+}
