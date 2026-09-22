@@ -120,15 +120,15 @@ export function PublicStallView({ stallId }: { stallId: string }) {
                       src={listing.imageUrl}
                       alt={listing.name}
                       preview={false}
-                      className="!w-full !aspect-[4/3] object-cover"
+                      className="!w-full !aspect-[18/10] object-cover"
                     />
-                    <div className="p-3">
-                      <p className="text-sm font-medium text-stone-800 truncate group-hover:text-[#2D6A4F]">
+                    <div className="p-2.5">
+                      <p className="text-[13px] font-medium text-stone-800 truncate group-hover:text-[#2D6A4F]">
                         {listing.name}
                       </p>
-                      <p className="text-sm font-semibold text-stone-900 mt-0.5">
+                      <p className="text-[13px] font-semibold text-stone-900 mt-0.5">
                         {formatPrice(listing.price)}
-                        <span className="text-xs font-normal text-stone-400"> / {listing.unit}</span>
+                        <span className="text-[11px] font-normal text-stone-400"> / {listing.unit}</span>
                       </p>
                     </div>
                   </button>

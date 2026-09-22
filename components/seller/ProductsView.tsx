@@ -53,38 +53,38 @@ export function ProductsView() {
     return (
       <div
         key={listing.id}
-        className="flex h-full flex-col overflow-hidden rounded-3xl bg-white shadow-sm"
+        className="flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-sm"
       >
-        <div className="relative aspect-[3/2] w-full bg-white p-3">
+        <div className="relative aspect-[18/10] w-full bg-white p-1.5">
           <Image
             src={listing.imageUrl}
             alt={listing.name}
             preview={false}
-            className="!h-full !w-full rounded-2xl object-cover"
+            className="!h-full !w-full rounded-xl object-cover"
           />
         </div>
 
-        <div className="flex flex-1 flex-col gap-1.5 px-3 pb-1 pt-1.5">
-          <h3 className="line-clamp-2 min-h-9 text-[13px] font-medium leading-snug text-stone-900">
+        <div className="flex flex-1 flex-col gap-1 px-2.5 pb-1 pt-1">
+          <h3 className="line-clamp-2 min-h-8 text-[12px] font-medium leading-snug text-stone-900">
             {listing.name}
           </h3>
           <p className="flex items-center gap-1 text-[11px] text-stone-500">
             {stall?.verification.status === 'verified' && (
-              <CheckCircleFilled className="text-[#2D6A4F]" />
+              <CheckCircleFilled className="text-[#2D6A4F] text-[10px]" />
             )}
             <span className="truncate">{stall?.stallName}</span>
           </p>
-          <div className="mt-auto flex items-baseline justify-between gap-2 pt-1.5">
-            <p className="text-sm font-bold tracking-tight text-stone-900">
+          <div className="mt-auto flex items-baseline justify-between gap-2 pt-1">
+            <p className="text-[13px] font-bold tracking-tight text-stone-900">
               {formatUnitPrice(listing.price, listing.unit)}
             </p>
-            <span className="text-[11px] text-stone-400">
+            <span className="text-[10px] text-stone-400">
               {listing.stockQty} {listing.unit} · {formatCount(listing.soldCount)} sold
             </span>
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2 px-3 py-2.5">
+        <div className="flex items-center justify-end gap-2 px-2.5 py-2">
           <Dropdown
             trigger={['click']}
             menu={{
@@ -175,9 +175,9 @@ export function ProductsView() {
       </div>
 
       {isLoading && (
-        <div className="grid grid-cols-2 gap-x-2.5 gap-y-5 sm:grid-cols-3 sm:gap-x-4 sm:gap-y-6 lg:grid-cols-4 xl:grid-cols-5 xl:gap-x-5">
+        <div className="grid grid-cols-2 gap-x-2.5 gap-y-3 sm:grid-cols-3 sm:gap-x-4 sm:gap-y-6 lg:grid-cols-4 xl:grid-cols-5 xl:gap-x-5">
           {[0, 1, 2, 3, 4].map((i) => (
-            <Skeleton.Button key={i} active block className="!h-56 !rounded-3xl" />
+            <Skeleton.Button key={i} active block className="!h-40 !rounded-xl" />
           ))}
         </div>
       )}

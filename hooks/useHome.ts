@@ -148,6 +148,15 @@ export function useHome() {
     setFilterOpen(false);
   };
 
+  const hasFilters =
+    activeCategory !== 'all' || maxPrice !== null || minRating !== null;
+
+  const clearFilters = () => {
+    setActiveCategory('all');
+    setMaxPrice(null);
+    setMinRating(null);
+  };
+
   return {
     isLoading,
     error,
@@ -155,6 +164,7 @@ export function useHome() {
     firstName,
     deliveryAddress: user.defaultAddressSummary,
     products: filtered,
+    totalProducts: allProducts.length,
     sellers: sellerById,
     activeCategory,
     setActiveCategory,
@@ -167,6 +177,8 @@ export function useHome() {
     setMaxPrice,
     setMinRating,
     filterCount,
+    hasFilters,
+    clearFilters,
     handleOpenProduct,
     handleApplyFilters,
     query,

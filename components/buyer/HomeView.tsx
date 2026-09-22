@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Alert, Button, Empty, Input, Skeleton } from 'antd';
-import { EnvironmentOutlined } from '@ant-design/icons';
+import { EnvironmentOutlined, FilterOutlined, ShoppingOutlined } from '@ant-design/icons';
 import { useHome } from '@/hooks/useHome';
 import { ProductGrid } from '@/components/buyer/ProductGrid';
 import { SortFilterBar } from '@/components/buyer/SortFilterBar';
@@ -18,8 +18,8 @@ function HomeSkeleton() {
         <Skeleton.Input active className="!w-44" />
         <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="bg-white rounded-2xl shadow-sm p-4 space-y-3">
-              <Skeleton.Image active className="!aspect-[4/3] !w-full" />
+            <div key={i} className="bg-white rounded-2xl shadow-sm p-2 space-y-2">
+              <Skeleton.Image active className="!aspect-[18/10] !w-full !rounded-xl" />
               <Skeleton active paragraph={{ rows: 2 }} title={false} />
             </div>
           ))}
@@ -37,6 +37,7 @@ export function HomeView() {
     firstName,
     deliveryAddress,
     products,
+    totalProducts,
     sellers,
     activeCategory,
     setActiveCategory,
@@ -49,6 +50,8 @@ export function HomeView() {
     setMaxPrice,
     setMinRating,
     filterCount,
+    hasFilters,
+    clearFilters,
     handleOpenProduct,
     handleApplyFilters,
     query,
@@ -160,14 +163,53 @@ export function HomeView() {
                     <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-stone-900">
                       Available now
                     </h2>
+                    {totalProducts > 0 && products.length > 0 && (
+                      <p className="text-xs text-stone-400 mt-1">
+                        {products.length} {products.length === 1 ? 'item' : 'items'} available
+                      </p>
+                    )}
                   </div>
                   <div>
-                    <ProductGrid
-                      products={products}
-                      sellers={sellers}
-                      onOpen={handleOpenProduct}
-                      gridClassName="grid grid-cols-2 gap-x-2.5 gap-y-5 sm:grid-cols-3 sm:gap-x-4 sm:gap-y-6 xl:grid-cols-4 xl:gap-x-6"
-                    />
+                    {products.length === 0 ? (
+                      totalProducts === 0 ? (
+                        <div className="rounded-2xl bg-white shadow-sm px-6 py-12 sm:py-16 flex flex-col items-center text-center">
+                          <div className="w-14 h-14 rounded-2xl bg-stone-50 flex items-center justify-center mb-4">
+                            <ShoppingOutlined className="text-xl text-stone-400" />
+                          </div>
+                          <h3 className="text-base font-semibold text-stone-900">
+                            No fresh produce available yet
+                          </h3>
+                          <p className="text-sm text-stone-500 mt-1.5 max-w-sm leading-relaxed">
+                            We&apos;re waiting for farms to list their harvest. Check back soon or try adjusting your location.
+                          </p>
+                          <p className="text-xs text-stone-400 mt-4">
+                            New items appear here as soon as sellers publish them.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="rounded-2xl bg-white shadow-sm px-6 py-12 sm:py-16 flex flex-col items-center text-center">
+                          <div className="w-14 h-14 rounded-2xl bg-stone-50 flex items-center justify-center mb-4">
+                            <FilterOutlined className="text-xl text-stone-400" />
+                          </div>
+                          <h3 className="text-base font-semibold text-stone-900">No matches for your filters</h3>
+                          <p className="text-sm text-stone-500 mt-1.5 max-w-sm leading-relaxed">
+                            Try clearing filters or switching categories to see more produce.
+                          </p>
+                          {hasFilters && (
+                            <Button onClick={clearFilters} className="!rounded-xl !mt-5">
+                              Clear all filters
+                            </Button>
+                          )}
+                        </div>
+                      )
+                    ) : (
+                      <ProductGrid
+                        products={products}
+                        sellers={sellers}
+                        onOpen={handleOpenProduct}
+                        gridClassName="grid grid-cols-2 gap-x-2.5 gap-y-5 sm:grid-cols-3 sm:gap-x-4 sm:gap-y-6 xl:grid-cols-4 xl:gap-x-6"
+                      />
+                    )}
                   </div>
                 </section>
               </div>
