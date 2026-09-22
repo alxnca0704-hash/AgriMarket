@@ -15,9 +15,17 @@ export function SellerCard({ seller }: { seller: Seller }) {
   return (
     <div className="flex flex-col gap-5">
       <div className="flex items-start gap-3.5">
-        <span className="w-12 h-12 rounded-2xl bg-sage-soft text-sage flex items-center justify-center text-xl shrink-0">
-          <ShopOutlined />
-        </span>
+        {seller.avatarUrl ? (
+          <img
+            src={seller.avatarUrl}
+            alt={seller.farmName}
+            className="w-12 h-12 rounded-2xl object-cover shrink-0"
+          />
+        ) : (
+          <span className="w-12 h-12 rounded-2xl bg-sage-soft text-sage flex items-center justify-center text-xl shrink-0">
+            <ShopOutlined />
+          </span>
+        )}
         <div className="min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
             <h3 className="text-base sm:text-lg font-semibold text-stone-900 truncate">
