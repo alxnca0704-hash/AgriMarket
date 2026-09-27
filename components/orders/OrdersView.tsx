@@ -32,6 +32,7 @@ export function OrdersView() {
     setActiveTab,
     handleCancel,
     handleConfirmDelivery,
+    handleRequestRefund,
   } = useOrders();
 
   return (
@@ -96,6 +97,7 @@ export function OrdersView() {
                   order={order}
                   onConfirmDelivery={() => handleConfirmDelivery(order)}
                   onCancel={(reason) => handleCancel(order, reason)}
+                  onRequestRefund={(reason) => handleRequestRefund(order, reason)}
                 />
               ))}
             </div>

@@ -38,6 +38,8 @@ export function SellerOrderDetailView({ orderId }: { orderId: string }) {
     handleReject,
     handleDispatch,
     handleComplete,
+    handleApproveRefund,
+    handleRejectRefund,
   } = useSellerOrderDetail(orderId);
 
   if (isLoading) return <DetailSkeleton />;
@@ -106,6 +108,8 @@ export function SellerOrderDetailView({ orderId }: { orderId: string }) {
             onReject={handleReject}
             onDispatch={handleDispatch}
             onComplete={handleComplete}
+            onApproveRefund={handleApproveRefund}
+            onRejectRefund={handleRejectRefund}
           />
         </div>
 
@@ -113,6 +117,37 @@ export function SellerOrderDetailView({ orderId }: { orderId: string }) {
           <div className="mt-4 rounded-xl bg-[#FBF0EE] px-4 py-3 text-sm text-[#8C2F26]">
             <strong className="font-semibold">Cancellation reason: </strong>
             {order.cancelReason}
+          </div>
+        )}
+
+        {order.refundReason && (
+          <div className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <strong className="font-semibold">Refund reason: </strong>
+            {order.refundReason}
+            {order.refundRequestedAt && (
+              <span className="text-amber-700"> · {formatOrderTime(order.refundRequestedAt)}</span>
+            )}
+          </div>
+        )}
+
+        {order.status === 'refund-requested' && !order.refundReason && (
+          <div className="mt-4 rounded-xl bg-orange-50 px-4 py-3 text-sm text-orange-800">
+            Refund requested — awaiting your decision.
+          </div>
+        )}
+
+        {order.status === 'refunded' && (
+          <div className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800">
+            <strong className="font-semibold">Refunded</strong>
+            {order.refundConfirmedAt ? ` on ${formatOrderTime(order.refundConfirmedAt)}` : ''} — stock restored.
+          </div>
+        )}
+
+        {order.refundRejectReason && order.refundRejectedAt && (
+          <div className="mt-4 rounded-xl bg-stone-100 px-4 py-3 text-sm text-stone-700">
+            <strong className="font-semibold">Refund rejected: </strong>
+            {order.refundRejectReason}
+            <span className="text-stone-400"> · {formatOrderTime(order.refundRejectedAt)}</span>
           </div>
         )}
 

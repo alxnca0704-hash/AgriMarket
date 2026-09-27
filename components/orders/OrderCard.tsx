@@ -14,9 +14,10 @@ interface OrderCardProps {
   order: Order;
   onConfirmDelivery: () => void;
   onCancel: (reason: string) => void;
+  onRequestRefund?: (reason: string) => void;
 }
 
-export function OrderCard({ order, onConfirmDelivery, onCancel }: OrderCardProps) {
+export function OrderCard({ order, onConfirmDelivery, onCancel, onRequestRefund }: OrderCardProps) {
   const router = useRouter();
   const preview = order.items.slice(0, 3);
   const moreCount = order.items.length - preview.length;
@@ -77,13 +78,14 @@ export function OrderCard({ order, onConfirmDelivery, onCancel }: OrderCardProps
         >
           View details
         </Button>
-        {order.status === 'pending' || order.status === 'to-receive' ? (
+        {order.status === 'pending' || order.status === 'to-receive' || order.status === 'delivered' ? (
           <div className="w-full sm:w-auto">
             <OrderActions
               order={order}
               variant="card"
               onConfirmDelivery={onConfirmDelivery}
               onCancel={onCancel}
+              onRequestRefund={onRequestRefund}
             />
           </div>
         ) : null}

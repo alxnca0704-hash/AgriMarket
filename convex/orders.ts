@@ -14,7 +14,9 @@ type OrderStatus =
   | "to-receive"
   | "delivered"
   | "completed"
-  | "cancelled";
+  | "cancelled"
+  | "refund-requested"
+  | "refunded";
 
 async function getCurrentUser(
   ctx: QueryCtx | MutationCtx
@@ -369,6 +371,84 @@ export const completeOrder = mutation({
       ],
       updatedAt: now,
     });
+    return null;
+  },
+});
+
+export const requestRefund = mutation({
+  args: { orderId: v.id("orders"), reason: v.string() },
+  async handler(ctx, args) {
+    const user = await requireUser(ctx);
+    const order = await getBuyerOrder(ctx, user._id, args.orderId);
+    if (order.status !== "delivered") {
+      throw new Error("You can only request a refund for delivered orders");
+    }
+    const reason = args.reason.trim();
+    if (reason.length < 10) throw new Error("Please provide a reason with at least 10 characters");
+    if (reason.length > 500) throw new Error("Reason is too long (max 500 characters)");
+
+    const now = new Date().toISOString();
+    const patch: Record<string, unknown> = {
+      status: "refund-requested",
+      refundReason: reason,
+      refundRequestedAt: now,
+      events: [
+        ...order.events,
+        { status: "refund-requested", label: "Refund requested", at: now },
+      ],
+      updatedAt: now,
+    };
+    // Clear previous rejection state for a fresh request
+    if (order.refundRejectedAt !== undefined) patch["refundRejectedAt"] = undefined;
+    if (order.refundRejectReason !== undefined) patch["refundRejectReason"] = undefined;
+    await ctx.db.patch("orders", order._id, patch as never);
+    return null;
+  },
+});
+
+export const approveRefund = mutation({
+  args: { orderId: v.id("orders") },
+  async handler(ctx, args) {
+    const user = await requireUser(ctx);
+    const order = await requireSellerOrder(ctx, user._id, args.orderId);
+    assertStatus(order, "refund-requested");
+
+    await restoreStock(ctx, order);
+    const now = new Date().toISOString();
+    await ctx.db.patch("orders", order._id, {
+      status: "refunded",
+      refundConfirmedAt: now,
+      events: [
+        ...order.events,
+        { status: "refunded", label: "Refund approved", at: now },
+      ],
+      updatedAt: now,
+    });
+    return null;
+  },
+});
+
+export const rejectRefund = mutation({
+  args: { orderId: v.id("orders"), reason: v.optional(v.string()) },
+  async handler(ctx, args) {
+    const user = await requireUser(ctx);
+    const order = await requireSellerOrder(ctx, user._id, args.orderId);
+    assertStatus(order, "refund-requested");
+
+    const now = new Date().toISOString();
+    const reason = args.reason?.trim();
+    const patch: Record<string, unknown> = {
+      status: "delivered",
+      refundRejectedAt: now,
+      events: [
+        ...order.events,
+        { status: "refund-rejected", label: "Refund rejected", at: now },
+      ],
+      updatedAt: now,
+    };
+    if (reason) patch["refundRejectReason"] = reason;
+    else if (order.refundRejectReason !== undefined) patch["refundRejectReason"] = undefined;
+    await ctx.db.patch("orders", order._id, patch as never);
     return null;
   },
 });

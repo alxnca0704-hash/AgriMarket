@@ -198,5 +198,10 @@ export function toOrder(order: OrderDoc): Order {
     completedAt: order.completedAt,
     cancelledAt: order.cancelledAt,
     cancelReason: order.cancelReason,
+    refundReason: order.refundReason,
+    refundRequestedAt: order.refundRequestedAt,
+    refundConfirmedAt: order.refundConfirmedAt,
+    refundRejectedAt: order.refundRejectedAt,
+    refundRejectReason: order.refundRejectReason,
   };
 }

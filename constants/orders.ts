@@ -13,6 +13,8 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   delivered: 'Delivered',
   completed: 'Completed',
   cancelled: 'Cancelled',
+  'refund-requested': 'Refund requested',
+  refunded: 'Refunded',
 };
 
 export const ORDER_STATUS_TAG_COLORS: Record<OrderStatus, string> = {
@@ -22,6 +24,8 @@ export const ORDER_STATUS_TAG_COLORS: Record<OrderStatus, string> = {
   delivered: 'cyan',
   completed: 'success',
   cancelled: 'default',
+  'refund-requested': 'orange',
+  refunded: 'red',
 };
 
 export interface OrderStatusTab {
@@ -36,6 +40,8 @@ export const ORDER_STATUS_TABS: OrderStatusTab[] = [
   { key: 'delivered', label: 'Delivered' },
   { key: 'completed', label: 'Completed' },
   { key: 'cancelled', label: 'Cancelled' },
+  { key: 'refund-requested', label: 'Refund requested' },
+  { key: 'refunded', label: 'Refunded' },
 ];
 
 export const ORDER_STATUSES: OrderStatus[] = [
@@ -45,4 +51,6 @@ export const ORDER_STATUSES: OrderStatus[] = [
   'delivered',
   'completed',
   'cancelled',
+  'refund-requested',
+  'refunded',
 ];

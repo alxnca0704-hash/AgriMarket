@@ -6,7 +6,9 @@ export type OrderStatus =
   | 'to-receive'
   | 'delivered'
   | 'completed'
-  | 'cancelled';
+  | 'cancelled'
+  | 'refund-requested'
+  | 'refunded';
 
 export type PaymentStatus = 'unpaid' | 'paid';
 
@@ -20,7 +22,7 @@ export interface OrderLineItem {
 }
 
 export interface OrderEvent {
-  status: OrderStatus | 'placed';
+  status: OrderStatus | 'placed' | 'refund-rejected';
   label: string;
   at: string;
 }
@@ -52,6 +54,11 @@ export interface Order {
   completedAt?: string;
   cancelledAt?: string;
   cancelReason?: string;
+  refundReason?: string;
+  refundRequestedAt?: string;
+  refundConfirmedAt?: string;
+  refundRejectedAt?: string;
+  refundRejectReason?: string;
 }
 
 export interface SellerOrderStats {

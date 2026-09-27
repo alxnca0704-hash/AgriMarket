@@ -87,6 +87,11 @@ export default defineSchema({
     completedAt: v.optional(v.string()),
     cancelledAt: v.optional(v.string()),
     cancelReason: v.optional(v.string()),
+    refundReason: v.optional(v.string()),
+    refundRequestedAt: v.optional(v.string()),
+    refundConfirmedAt: v.optional(v.string()),
+    refundRejectedAt: v.optional(v.string()),
+    refundRejectReason: v.optional(v.string()),
     updatedAt: v.string(),
   })
     .index("by_buyerId", ["buyerId"])

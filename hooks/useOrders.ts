@@ -15,6 +15,7 @@ export function useOrders() {
   const raw = useQuery(api.orders.listMyOrders);
   const cancelMutation = useMutation(api.orders.cancelOrder);
   const confirmDeliveryMutation = useMutation(api.orders.confirmDelivery);
+  const requestRefundMutation = useMutation(api.orders.requestRefund);
 
   const [activeTab, setActiveTab] = useState<OrderTabKey>('all');
 
@@ -35,6 +36,8 @@ export function useOrders() {
       delivered: 0,
       completed: 0,
       cancelled: 0,
+      'refund-requested': 0,
+      refunded: 0,
     };
     orders.forEach((order) => {
       result[order.status] += 1;
@@ -65,6 +68,15 @@ export function useOrders() {
     }
   };
 
+  const handleRequestRefund = async (order: Order, reason: string) => {
+    try {
+      await requestRefundMutation({ orderId: order.id as Id<'orders'>, reason });
+      message.success('Refund requested — seller will review');
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : 'Could not request refund');
+    }
+  };
+
   return {
     isLoading,
     error,
@@ -75,5 +87,6 @@ export function useOrders() {
     setActiveTab,
     handleCancel,
     handleConfirmDelivery,
+    handleRequestRefund,
   };
 }

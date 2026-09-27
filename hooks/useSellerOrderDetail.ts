@@ -22,6 +22,8 @@ export function useSellerOrderDetail(orderId: string) {
   const rejectMutation = useMutation(api.orders.rejectOrder);
   const dispatchMutation = useMutation(api.orders.dispatchOrder);
   const completeMutation = useMutation(api.orders.completeOrder);
+  const approveRefundMutation = useMutation(api.orders.approveRefund);
+  const rejectRefundMutation = useMutation(api.orders.rejectRefund);
 
   const isLoading = !skip && raw === undefined;
   const order: Order | undefined = !skip && raw ? toOrder(raw) : undefined;
@@ -63,6 +65,19 @@ export function useSellerOrderDetail(orderId: string) {
     return run(() => completeMutation({ orderId: order.id as Id<'orders'> }), 'Order completed');
   };
 
+  const handleApproveRefund = () => {
+    if (!order) return;
+    return run(() => approveRefundMutation({ orderId: order.id as Id<'orders'> }), 'Refund approved — stock restored');
+  };
+
+  const handleRejectRefund = (reason: string) => {
+    if (!order) return;
+    return run(
+      () => rejectRefundMutation({ orderId: order.id as Id<'orders'>, reason }),
+      'Refund rejected'
+    );
+  };
+
   return {
     isLoading,
     error,
@@ -72,5 +87,7 @@ export function useSellerOrderDetail(orderId: string) {
     handleReject,
     handleDispatch,
     handleComplete,
+    handleApproveRefund,
+    handleRejectRefund,
   };
 }

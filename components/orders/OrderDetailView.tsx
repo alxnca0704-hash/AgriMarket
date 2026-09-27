@@ -60,6 +60,7 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
     handleSubmitReview,
     handleConfirmDelivery,
     handleCancel,
+    handleRequestRefund,
   } = useOrderDetail(orderId);
 
   if (isLoading) return <DetailSkeleton />;
@@ -124,6 +125,7 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
             variant="detail"
             onConfirmDelivery={handleConfirmDelivery}
             onCancel={handleCancel}
+            onRequestRefund={handleRequestRefund}
           />
         </div>
 
@@ -131,6 +133,34 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
           <div className="mt-4 rounded-xl bg-[#FBF0EE] px-4 py-3 text-sm text-[#8C2F26]">
             <strong className="font-semibold">Cancellation reason: </strong>
             {order.cancelReason}
+          </div>
+        )}
+
+        {order.refundReason && (
+          <div className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <strong className="font-semibold">Refund reason: </strong>
+            {order.refundReason}
+          </div>
+        )}
+
+        {order.status === 'refund-requested' && (
+          <div className="mt-4 rounded-xl bg-orange-50 px-4 py-3 text-sm text-orange-800">
+            Refund requested on {order.refundRequestedAt ? formatOrderTime(order.refundRequestedAt) : ''} — waiting for seller confirmation.
+          </div>
+        )}
+
+        {order.status === 'refunded' && (
+          <div className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800">
+            <strong className="font-semibold">Refunded</strong>
+            {order.refundConfirmedAt ? ` on ${formatOrderTime(order.refundConfirmedAt)}` : ''} — stock has been restored.
+          </div>
+        )}
+
+        {order.refundRejectReason && order.refundRejectedAt && (
+          <div className="mt-4 rounded-xl bg-stone-100 px-4 py-3 text-sm text-stone-700">
+            <strong className="font-semibold">Refund rejected: </strong>
+            {order.refundRejectReason}
+            <span className="text-stone-400"> · {formatOrderTime(order.refundRejectedAt)}</span>
           </div>
         )}
       </div>

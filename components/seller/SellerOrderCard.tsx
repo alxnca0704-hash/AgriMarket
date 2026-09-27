@@ -16,6 +16,8 @@ interface SellerOrderCardProps {
   onReject: (reason: string) => void;
   onDispatch: () => void;
   onComplete: () => void;
+  onApproveRefund?: () => void;
+  onRejectRefund?: (reason: string) => void;
 }
 
 export function SellerOrderCard({
@@ -24,6 +26,8 @@ export function SellerOrderCard({
   onReject,
   onDispatch,
   onComplete,
+  onApproveRefund,
+  onRejectRefund,
 }: SellerOrderCardProps) {
   const router = useRouter();
   const preview = order.items.slice(0, 3);
@@ -94,6 +98,8 @@ export function SellerOrderCard({
             onReject={onReject}
             onDispatch={onDispatch}
             onComplete={onComplete}
+            onApproveRefund={onApproveRefund}
+            onRejectRefund={onRejectRefund}
           />
         </div>
       </div>

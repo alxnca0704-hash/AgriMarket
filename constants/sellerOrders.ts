@@ -14,6 +14,8 @@ export const SELLER_ORDER_TABS: SellerOrderTab[] = [
   { key: 'delivered', label: 'Delivered' },
   { key: 'completed', label: 'Completed' },
   { key: 'cancelled', label: 'Cancelled' },
+  { key: 'refund-requested', label: 'Refund requests' },
+  { key: 'refunded', label: 'Refunded' },
 ];
 
 export const SELLER_ORDER_GROUP_LABELS: Record<SellerOrderGroupKey, string> = {
@@ -24,6 +26,8 @@ export const SELLER_ORDER_GROUP_LABELS: Record<SellerOrderGroupKey, string> = {
   delivered: 'Delivered',
   completed: 'Completed',
   cancelled: 'Cancelled',
+  'refund-requested': 'Refund requested',
+  refunded: 'Refunded',
 };
 
 export const SELLER_ORDER_TAG_COLORS: Record<OrderStatus, string> = {
@@ -33,6 +37,8 @@ export const SELLER_ORDER_TAG_COLORS: Record<OrderStatus, string> = {
   delivered: 'cyan',
   completed: 'success',
   cancelled: 'default',
+  'refund-requested': 'orange',
+  refunded: 'red',
 };
 
 export function getSellerOrderGroup(order: Order): OrderStatus {

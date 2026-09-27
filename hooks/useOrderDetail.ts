@@ -62,6 +62,7 @@ export function useOrderDetail(orderId: string) {
 
   const cancelMutation = useMutation(api.orders.cancelOrder);
   const confirmDeliveryMutation = useMutation(api.orders.confirmDelivery);
+  const requestRefundMutation = useMutation(api.orders.requestRefund);
   const submitReviewMutation = useMutation(api.reviews.submitReview);
 
   // Review modal state — per product
@@ -112,6 +113,16 @@ export function useOrderDetail(orderId: string) {
       message.success('Receipt confirmed');
     } catch (e) {
       message.error(e instanceof Error ? e.message : 'Could not confirm receipt');
+    }
+  };
+
+  const handleRequestRefund = async (reason: string) => {
+    if (!order) return;
+    try {
+      await requestRefundMutation({ orderId: order.id as Id<'orders'>, reason });
+      message.success('Refund requested — seller will review');
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : 'Could not request refund');
     }
   };
 
@@ -172,5 +183,6 @@ export function useOrderDetail(orderId: string) {
     handleSubmitReview,
     handleCancel,
     handleConfirmDelivery,
+    handleRequestRefund,
   };
 }

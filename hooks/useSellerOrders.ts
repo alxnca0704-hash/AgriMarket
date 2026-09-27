@@ -16,6 +16,8 @@ export function useSellerOrders() {
   const rejectMutation = useMutation(api.orders.rejectOrder);
   const dispatchMutation = useMutation(api.orders.dispatchOrder);
   const completeMutation = useMutation(api.orders.completeOrder);
+  const approveRefundMutation = useMutation(api.orders.approveRefund);
+  const rejectRefundMutation = useMutation(api.orders.rejectRefund);
 
   const [activeTab, setActiveTab] = useState<SellerOrderGroupKey>('all');
 
@@ -36,6 +38,8 @@ export function useSellerOrders() {
       delivered: 0,
       completed: 0,
       cancelled: 0,
+      'refund-requested': 0,
+      refunded: 0,
     };
     orders.forEach((order) => {
       result[order.status] += 1;
@@ -80,6 +84,12 @@ export function useSellerOrders() {
   const handleComplete = (order: Order) =>
     run(() => completeMutation({ orderId: order.id as Id<'orders'> }), 'Order completed');
 
+  const handleApproveRefund = (order: Order) =>
+    run(() => approveRefundMutation({ orderId: order.id as Id<'orders'> }), 'Refund approved — stock restored');
+
+  const handleRejectRefund = (order: Order, reason: string) =>
+    run(() => rejectRefundMutation({ orderId: order.id as Id<'orders'>, reason }), 'Refund rejected');
+
   return {
     isLoading,
     error,
@@ -92,5 +102,7 @@ export function useSellerOrders() {
     handleReject,
     handleDispatch,
     handleComplete,
+    handleApproveRefund,
+    handleRejectRefund,
   };
 }
