@@ -9,6 +9,37 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 <!-- END:nextjs-agent-rules -->
 # AGENTS.md
 
+## Context files (read before you write code)
+
+This project is spec-driven. The six documents in `context/` are the
+source of truth for what to build and how. `AGENTS.md` is the rule set;
+if a rule and a context file disagree, `AGENTS.md` wins.
+
+| File                                                       | Read it for                                                                                            |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| [`context/project-overview.md`](context/project-overview.md)       | Product scope, goals, user flows, features (including planned ones), in/out of scope, success criteria   |
+| [`context/architecture.md`](context/architecture.md)               | Stack, system boundaries, storage model, auth/ownership model, **invariants that must never break**      |
+| [`context/code-standards.md`](context/code-standards.md)           | TypeScript, Next.js, Convex, antd + Tailwind, API route, validation, and naming conventions             |
+| [`context/ui-context.md`](context/ui-context.md)                   | Design tokens, typography, radius scale, component library, layout patterns, loading/empty states         |
+| [`context/ai-workflow-rules.md`](context/ai-workflow-rules.md)     | How to scope a change, when to split work, protected files, the checklist before moving on               |
+| [`context/progress-tracker.md`](context/progress-tracker.md)       | Current phase, what's done, **what to build next**, open questions, architecture decisions            |
+
+Rules for using them:
+
+- Read the relevant context file **before** implementing, and update it
+  **in the same change** as the code when the implementation moves the
+  spec.
+- `context/architecture.md` lists hard invariants. Re-read them before
+  declaring a unit done.
+- `context/progress-tracker.md` is the work queue. Do not start a unit
+  that is not in "Next Up", and move items into "Completed" when they
+  land.
+- Never import anything from `context/` in application code. These are
+  documents, not modules.
+- A feature described in a context file as **planned** or
+  **not built** (e.g. GCash payments) must not be implemented until it
+  is moved out of that state in `progress-tracker.md`.
+
 ## Rules for creating a page (Next.js)
 
 1. **Separate logic from UI.**
@@ -76,6 +107,12 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
    - **Color palette:** muted, low-saturation tones for UI chrome (grays, soft blues/greens as needed for brand/status). **No neon or highly saturated colors** anywhere (no `bg-lime-400`, `bg-fuchsia-500`, `bg-cyan-400`-style neons). Status colors (success/warning/error) should use antd's default or a muted custom theme (soft green/amber/red), not bright/glowing variants.
    - Configure this once via antd's `ConfigProvider` `theme.token` (e.g. `colorPrimary`, `colorBgLayout`, `borderRadius`) so the whole app inherits a consistent, borderless, non-neon look instead of overriding styles page by page.
    - Favor whitespace and typographic hierarchy (font weight/size) over lines and boxes to organize a page.
+
+## Verification
+
+- `npm run build` — must pass before a unit is called done.
+- `npm run lint` — must pass.
+- There is no test script. Do not claim a change is verified by tests.
 
 ## Structure
 
