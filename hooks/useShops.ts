@@ -79,7 +79,7 @@ export function useShops() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    let list = allShops.filter(({ seller }) => {
+    const list = allShops.filter(({ seller }) => {
       if (verifiedOnly && !seller.verified) return false;
       if (!q) return true;
       const inName = seller.farmName.toLowerCase().includes(q);

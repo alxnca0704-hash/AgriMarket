@@ -33,6 +33,7 @@ export function OrdersView() {
     handleCancel,
     handleConfirmDelivery,
     handleRequestRefund,
+    isActionPending,
   } = useOrders();
 
   return (
@@ -95,6 +96,7 @@ export function OrdersView() {
                 <OrderCard
                   key={order.id}
                   order={order}
+                  isActionPending={isActionPending}
                   onConfirmDelivery={() => handleConfirmDelivery(order)}
                   onCancel={(reason) => handleCancel(order, reason)}
                   onRequestRefund={(reason) => handleRequestRefund(order, reason)}

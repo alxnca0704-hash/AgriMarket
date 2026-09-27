@@ -54,3 +54,29 @@ export const ORDER_STATUSES: OrderStatus[] = [
   'refund-requested',
   'refunded',
 ];
+
+export const ORDER_ACTIONS = {
+  confirmOrder: 'confirmOrder',
+  rejectOrder: 'rejectOrder',
+  dispatchOrder: 'dispatchOrder',
+  completeOrder: 'completeOrder',
+  approveRefund: 'approveRefund',
+  rejectRefund: 'rejectRefund',
+  cancelOrder: 'cancelOrder',
+  confirmDelivery: 'confirmDelivery',
+  requestRefund: 'requestRefund',
+} as const;
+
+export type OrderAction = (typeof ORDER_ACTIONS)[keyof typeof ORDER_ACTIONS];
+
+export const ORDER_ACTION_KEYS: Record<OrderAction, (orderId: string) => string> = {
+  confirmOrder: (orderId) => `${ORDER_ACTIONS.confirmOrder}:${orderId}`,
+  rejectOrder: (orderId) => `${ORDER_ACTIONS.rejectOrder}:${orderId}`,
+  dispatchOrder: (orderId) => `${ORDER_ACTIONS.dispatchOrder}:${orderId}`,
+  completeOrder: (orderId) => `${ORDER_ACTIONS.completeOrder}:${orderId}`,
+  approveRefund: (orderId) => `${ORDER_ACTIONS.approveRefund}:${orderId}`,
+  rejectRefund: (orderId) => `${ORDER_ACTIONS.rejectRefund}:${orderId}`,
+  cancelOrder: (orderId) => `${ORDER_ACTIONS.cancelOrder}:${orderId}`,
+  confirmDelivery: (orderId) => `${ORDER_ACTIONS.confirmDelivery}:${orderId}`,
+  requestRefund: (orderId) => `${ORDER_ACTIONS.requestRefund}:${orderId}`,
+};

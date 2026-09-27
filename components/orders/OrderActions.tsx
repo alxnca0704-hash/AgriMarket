@@ -4,18 +4,21 @@ import React, { useState } from 'react';
 import { Button, Input, Modal, Typography } from 'antd';
 import { CheckCircleOutlined, CloseCircleOutlined, UndoOutlined } from '@ant-design/icons';
 import { Order } from '@/types/order';
+import { ORDER_ACTIONS, OrderAction } from '@/constants/orders';
 
 interface OrderActionsProps {
   order: Order;
   variant?: 'card' | 'detail';
-  onConfirmDelivery: () => void;
-  onCancel: (reason: string) => void;
-  onRequestRefund?: (reason: string) => void;
+  isActionPending: (action: OrderAction, orderId: string) => boolean;
+  onConfirmDelivery: () => void | Promise<unknown>;
+  onCancel: (reason: string) => void | Promise<unknown>;
+  onRequestRefund?: (reason: string) => void | Promise<unknown>;
 }
 
 export function OrderActions({
   order,
   variant = 'card',
+  isActionPending,
   onConfirmDelivery,
   onCancel,
   onRequestRefund,
@@ -27,14 +30,18 @@ export function OrderActions({
 
   const compact = variant === 'card';
 
+  const confirmPending = isActionPending(ORDER_ACTIONS.confirmDelivery, order.id);
+  const cancelPending = isActionPending(ORDER_ACTIONS.cancelOrder, order.id);
+  const refundPending = isActionPending(ORDER_ACTIONS.requestRefund, order.id);
+
   const openCancel = () => {
     setReason('');
     setCancelOpen(true);
   };
 
-  const confirmCancel = () => {
-    onCancel(reason);
-    setCancelOpen(false);
+  const confirmCancel = async () => {
+    const result = await onCancel(reason);
+    if (result === 'success') setCancelOpen(false);
   };
 
   const openRefund = () => {
@@ -42,11 +49,11 @@ export function OrderActions({
     setRefundOpen(true);
   };
 
-  const confirmRefund = () => {
+  const confirmRefund = async () => {
     const trimmed = refundReason.trim();
     if (trimmed.length < 10) return;
-    onRequestRefund?.(trimmed);
-    setRefundOpen(false);
+    const result = await onRequestRefund?.(trimmed);
+    if (result === 'success') setRefundOpen(false);
   };
 
   return (
@@ -56,6 +63,7 @@ export function OrderActions({
           type="primary"
           size={compact ? 'middle' : 'large'}
           onClick={onConfirmDelivery}
+          loading={confirmPending}
           icon={<CheckCircleOutlined />}
           className="!rounded-xl !font-semibold"
         >
@@ -67,6 +75,7 @@ export function OrderActions({
         <Button
           size={compact ? 'middle' : 'large'}
           onClick={openCancel}
+          disabled={cancelPending}
           danger
           icon={<CloseCircleOutlined />}
           className="!rounded-xl"
@@ -79,6 +88,7 @@ export function OrderActions({
         <Button
           size={compact ? 'middle' : 'large'}
           onClick={openRefund}
+          disabled={refundPending}
           icon={<UndoOutlined />}
           className="!rounded-xl"
         >
@@ -91,9 +101,9 @@ export function OrderActions({
         onCancel={() => setCancelOpen(false)}
         onOk={confirmCancel}
         okText="Cancel order"
-        okButtonProps={{ danger: true, className: '!rounded-lg' }}
+        okButtonProps={{ danger: true, loading: cancelPending, className: '!rounded-lg' }}
         cancelText="Keep order"
-        cancelButtonProps={{ className: '!rounded-lg' }}
+        cancelButtonProps={{ className: '!rounded-lg', disabled: cancelPending }}
         title="Cancel this order?"
         width="min(92%, 420px)"
         centered
@@ -121,11 +131,12 @@ export function OrderActions({
         onOk={confirmRefund}
         okText="Request refund"
         okButtonProps={{
-          disabled: refundReason.trim().length < 10,
+          loading: refundPending,
+          disabled: refundPending || refundReason.trim().length < 10,
           className: '!rounded-lg',
         }}
         cancelText="Keep order"
-        cancelButtonProps={{ className: '!rounded-lg' }}
+        cancelButtonProps={{ className: '!rounded-lg', disabled: refundPending }}
         title="Request a refund?"
         width="min(92%, 420px)"
         centered

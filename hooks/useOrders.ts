@@ -1,21 +1,22 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { App } from 'antd';
+import { useCallback, useMemo, useState } from 'react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { Order, OrderStatus } from '@/types/order';
+import { ORDER_ACTION_KEYS, OrderAction } from '@/constants/orders';
+import { usePendingAction } from '@/hooks/usePendingAction';
 import { toOrder } from '@/lib/convexSync';
 
 export type OrderTabKey = 'all' | OrderStatus;
 
 export function useOrders() {
-  const { message } = App.useApp();
   const raw = useQuery(api.orders.listMyOrders);
   const cancelMutation = useMutation(api.orders.cancelOrder);
   const confirmDeliveryMutation = useMutation(api.orders.confirmDelivery);
   const requestRefundMutation = useMutation(api.orders.requestRefund);
+  const { run, isPending } = usePendingAction();
 
   const [activeTab, setActiveTab] = useState<OrderTabKey>('all');
 
@@ -50,32 +51,31 @@ export function useOrders() {
     return orders.filter((order) => order.status === activeTab);
   }, [orders, activeTab]);
 
-  const handleCancel = async (order: Order, reason: string) => {
-    try {
-      await cancelMutation({ orderId: order.id as Id<'orders'>, reason });
-      message.success('Order cancelled');
-    } catch (e) {
-      message.error(e instanceof Error ? e.message : 'Could not cancel the order');
-    }
-  };
+  const handleCancel = (order: Order, reason: string) =>
+    run(
+      ORDER_ACTION_KEYS.cancelOrder(order.id),
+      () => cancelMutation({ orderId: order.id as Id<'orders'>, reason }),
+      { success: 'Order cancelled', error: 'Could not cancel the order' }
+    );
 
-  const handleConfirmDelivery = async (order: Order) => {
-    try {
-      await confirmDeliveryMutation({ orderId: order.id as Id<'orders'> });
-      message.success('Receipt confirmed');
-    } catch (e) {
-      message.error(e instanceof Error ? e.message : 'Could not confirm receipt');
-    }
-  };
+  const handleConfirmDelivery = (order: Order) =>
+    run(
+      ORDER_ACTION_KEYS.confirmDelivery(order.id),
+      () => confirmDeliveryMutation({ orderId: order.id as Id<'orders'> }),
+      { success: 'Receipt confirmed', error: 'Could not confirm receipt' }
+    );
 
-  const handleRequestRefund = async (order: Order, reason: string) => {
-    try {
-      await requestRefundMutation({ orderId: order.id as Id<'orders'>, reason });
-      message.success('Refund requested — seller will review');
-    } catch (e) {
-      message.error(e instanceof Error ? e.message : 'Could not request refund');
-    }
-  };
+  const handleRequestRefund = (order: Order, reason: string) =>
+    run(
+      ORDER_ACTION_KEYS.requestRefund(order.id),
+      () => requestRefundMutation({ orderId: order.id as Id<'orders'>, reason }),
+      { success: 'Refund requested — seller will review', error: 'Could not request refund' }
+    );
+
+  const isActionPending = useCallback(
+    (action: OrderAction, orderId: string) => isPending(ORDER_ACTION_KEYS[action](orderId)),
+    [isPending]
+  );
 
   return {
     isLoading,
@@ -88,5 +88,6 @@ export function useOrders() {
     handleCancel,
     handleConfirmDelivery,
     handleRequestRefund,
+    isActionPending,
   };
 }

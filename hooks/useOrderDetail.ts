@@ -1,12 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { App } from 'antd';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { Order } from '@/types/order';
 import { Review } from '@/types/review';
+import { ORDER_ACTION_KEYS, OrderAction } from '@/constants/orders';
+import { usePendingAction } from '@/hooks/usePendingAction';
 import { toOrder } from '@/lib/convexSync';
 
 function isValidOrderId(value: string): boolean {
@@ -64,6 +66,7 @@ export function useOrderDetail(orderId: string) {
   const confirmDeliveryMutation = useMutation(api.orders.confirmDelivery);
   const requestRefundMutation = useMutation(api.orders.requestRefund);
   const submitReviewMutation = useMutation(api.reviews.submitReview);
+  const { run, isPending } = usePendingAction();
 
   // Review modal state — per product
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
@@ -96,34 +99,31 @@ export function useOrderDetail(orderId: string) {
     (order.status === 'delivered' || order.status === 'completed') &&
     order.items.some((item) => !reviewsByProductId.has(item.productId));
 
-  const handleCancel = async (reason: string) => {
-    if (!order) return;
-    try {
-      await cancelMutation({ orderId: order.id as Id<'orders'>, reason });
-      message.success('Order cancelled');
-    } catch (e) {
-      message.error(e instanceof Error ? e.message : 'Could not cancel the order');
-    }
+  const handleCancel = (reason: string) => {
+    if (!order) return Promise.resolve('skipped' as const);
+    return run(
+      ORDER_ACTION_KEYS.cancelOrder(order.id),
+      () => cancelMutation({ orderId: order.id as Id<'orders'>, reason }),
+      { success: 'Order cancelled', error: 'Could not cancel the order' }
+    );
   };
 
-  const handleConfirmDelivery = async () => {
-    if (!order) return;
-    try {
-      await confirmDeliveryMutation({ orderId: order.id as Id<'orders'> });
-      message.success('Receipt confirmed');
-    } catch (e) {
-      message.error(e instanceof Error ? e.message : 'Could not confirm receipt');
-    }
+  const handleConfirmDelivery = () => {
+    if (!order) return Promise.resolve('skipped' as const);
+    return run(
+      ORDER_ACTION_KEYS.confirmDelivery(order.id),
+      () => confirmDeliveryMutation({ orderId: order.id as Id<'orders'> }),
+      { success: 'Receipt confirmed', error: 'Could not confirm receipt' }
+    );
   };
 
-  const handleRequestRefund = async (reason: string) => {
-    if (!order) return;
-    try {
-      await requestRefundMutation({ orderId: order.id as Id<'orders'>, reason });
-      message.success('Refund requested — seller will review');
-    } catch (e) {
-      message.error(e instanceof Error ? e.message : 'Could not request refund');
-    }
+  const handleRequestRefund = (reason: string) => {
+    if (!order) return Promise.resolve('skipped' as const);
+    return run(
+      ORDER_ACTION_KEYS.requestRefund(order.id),
+      () => requestRefundMutation({ orderId: order.id as Id<'orders'>, reason }),
+      { success: 'Refund requested — seller will review', error: 'Could not request refund' }
+    );
   };
 
   const handleOpenReviewModal = (productId: string, productName: string) => {
@@ -162,6 +162,11 @@ export function useOrderDetail(orderId: string) {
     }
   };
 
+  const isActionPending = useCallback(
+    (action: OrderAction, orderId: string) => isPending(ORDER_ACTION_KEYS[action](orderId)),
+    [isPending]
+  );
+
   return {
     isLoading,
     error,
@@ -184,5 +189,6 @@ export function useOrderDetail(orderId: string) {
     handleCancel,
     handleConfirmDelivery,
     handleRequestRefund,
+    isActionPending,
   };
 }

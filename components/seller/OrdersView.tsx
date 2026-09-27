@@ -33,6 +33,7 @@ export function SellerOrdersView() {
     handleComplete,
     handleApproveRefund,
     handleRejectRefund,
+    isActionPending,
   } = useSellerOrders();
 
   return (
@@ -125,6 +126,7 @@ export function SellerOrdersView() {
                 <SellerOrderCard
                   key={order.id}
                   order={order}
+                  isActionPending={isActionPending}
                   onConfirm={() => handleConfirm(order)}
                   onReject={(reason) => handleReject(order, reason)}
                   onDispatch={() => handleDispatch(order)}

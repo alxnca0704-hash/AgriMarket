@@ -5,19 +5,26 @@ import { useRouter } from 'next/navigation';
 import { Button, Image, Tag } from 'antd';
 import { RightOutlined } from '@ant-design/icons';
 import { Order } from '@/types/order';
-import { ORDER_STATUS_LABELS, ORDER_STATUS_TAG_COLORS } from '@/constants/orders';
+import { ORDER_STATUS_LABELS, ORDER_STATUS_TAG_COLORS, OrderAction } from '@/constants/orders';
 import { OrderActions } from '@/components/orders/OrderActions';
 import { APP_ROUTES } from '@/constants/routes';
 import { formatOrderTime, formatPrice } from '@/lib/format';
 
 interface OrderCardProps {
   order: Order;
-  onConfirmDelivery: () => void;
-  onCancel: (reason: string) => void;
-  onRequestRefund?: (reason: string) => void;
+  isActionPending: (action: OrderAction, orderId: string) => boolean;
+  onConfirmDelivery: () => void | Promise<unknown>;
+  onCancel: (reason: string) => void | Promise<unknown>;
+  onRequestRefund?: (reason: string) => void | Promise<unknown>;
 }
 
-export function OrderCard({ order, onConfirmDelivery, onCancel, onRequestRefund }: OrderCardProps) {
+export function OrderCard({
+  order,
+  isActionPending,
+  onConfirmDelivery,
+  onCancel,
+  onRequestRefund,
+}: OrderCardProps) {
   const router = useRouter();
   const preview = order.items.slice(0, 3);
   const moreCount = order.items.length - preview.length;
@@ -83,6 +90,7 @@ export function OrderCard({ order, onConfirmDelivery, onCancel, onRequestRefund 
             <OrderActions
               order={order}
               variant="card"
+              isActionPending={isActionPending}
               onConfirmDelivery={onConfirmDelivery}
               onCancel={onCancel}
               onRequestRefund={onRequestRefund}

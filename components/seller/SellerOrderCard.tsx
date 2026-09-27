@@ -6,22 +6,25 @@ import { Button, Image, Tag } from 'antd';
 import { RightOutlined } from '@ant-design/icons';
 import { Order } from '@/types/order';
 import { SELLER_ORDER_GROUP_LABELS, getSellerOrderGroup, SELLER_ORDER_TAG_COLORS } from '@/constants/sellerOrders';
+import { OrderAction } from '@/constants/orders';
 import { SellerOrderActions } from '@/components/seller/SellerOrderActions';
 import { APP_ROUTES } from '@/constants/routes';
 import { formatOrderTime, formatPrice } from '@/lib/format';
 
 interface SellerOrderCardProps {
   order: Order;
-  onConfirm: () => void;
-  onReject: (reason: string) => void;
-  onDispatch: () => void;
-  onComplete: () => void;
-  onApproveRefund?: () => void;
-  onRejectRefund?: (reason: string) => void;
+  isActionPending: (action: OrderAction, orderId: string) => boolean;
+  onConfirm: () => void | Promise<unknown>;
+  onReject: (reason: string) => void | Promise<unknown>;
+  onDispatch: () => void | Promise<unknown>;
+  onComplete: () => void | Promise<unknown>;
+  onApproveRefund?: () => void | Promise<unknown>;
+  onRejectRefund?: (reason: string) => void | Promise<unknown>;
 }
 
 export function SellerOrderCard({
   order,
+  isActionPending,
   onConfirm,
   onReject,
   onDispatch,
@@ -94,6 +97,7 @@ export function SellerOrderCard({
           <SellerOrderActions
             order={order}
             variant="card"
+            isActionPending={isActionPending}
             onConfirm={onConfirm}
             onReject={onReject}
             onDispatch={onDispatch}

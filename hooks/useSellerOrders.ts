@@ -1,16 +1,16 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { App } from 'antd';
+import { useCallback, useMemo, useState } from 'react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { Order } from '@/types/order';
 import { SellerOrderGroupKey } from '@/constants/sellerOrders';
+import { ORDER_ACTION_KEYS, OrderAction } from '@/constants/orders';
+import { usePendingAction } from '@/hooks/usePendingAction';
 import { toOrder } from '@/lib/convexSync';
 
 export function useSellerOrders() {
-  const { message } = App.useApp();
   const raw = useQuery(api.orders.listSellerOrders);
   const confirmMutation = useMutation(api.orders.confirmOrder);
   const rejectMutation = useMutation(api.orders.rejectOrder);
@@ -18,6 +18,7 @@ export function useSellerOrders() {
   const completeMutation = useMutation(api.orders.completeOrder);
   const approveRefundMutation = useMutation(api.orders.approveRefund);
   const rejectRefundMutation = useMutation(api.orders.rejectRefund);
+  const { run, isPending } = usePendingAction();
 
   const [activeTab, setActiveTab] = useState<SellerOrderGroupKey>('all');
 
@@ -57,38 +58,52 @@ export function useSellerOrders() {
     );
   }, [orders, activeTab]);
 
-  const run = async (action: () => Promise<unknown>, success: string) => {
-    try {
-      await action();
-      message.success(success);
-    } catch (e) {
-      message.error(e instanceof Error ? e.message : 'Something went wrong');
-    }
-  };
-
   const handleConfirm = (order: Order) =>
-    run(() => confirmMutation({ orderId: order.id as Id<'orders'> }), 'Order confirmed');
+    run(
+      ORDER_ACTION_KEYS.confirmOrder(order.id),
+      () => confirmMutation({ orderId: order.id as Id<'orders'> }),
+      { success: 'Order confirmed', error: 'Could not confirm the order' }
+    );
 
   const handleReject = (order: Order, reason: string) =>
     run(
+      ORDER_ACTION_KEYS.rejectOrder(order.id),
       () => rejectMutation({ orderId: order.id as Id<'orders'>, reason }),
-      'Order rejected'
+      { success: 'Order rejected', error: 'Could not reject the order' }
     );
 
   const handleDispatch = (order: Order) =>
     run(
+      ORDER_ACTION_KEYS.dispatchOrder(order.id),
       () => dispatchMutation({ orderId: order.id as Id<'orders'> }),
-      'Order marked as to receive'
+      { success: 'Order marked as to receive', error: 'Could not update the order' }
     );
 
   const handleComplete = (order: Order) =>
-    run(() => completeMutation({ orderId: order.id as Id<'orders'> }), 'Order completed');
+    run(
+      ORDER_ACTION_KEYS.completeOrder(order.id),
+      () => completeMutation({ orderId: order.id as Id<'orders'> }),
+      { success: 'Order completed', error: 'Could not complete the order' }
+    );
 
   const handleApproveRefund = (order: Order) =>
-    run(() => approveRefundMutation({ orderId: order.id as Id<'orders'> }), 'Refund approved — stock restored');
+    run(
+      ORDER_ACTION_KEYS.approveRefund(order.id),
+      () => approveRefundMutation({ orderId: order.id as Id<'orders'> }),
+      { success: 'Refund approved — stock restored', error: 'Could not approve the refund' }
+    );
 
   const handleRejectRefund = (order: Order, reason: string) =>
-    run(() => rejectRefundMutation({ orderId: order.id as Id<'orders'>, reason }), 'Refund rejected');
+    run(
+      ORDER_ACTION_KEYS.rejectRefund(order.id),
+      () => rejectRefundMutation({ orderId: order.id as Id<'orders'>, reason }),
+      { success: 'Refund rejected', error: 'Could not reject the refund' }
+    );
+
+  const isActionPending = useCallback(
+    (action: OrderAction, orderId: string) => isPending(ORDER_ACTION_KEYS[action](orderId)),
+    [isPending]
+  );
 
   return {
     isLoading,
@@ -104,5 +119,6 @@ export function useSellerOrders() {
     handleComplete,
     handleApproveRefund,
     handleRejectRefund,
+    isActionPending,
   };
 }

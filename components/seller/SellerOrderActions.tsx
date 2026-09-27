@@ -4,21 +4,24 @@ import React, { useState } from 'react';
 import { Button, Input, Modal, Typography } from 'antd';
 import { CarOutlined, CheckCircleOutlined, CloseCircleOutlined, CheckOutlined } from '@ant-design/icons';
 import { Order } from '@/types/order';
+import { ORDER_ACTIONS, OrderAction } from '@/constants/orders';
 
 interface SellerOrderActionsProps {
   order: Order;
   variant?: 'card' | 'detail';
-  onConfirm: () => void;
-  onReject: (reason: string) => void;
-  onDispatch: () => void;
-  onComplete: () => void;
-  onApproveRefund?: () => void;
-  onRejectRefund?: (reason: string) => void;
+  isActionPending: (action: OrderAction, orderId: string) => boolean;
+  onConfirm: () => void | Promise<unknown>;
+  onReject: (reason: string) => void | Promise<unknown>;
+  onDispatch: () => void | Promise<unknown>;
+  onComplete: () => void | Promise<unknown>;
+  onApproveRefund?: () => void | Promise<unknown>;
+  onRejectRefund?: (reason: string) => void | Promise<unknown>;
 }
 
 export function SellerOrderActions({
   order,
   variant = 'card',
+  isActionPending,
   onConfirm,
   onReject,
   onDispatch,
@@ -33,14 +36,21 @@ export function SellerOrderActions({
 
   const compact = variant === 'card';
 
+  const confirmPending = isActionPending(ORDER_ACTIONS.confirmOrder, order.id);
+  const rejectPending = isActionPending(ORDER_ACTIONS.rejectOrder, order.id);
+  const dispatchPending = isActionPending(ORDER_ACTIONS.dispatchOrder, order.id);
+  const completePending = isActionPending(ORDER_ACTIONS.completeOrder, order.id);
+  const approvePending = isActionPending(ORDER_ACTIONS.approveRefund, order.id);
+  const rejectRefundPending = isActionPending(ORDER_ACTIONS.rejectRefund, order.id);
+
   const openReject = () => {
     setReason('');
     setRejectOpen(true);
   };
 
-  const confirmReject = () => {
-    onReject(reason);
-    setRejectOpen(false);
+  const confirmReject = async () => {
+    const result = await onReject(reason);
+    if (result === 'success') setRejectOpen(false);
   };
 
   const openRefundReject = () => {
@@ -48,9 +58,9 @@ export function SellerOrderActions({
     setRefundRejectOpen(true);
   };
 
-  const confirmRefundReject = () => {
-    onRejectRefund?.(refundRejectReason);
-    setRefundRejectOpen(false);
+  const confirmRefundReject = async () => {
+    const result = await onRejectRefund?.(refundRejectReason);
+    if (result === 'success') setRefundRejectOpen(false);
   };
 
   return (
@@ -62,6 +72,7 @@ export function SellerOrderActions({
             size={compact ? 'middle' : 'large'}
             icon={<CheckCircleOutlined />}
             onClick={onConfirm}
+            loading={confirmPending}
             className="!rounded-xl !font-semibold"
           >
             Confirm order
@@ -69,6 +80,7 @@ export function SellerOrderActions({
           <Button
             size={compact ? 'middle' : 'large'}
             onClick={openReject}
+            disabled={rejectPending}
             danger
             icon={<CloseCircleOutlined />}
             className="!rounded-xl"
@@ -84,6 +96,7 @@ export function SellerOrderActions({
           size={compact ? 'middle' : 'large'}
           icon={<CarOutlined />}
           onClick={onDispatch}
+          loading={dispatchPending}
           className="!rounded-xl !font-semibold"
         >
           Mark as to receive
@@ -96,6 +109,7 @@ export function SellerOrderActions({
           size={compact ? 'middle' : 'large'}
           icon={<CheckOutlined />}
           onClick={onComplete}
+          loading={completePending}
           className="!rounded-xl !font-semibold"
         >
           Mark as completed
@@ -109,6 +123,7 @@ export function SellerOrderActions({
             size={compact ? 'middle' : 'large'}
             icon={<CheckCircleOutlined />}
             onClick={onApproveRefund}
+            loading={approvePending}
             className="!rounded-xl !font-semibold"
           >
             Approve refund
@@ -116,6 +131,7 @@ export function SellerOrderActions({
           <Button
             size={compact ? 'middle' : 'large'}
             onClick={openRefundReject}
+            disabled={rejectRefundPending}
             danger
             icon={<CloseCircleOutlined />}
             className="!rounded-xl"
@@ -130,9 +146,9 @@ export function SellerOrderActions({
         onCancel={() => setRejectOpen(false)}
         onOk={confirmReject}
         okText="Reject order"
-        okButtonProps={{ danger: true, className: '!rounded-lg' }}
+        okButtonProps={{ danger: true, loading: rejectPending, className: '!rounded-lg' }}
         cancelText="Keep order"
-        cancelButtonProps={{ className: '!rounded-lg' }}
+        cancelButtonProps={{ className: '!rounded-lg', disabled: rejectPending }}
         title="Reject this order?"
         width="min(92%, 420px)"
         centered
@@ -159,9 +175,9 @@ export function SellerOrderActions({
         onCancel={() => setRefundRejectOpen(false)}
         onOk={confirmRefundReject}
         okText="Reject refund"
-        okButtonProps={{ danger: true, className: '!rounded-lg' }}
+        okButtonProps={{ danger: true, loading: rejectRefundPending, className: '!rounded-lg' }}
         cancelText="Cancel"
-        cancelButtonProps={{ className: '!rounded-lg' }}
+        cancelButtonProps={{ className: '!rounded-lg', disabled: rejectRefundPending }}
         title="Reject refund request?"
         width="min(92%, 420px)"
         centered

@@ -85,6 +85,19 @@ implementation step.
 - Reviews with 1–5 stars, an optional product reference, and a single
   seller reply.
 
+### Reliability
+
+- All nine order mutations are double-submit safe. `usePendingAction`
+  (`hooks/usePendingAction.ts`) keys in-flight calls by
+  `ORDER_ACTION_KEYS` (`constants/orders.ts`) and blocks same-tick
+  duplicate calls with a synchronous ref, so a rapid double click on
+  "Confirm received" can no longer send a second `confirmDelivery` for
+  an order the first call already moved to `delivered`. Action buttons
+  and modal OK buttons show antd `loading`/`disabled` while in flight,
+  and modals now close only when the call reports `success`.
+  `assertStatus` in `convex/orders.ts` remains the authoritative
+  server-side guard.
+
 ## In Progress
 
 - None. The GCash work is specified in `project-overview.md` and

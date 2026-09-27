@@ -40,6 +40,7 @@ export function SellerOrderDetailView({ orderId }: { orderId: string }) {
     handleComplete,
     handleApproveRefund,
     handleRejectRefund,
+    isActionPending,
   } = useSellerOrderDetail(orderId);
 
   if (isLoading) return <DetailSkeleton />;
@@ -104,6 +105,7 @@ export function SellerOrderDetailView({ orderId }: { orderId: string }) {
           <SellerOrderActions
             order={order}
             variant="detail"
+            isActionPending={isActionPending}
             onConfirm={handleConfirm}
             onReject={handleReject}
             onDispatch={handleDispatch}
