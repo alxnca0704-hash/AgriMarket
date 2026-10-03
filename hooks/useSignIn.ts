@@ -86,7 +86,7 @@ export function useSignIn() {
 
       if (signIn.status === 'complete') {
         await signIn.finalize();
-        router.push(APP_ROUTES.home);
+        router.replace(APP_ROUTES.landing);
         return;
       }
 
@@ -98,7 +98,7 @@ export function useSignIn() {
         }
         if (signIn.status as string === 'complete') {
           await signIn.finalize();
-          router.push(APP_ROUTES.home);
+          router.replace(APP_ROUTES.landing);
           return;
         }
       }

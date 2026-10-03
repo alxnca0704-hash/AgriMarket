@@ -172,7 +172,12 @@ export function toOrder(order: OrderDoc): Order {
     subtotal: order.subtotal,
     deliveryFee: order.deliveryFee,
     total: order.total,
-    payment: { method: order.paymentMethod, status: order.paymentStatus },
+      payment: {
+        method: order.paymentMethod,
+        status: order.paymentStatus === 'awaiting_gcash_authorization' || order.paymentStatus === 'awaiting_payment_method' ? 'unpaid' : order.paymentStatus,
+        hasPaymentIntent: Boolean(order.paymentIntentId),
+        ...(order.paymentRedirectUrl ? { redirectUrl: order.paymentRedirectUrl } : {}),
+      },
     address: {
       label: toAddressLabel(order.address.label),
       receiverName: order.address.receiverName,
@@ -185,7 +190,7 @@ export function toOrder(order: OrderDoc): Order {
       postalCode: order.address.postalCode,
     },
     note: order.note,
-    status: order.status,
+      status: order.status === 'awaiting_gcash_authorization' || order.status === 'awaiting_payment_method' ? 'pending' : order.status,
     events: order.events.map((event) => ({
       status: event.status,
       label: event.label,

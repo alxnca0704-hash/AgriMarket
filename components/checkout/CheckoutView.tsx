@@ -103,6 +103,8 @@ export function CheckoutView() {
     confirmOpen,
     isPlacing,
     placedOrders,
+    paymentMethod,
+    setPaymentMethod,
     updateDraftField,
     handleSelectRegion,
     handleSelectProvince,
@@ -210,7 +212,7 @@ export function CheckoutView() {
             />
           ))}
 
-          <PaymentMethodCard total={total} />
+          <PaymentMethodCard total={total} value={paymentMethod} onChange={setPaymentMethod} />
         </div>
 
         <div className="lg:col-span-4">
@@ -232,6 +234,7 @@ export function CheckoutView() {
         isDefault={selectedAddress != null && selectedIndex === defaultIndex}
         total={total}
         itemCount={itemCount}
+        paymentMethod={paymentMethod}
         onClose={closeConfirm}
         onConfirm={placeOrder}
       />

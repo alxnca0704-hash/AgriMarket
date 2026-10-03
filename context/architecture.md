@@ -101,11 +101,12 @@
 4. **Status transitions are guarded.** Every mutation calls
    `assertStatus(order, expected)` and appends to `order.events`.
    Illegal transitions throw and never mutate.
-5. **COD is the only implemented payment.** `orders.paymentMethod` is
-   `v.literal("cod")` and `paymentStatus` becomes `paid` only in
-   `confirmDelivery`. GCash is specified but unbuilt — see
-   `project-overview.md` and the open questions in
-   `progress-tracker.md`.
+5. **Payment state is server-authoritative.** COD becomes `paid` when
+     the buyer confirms delivery. GCash becomes `paid` only after a
+     signature-verified PayMongo `payment.paid` webhook matching the
+     order's Payment Intent. A seller cannot confirm an unpaid GCash
+     order. The browser return page reads Convex payment state and never
+     marks an order paid based on a redirect alone.
 6. **Images never enter the database as bytes.** Cloudinary holds the
    file; Convex holds a `secure_url` string.
 7. **Timestamps are ISO 8601 strings** from `new Date().toISOString()`,

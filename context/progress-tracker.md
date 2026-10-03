@@ -10,10 +10,11 @@ The next phase is online payments, starting with GCash.
 
 ## Current Goal
 
-Design (not yet implement) GCash as a second payment method on top of
-COD. The context files describe the target behavior; no code exists for
-it. The open questions below must be answered before the first
-implementation step.
+Implement PayMongo-hosted GCash payments per seller order alongside COD.
+Use the Clerk identity email for billing, redirect directly from checkout
+to PayMongo, and show a verified payment-success screen before returning
+to home. Payment confirmation comes only from verified PayMongo webhooks.
+No production credentials are stored in the repository.
 
 ## Completed
 
@@ -100,80 +101,30 @@ implementation step.
 
 ## In Progress
 
-- None. The GCash work is specified in `project-overview.md` and
-  blocked on the open questions below.
+- GCash checkout now uses Clerk email, redirects directly into PayMongo,
+  sequences payments for multi-seller carts, and waits for webhook-backed
+  Convex state before showing success and returning home. Unpaid orders
+  can reopen their existing GCash payment from order details, and cancel is
+  hidden while an attached payment is still active.
+- Buyer profile and seller settings both sign out through Clerk and return
+  to the landing page.
+- Sign-in uses the landing page's role check so seller accounts reach the
+  seller dashboard and buyer accounts reach buyer home.
 
 ## Next Up
 
-### 1. GCash payment method (specified, not built)
+### After GCash
 
-Order of work — each step is its own unit:
-
-1. **Schema and constants** — widen `orders.paymentMethod` to
-   `v.union(v.literal("cod"), v.literal("gcash"))` in
-   `convex/schema.ts` and `convex/shared.ts`; add `PAYMENT_METHOD.GCASH`
-   to `constants/orders.ts`; add the GCash payment fields to
-   `types/order.ts` and the Convex → app mapping in
-   `lib/convexSync.ts`. Include a migration plan for existing rows
-   (`@convex-dev/migrations`).
-2. **Order state machine** — decide and implement where "buyer sent the
-   transfer" and "seller confirmed receipt" sit in the status graph, add
-   the guard helpers, and append to `events`.
-3. **Checkout selection** — turn `PaymentMethodCard` into a real
-   selector, thread the choice through `useCheckout` into
-   `placeOrders`, and validate server-side.
-4. **Buyer GCash instructions + reference** — per-order reference
-   number and amount, an explicit "I have sent the payment" action, and
-   a pending-payment state in the order detail and timeline.
-5. **Seller verification** — a "confirm GCash received" action that
-   sets `paymentStatus: "paid"` and advances the order, plus a
-   "pending GCash verification" bucket on the earnings view.
-6. **Copy and states** — empty, error, and pending states for every new
-   surface, and the muted token treatment for a GCash option (no
-   saturated brand blue).
-
-### 2. After GCash
-
-- Move seller earnings and notifications off the mock layer in `lib/`
-  onto Convex.
-- An actor that moves `stall.verification.status` to `verified`
-  (admin review or an auto-approval rule).
-- Replace the demo/mock session layer with Convex-only reads for signed
-  in users.
+- Complete PayMongo refund handling and recovery for expired or failed GCash attempts before production launch.
+- Move seller earnings and notifications off the mock layer in lib/ onto Convex.
+- Add an actor that moves stall verification status to verified.
+- Replace the demo/mock session layer with Convex-only reads for signed-in users.
 
 ## Open Questions
 
-- **Payment timing for GCash.** Should the seller be able to confirm
-  (reserve stock) before the transfer is verified, or must GCash
-  verification come first? This changes the status graph.
-- **Status graph.** Do "payment sent" and "payment verified" become new
-  `OrderStatus` values, or a separate `paymentStatus` field
-  (`unpaid` / `sent` / `paid` / `failed`) with the order status
-  unchanged? A separate field is probably cleaner but it means
-  `PaymentStatus` in `types/order.ts` needs its own timeline surface.
-- **Seller GCash account.** Where is the receiving GCash number stored —
-  on the stall, on the seller profile, or in Convex env config? Per
-  seller is almost certainly right, but it is a new field on two
-  possible documents.
-- **Reference number format.** Should the buyer send using a unique
-  per-order reference (derived from the order id) or the plain order id?
-  A derived reference prevents mismatched transfers but needs a defined
-  algorithm and a collision check.
-- **Multiple sellers in one checkout.** One checkout creates one order
-  per seller, so GCash means N separate transfers for N sellers. Confirm
-  this is acceptable, or whether GCash orders must be limited to a single
-  seller per checkout.
-- **Fee and rounding.** Does the GCash transfer amount include the
-  per-seller delivery fee? Are transfer fees absorbed by the seller or
-  added to the buyer total?
-- **Failed or reversed transfers.** What happens when a buyer claims to
-  have sent a transfer that never arrived, and who resolves it? Is a
-  dispute status needed, or does the seller simply never confirm?
-- **Refunds for GCash.** Approving a refund currently restores stock and
-  marks the order `refunded`; for GCash the money has to go back out via
-  a transfer. Who initiates it, and is a `refund-paid` event needed?
-- **Offline / feature-flagged rollout.** Should GCash ship behind a flag
-  so COD remains available everywhere?
+- GCash refunds remain a manual operator task until a separate PayMongo refund unit ships.
+- If PayMongo cannot create a link after order placement, the order remains unpaid and needs support intervention.
+- Configure separate test/live API keys, webhook signing secrets, APP_BASE_URL, and a mode-matched webhook endpoint before launch. GCash must be enabled on the PayMongo merchant account.
 
 ## Architecture Decisions
 
@@ -210,11 +161,7 @@ Order of work — each step is its own unit:
 
 ## Session Notes
 
-- The GCash feature is **specified only**. Nothing about it is
-  implemented: `orders.paymentMethod` is still `v.literal("cod")`,
-  `constants/orders.ts` has only `PAYMENT_METHOD.COD`, and
-  `components/checkout/PaymentMethodCard.tsx` hardcodes the COD copy.
-  Start from "Next Up → 1" and settle the open questions first.
+- PayMongo hosted Payment Intents replace the manual-transfer plan. Each seller order is charged independently; signature-verified webhooks are authoritative for payment state.
 - Verification for this project is `npm run build` + `npm run lint`
   plus a manual walkthrough — there is no test script.
 - `convex/_generated/ai/guidelines.md` must be read before touching any

@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useSyncExternalStore } from 'react';
-import { useRouter } from 'next/navigation';
 import { App } from 'antd';
+import { useClerk } from '@clerk/nextjs';
 import { useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { AuthenticatedUser } from '@/types/auth';
@@ -51,8 +51,8 @@ function validateProfile(draft: ProfileEditData): Record<string, string> {
 }
 
 export function useSellerSettings() {
-  const router = useRouter();
   const { message } = App.useApp();
+  const { signOut: clerkSignOut } = useClerk();
   const { current, isReady, isAuthedWithConvex } = useConvexUserSync();
   const updateProfileConvex = useMutation(api.users.updateProfile);
 
@@ -68,6 +68,7 @@ export function useSellerSettings() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [draft, setDraft] = useState<ProfileEditData>(() => toProfileDraft(EMPTY_USER));
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const openEdit = () => {
     setDraft(toProfileDraft(user ?? EMPTY_USER));
@@ -117,11 +118,17 @@ export function useSellerSettings() {
     }
   };
 
-  const signOut = () => {
-    clearMockUser();
-    setActiveView('buyer');
-    message.success('Signed out');
-    router.push(APP_ROUTES.landing);
+  const signOut = async () => {
+    setIsSigningOut(true);
+    try {
+      await clerkSignOut(async () => {
+        clearMockUser();
+        setActiveView('buyer');
+      }, { redirectUrl: APP_ROUTES.landing });
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : 'Could not sign out. Please try again.');
+      setIsSigningOut(false);
+    }
   };
 
   return {
@@ -138,5 +145,6 @@ export function useSellerSettings() {
     updateField,
     saveProfile,
     signOut,
+    isSigningOut,
   };
 }

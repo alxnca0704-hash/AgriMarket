@@ -7,6 +7,7 @@ import {
   CreditCardOutlined,
   EditOutlined,
   EnvironmentOutlined,
+  LogoutOutlined,
   MailOutlined,
   PhoneOutlined,
   PlusOutlined,
@@ -63,6 +64,8 @@ export function ProfileView() {
     closeEditModal,
     updateField,
     saveProfile,
+    signOut,
+    isSigningOut,
   } = useProfile();
 
   const initial = user.fullName.trim().charAt(0).toUpperCase() || 'U';
@@ -232,6 +235,18 @@ export function ProfileView() {
               </div>
               <RightOutlined className="text-stone-300" />
             </Link>
+            <div className="border-t border-stone-100 px-5 py-4 sm:px-6">
+              <Button
+                danger
+                block
+                icon={<LogoutOutlined />}
+                loading={isSigningOut}
+                onClick={signOut}
+                className="!rounded-xl"
+              >
+                Sign out
+              </Button>
+            </div>
           </section>
 
           <EditProfileModal

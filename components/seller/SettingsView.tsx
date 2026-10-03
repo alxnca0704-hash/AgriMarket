@@ -42,6 +42,7 @@ export function SettingsView() {
     updateField,
     saveProfile,
     signOut,
+    isSigningOut,
   } = useSellerSettings();
 
   if (isLoading) return <SettingsSkeleton />;
@@ -138,7 +139,7 @@ export function SettingsView() {
       </section>
 
       <section className="rounded-2xl bg-white shadow-sm p-5 sm:p-6 flex items-center justify-center">
-        <Button danger icon={<LogoutOutlined />} onClick={signOut} className="!rounded-xl !w-full sm:!w-auto">
+        <Button danger icon={<LogoutOutlined />} loading={isSigningOut} onClick={signOut} className="!rounded-xl !w-full sm:!w-auto">
           Sign out
         </Button>
       </section>

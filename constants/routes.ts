@@ -9,6 +9,8 @@ export const APP_ROUTES = {
   productDetail: (id: string) => `/products/${id}`,
   cart: '/cart',
   checkout: '/checkout',
+  paymentReturn: (orderIds: string[], step: number) =>
+    `/payment/return?orders=${encodeURIComponent(orderIds.join(','))}&step=${step}`,
   orders: '/orders',
   orderDetail: (id: string) => `/orders/${id}`,
   profile: '/profile',

@@ -61,6 +61,9 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
     handleConfirmDelivery,
     handleCancel,
     handleRequestRefund,
+    handlePayGcash,
+    isPayingGcash,
+    canPayGcash,
     isActionPending,
   } = useOrderDetail(orderId);
 
@@ -211,17 +214,31 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
                   {order.status === 'cancelled'
                     ? 'No payment was taken'
                     : order.payment.status === 'paid'
-                    ? 'Already paid'
+                    ? 'Payment verified'
+                    : order.payment.status === 'failed'
+                    ? 'Payment failed'
+                    : order.payment.status === 'expired'
+                    ? 'Payment expired'
+                    : order.payment.method === 'gcash'
+                    ? 'Waiting for GCash payment'
                     : 'Pay on delivery'}
                 </p>
               </div>
             </div>
             <div className="rounded-xl bg-stone-50/80 p-4 flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold text-stone-900">Cash on Delivery</p>
+                <p className="text-sm font-semibold text-stone-900">
+                  {order.payment.method === 'gcash' ? 'GCash via PayMongo' : 'Cash on Delivery'}
+                </p>
                 <p className="text-xs text-stone-500 mt-0.5">
                   {order.payment.status === 'paid'
-                    ? 'Payment settled — cash received by the courier.'
+                    ? 'PayMongo confirmed this payment.'
+                    : order.payment.method === 'gcash'
+                    ? order.payment.status === 'expired'
+                      ? 'This payment attempt expired. Cancel this order and place a new one to try again.'
+                      : order.payment.status === 'failed'
+                      ? 'The payment attempt failed. Payment confirmation updates automatically.'
+                      : 'Your payment was interrupted. Continue with GCash to pay this order.'
                     : `Pay ${formatPrice(order.total)} in cash when it arrives.`}
                 </p>
               </div>
@@ -230,11 +247,22 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
                   Paid
                 </Tag>
               ) : (
-                <Tag className="!m-0 !border-none !rounded-full !text-xs !font-semibold">
-                  Unpaid
+                <Tag color={order.payment.status === 'failed' ? 'error' : 'default'} className="!m-0 !border-none !rounded-full !text-xs !font-semibold">
+                  {order.payment.status === 'failed' ? 'Failed' : 'Unpaid'}
                 </Tag>
               )}
             </div>
+            {canPayGcash && (
+              <Button
+                type="primary"
+                block
+                loading={isPayingGcash}
+                onClick={handlePayGcash}
+                className="!mt-3 !rounded-xl"
+              >
+                Pay with GCash · {formatPrice(order.total)}
+              </Button>
+            )}
           </section>
 
           {/* Review section — shown only for delivered/completed orders */}

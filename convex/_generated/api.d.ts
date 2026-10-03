@@ -9,8 +9,11 @@
  */
 
 import type * as cart from "../cart.js";
+import type * as http from "../http.js";
 import type * as market from "../market.js";
 import type * as orders from "../orders.js";
+import type * as paymentActions from "../paymentActions.js";
+import type * as payments from "../payments.js";
 import type * as products from "../products.js";
 import type * as reviews from "../reviews.js";
 import type * as shared from "../shared.js";
@@ -25,8 +28,11 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   cart: typeof cart;
+  http: typeof http;
   market: typeof market;
   orders: typeof orders;
+  paymentActions: typeof paymentActions;
+  payments: typeof payments;
   products: typeof products;
   reviews: typeof reviews;
   shared: typeof shared;

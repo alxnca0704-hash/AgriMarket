@@ -1,7 +1,8 @@
-import { OrderStatus } from '@/types/order';
+import { OrderStatus, PaymentStatus } from '@/types/order';
 
 export const PAYMENT_METHOD = {
   COD: 'cod',
+  GCASH: 'gcash',
 } as const;
 
 export type PaymentMethod = (typeof PAYMENT_METHOD)[keyof typeof PAYMENT_METHOD];
@@ -26,6 +27,24 @@ export const ORDER_STATUS_TAG_COLORS: Record<OrderStatus, string> = {
   cancelled: 'default',
   'refund-requested': 'orange',
   refunded: 'red',
+};
+
+export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
+  unpaid: 'Unpaid',
+  paid: 'Paid',
+  failed: 'Failed',
+  expired: 'Expired',
+  awaiting_gcash_authorization: 'Unpaid',
+  awaiting_payment_method: 'Unpaid',
+};
+
+export const PAYMENT_STATUS_TAG_COLORS: Record<PaymentStatus, string> = {
+  unpaid: 'warning',
+  paid: 'success',
+  failed: 'error',
+  expired: 'default',
+  awaiting_gcash_authorization: 'warning',
+  awaiting_payment_method: 'warning',
 };
 
 export interface OrderStatusTab {

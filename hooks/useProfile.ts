@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { App } from 'antd';
+import { useClerk } from '@clerk/nextjs';
 import { useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { AuthenticatedUser } from '@/types/auth';
@@ -15,6 +16,8 @@ import {
 } from '@/lib/mockSession';
 import { useAddressBook } from '@/hooks/useAddressBook';
 import { useConvexUserSync } from '@/hooks/useConvexUserSync';
+import { clearMockUser } from '@/lib/mockSession';
+import { APP_ROUTES } from '@/constants/routes';
 
 function toProfileDraft(user: AuthenticatedUser): ProfileEditData {
   return {
@@ -49,6 +52,7 @@ function validateProfile(draft: ProfileEditData): Record<string, string> {
 
 export function useProfile() {
   const { message } = App.useApp();
+  const { signOut: clerkSignOut } = useClerk();
   const { isAuthedWithConvex } = useConvexUserSync();
   const updateProfileConvex = useMutation(api.users.updateProfile);
   const user = useSyncExternalStore(
@@ -62,6 +66,7 @@ export function useProfile() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [draft, setDraft] = useState<ProfileEditData>(() => toProfileDraft(DEMO_BUYER));
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 300);
@@ -115,6 +120,18 @@ export function useProfile() {
     message.success('Profile updated');
   };
 
+  const signOut = async () => {
+    setIsSigningOut(true);
+    try {
+      await clerkSignOut(async () => {
+        clearMockUser();
+      }, { redirectUrl: APP_ROUTES.landing });
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : 'Could not sign out. Please try again.');
+      setIsSigningOut(false);
+    }
+  };
+
   const roleLabel = ROLE_DETAILS[user.role]?.label ?? 'Member';
 
   return {
@@ -130,5 +147,7 @@ export function useProfile() {
     closeEditModal,
     updateField,
     saveProfile,
+    signOut,
+    isSigningOut,
   };
 }

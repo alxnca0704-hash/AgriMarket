@@ -6,7 +6,7 @@ import { Button, Image, Tag } from 'antd';
 import { RightOutlined } from '@ant-design/icons';
 import { Order } from '@/types/order';
 import { SELLER_ORDER_GROUP_LABELS, getSellerOrderGroup, SELLER_ORDER_TAG_COLORS } from '@/constants/sellerOrders';
-import { OrderAction } from '@/constants/orders';
+import { OrderAction, PAYMENT_STATUS_LABELS, PAYMENT_STATUS_TAG_COLORS } from '@/constants/orders';
 import { SellerOrderActions } from '@/components/seller/SellerOrderActions';
 import { APP_ROUTES } from '@/constants/routes';
 import { formatOrderTime, formatPrice } from '@/lib/format';
@@ -50,12 +50,20 @@ export function SellerOrderCard({
           </span>
           <RightOutlined className="text-[10px] text-stone-300" />
         </button>
-        <Tag
-          color={SELLER_ORDER_TAG_COLORS[group]}
-          className="!m-0 !border-none !rounded-full !px-2.5 !py-0.5 !text-xs !font-semibold shrink-0"
-        >
-          {SELLER_ORDER_GROUP_LABELS[group]}
-        </Tag>
+        <div className="flex flex-wrap items-center justify-end gap-1.5 shrink-0">
+          <Tag
+            color={SELLER_ORDER_TAG_COLORS[group]}
+            className="!m-0 !border-none !rounded-full !px-2.5 !py-0.5 !text-xs !font-semibold"
+          >
+            {SELLER_ORDER_GROUP_LABELS[group]}
+          </Tag>
+          <Tag
+            color={order.status === 'refunded' ? 'default' : PAYMENT_STATUS_TAG_COLORS[order.payment.status]}
+            className="!m-0 !border-none !rounded-full !px-2.5 !py-0.5 !text-xs !font-semibold"
+          >
+            {order.status === 'refunded' ? 'Refunded' : PAYMENT_STATUS_LABELS[order.payment.status]}
+          </Tag>
+        </div>
       </div>
 
       <div className="px-4 sm:px-5 py-4 flex items-center gap-3">

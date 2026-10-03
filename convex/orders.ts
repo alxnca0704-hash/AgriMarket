@@ -2,7 +2,7 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { Doc, Id } from "./_generated/dataModel";
 import { MutationCtx, QueryCtx } from "./_generated/server";
-import { deliveryAddressValidator } from "./shared";
+import { deliveryAddressValidator, paymentStatusValidator } from "./shared";
 
 const BUYER_ORDER_LIMIT = 100;
 const SELLER_ORDER_LIMIT = 200;
@@ -16,7 +16,9 @@ type OrderStatus =
   | "completed"
   | "cancelled"
   | "refund-requested"
-  | "refunded";
+  | "refunded"
+  | "awaiting_gcash_authorization"
+  | "awaiting_payment_method";
 
 async function getCurrentUser(
   ctx: QueryCtx | MutationCtx
@@ -62,6 +64,10 @@ async function requireSellerOrder(
 }
 
 function assertStatus(order: Doc<"orders">, expected: OrderStatus): void {
+  if (
+    (order.status === "awaiting_gcash_authorization" || order.status === "awaiting_payment_method") &&
+    expected === "pending"
+  ) return;
   if (order.status !== expected) {
     throw new Error(`This action is not available for a ${order.status} order`);
   }
@@ -85,6 +91,7 @@ export const placeOrders = mutation({
   args: {
     address: deliveryAddressValidator,
     notes: v.record(v.string(), v.string()),
+    paymentMethod: v.optional(v.union(v.literal("cod"), v.literal("gcash"))),
   },
   async handler(ctx, args) {
     const user = await requireUser(ctx);
@@ -152,7 +159,7 @@ export const placeOrders = mutation({
         subtotal,
         deliveryFee,
         total: subtotal + deliveryFee,
-        paymentMethod: "cod",
+        paymentMethod: args.paymentMethod ?? "cod",
         paymentStatus: "unpaid",
         address: args.address,
         ...(note ? { note } : {}),
@@ -201,6 +208,34 @@ export const getMyOrder = query({
   },
 });
 
+export const getMyGcashOrders = query({
+  args: { orderIds: v.array(v.id("orders")) },
+  returns: v.array(v.object({
+    _id: v.id("orders"),
+    paymentStatus: paymentStatusValidator,
+    paymentRedirectUrl: v.optional(v.string()),
+    sellerName: v.string(),
+    total: v.number(),
+  })),
+  async handler(ctx, args) {
+    if (args.orderIds.length > 25) throw new Error("Too many orders in payment return");
+    const user = await getCurrentUser(ctx);
+    if (user === null) return [];
+    const orders = await Promise.all(args.orderIds.map((orderId) => ctx.db.get("orders", orderId)));
+    return orders.flatMap((order) =>
+      order && order.buyerId === user._id && order.paymentMethod === "gcash"
+        ? [{
+            _id: order._id,
+            paymentStatus: order.paymentStatus,
+            paymentRedirectUrl: order.paymentRedirectUrl,
+            sellerName: order.sellerName,
+            total: order.total,
+          }]
+        : []
+    );
+  },
+});
+
 export const listSellerOrders = query({
   args: {},
   async handler(ctx) {
@@ -232,6 +267,13 @@ export const cancelOrder = mutation({
     const order = await getBuyerOrder(ctx, user._id, args.orderId);
     assertStatus(order, "pending");
 
+    if (
+      order.paymentMethod === "gcash" &&
+      (order.paymentStatus === "paid" ||
+        (order.paymentIntentId !== undefined && order.paymentStatus !== "expired"))
+    ) {
+      throw new Error("This GCash payment is in progress or complete. Wait for its final status before cancelling.");
+    }
     await restoreStock(ctx, order);
     const now = new Date().toISOString();
     const reason = args.reason?.trim();
@@ -277,6 +319,9 @@ export const confirmOrder = mutation({
     const user = await requireUser(ctx);
     const order = await requireSellerOrder(ctx, user._id, args.orderId);
     assertStatus(order, "pending");
+    if (order.paymentMethod === "gcash" && order.paymentStatus !== "paid") {
+      throw new Error("This GCash order cannot be confirmed until PayMongo verifies payment");
+    }
 
     const reserved: Array<{ product: Doc<"products">; qty: number }> = [];
     for (const item of order.items) {
@@ -315,6 +360,12 @@ export const rejectOrder = mutation({
     const user = await requireUser(ctx);
     const order = await requireSellerOrder(ctx, user._id, args.orderId);
     assertStatus(order, "pending");
+    if (
+      order.paymentMethod === "gcash" &&
+      (order.paymentStatus !== "expired" || order.paymentIntentId === undefined)
+    ) {
+      throw new Error("A GCash order can be rejected only after its PayMongo payment intent expires");
+    }
 
     await restoreStock(ctx, order);
     const now = new Date().toISOString();

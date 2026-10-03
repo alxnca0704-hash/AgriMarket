@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { App } from 'antd';
-import { useMutation } from 'convex/react';
+import { useAction, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
+import type { Id } from '@/convex/_generated/dataModel';
+import { APP_ROUTES } from '@/constants/routes';
 import { toDeliveryAddress, toOrder } from '@/lib/convexSync';
 import { useCart } from '@/hooks/useCart';
 import { useConvexUserSync } from '@/hooks/useConvexUserSync';
@@ -73,6 +75,7 @@ export function useCheckout() {
   const { user, groups } = useCart();
   const { message } = App.useApp();
   const placeOrdersMutation = useMutation(api.orders.placeOrders);
+  const createGcashPayment = useAction(api.paymentActions.createGcashPayment);
   const { current, isAuthedWithConvex } = useConvexUserSync();
   const addAddressMutation = useMutation(api.users.addAddress);
   const updateAddressMutation = useMutation(api.users.updateAddress);
@@ -136,6 +139,7 @@ export function useCheckout() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [isPlacing, setIsPlacing] = useState(false);
   const [placedOrders, setPlacedOrders] = useState<Order[] | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<'cod' | 'gcash'>('cod');
 
   useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 300);
@@ -460,12 +464,39 @@ export function useCheckout() {
       const created = await placeOrdersMutation({
         address: { ...selectedAddress, label: selectedAddress.label ?? 'Home' },
         notes: trimmedNotes,
+        paymentMethod,
       });
 
       const mapped = (Array.isArray(created) ? created : []).map(toOrder);
+      if (paymentMethod === 'gcash') {
+        const paymentLinks = await Promise.allSettled(mapped.map((order) =>
+          createGcashPayment({
+            orderId: order.id as Id<'orders'>,
+            returnUrl: `${window.location.origin}${APP_ROUTES.paymentReturn(
+              mapped.map((entry) => entry.id),
+              mapped.findIndex((entry) => entry.id === order.id)
+            )}`,
+          })
+        ));
+        paymentLinks.forEach((result) => {
+          if (result.status !== 'fulfilled') return;
+          const order = mapped.find((entry) => entry.id === result.value.orderId);
+          if (order) order.payment.redirectUrl = result.value.redirectUrl;
+        });
+        if (paymentLinks.some((result) => result.status === 'rejected')) {
+          setPlacedOrders(mapped);
+          message.error('Some GCash payment links could not be created. The order remains unpaid.');
+          return;
+        }
+        const firstLink = paymentLinks[0];
+        if (firstLink?.status === 'fulfilled') {
+          window.location.assign(firstLink.value.redirectUrl);
+          return;
+        }
+      }
       setPlacedOrders(mapped);
       setConfirmOpen(false);
-      message.success(mapped.length > 1 ? 'Orders placed' : 'Order placed');
+      if (paymentMethod === 'cod') message.success(mapped.length > 1 ? 'Orders placed' : 'Order placed');
     } catch (e) {
       message.error(e instanceof Error ? e.message : 'Could not place your order');
     } finally {
@@ -506,6 +537,8 @@ export function useCheckout() {
     confirmOpen,
     isPlacing,
     placedOrders,
+    paymentMethod,
+    setPaymentMethod,
     updateDraftField,
     handleSelectRegion,
     handleSelectProvince,

@@ -25,13 +25,15 @@ courier-handled with per-stall fees.
    product with photos, and fulfil an order without leaving the app.
 3. Order state is always consistent: stock, payment status, and the
    buyer's/seller's order lists never disagree with the order document.
-4. Money flows stay offline and auditable in v1 — Cash on Delivery with
-   an explicit `unpaid → paid` transition recorded in the order event
-   log.
+4. Payment flows stay auditable — COD and PayMongo GCash, with payment
+   state changes recorded in the order event log.
 
 ## Core User Flow
 
 ### Buyer
+
+After Clerk sign-in, buyers land on `/home` and sellers land on the
+seller dashboard based on their stored Clerk role.
 
 1. Lands on `/`, chooses **Buy** or **Sell**.
 2. Signs up via Clerk with a role, completes a 3-step profile step
@@ -71,7 +73,8 @@ courier-handled with per-stall fees.
 - Multi-step seller onboarding (profile → stall → review) with a
   persisted draft in `hooks/useSellerOnboarding.ts`.
 - Profile editing and a delivery address book with a single default
-  address.
+  address, with Clerk sign-out available from buyer profile and seller
+  settings.
 
 ### Catalog and discovery
 
@@ -107,9 +110,10 @@ courier-handled with per-stall fees.
 
 ### Payments
 
-- **Cash on Delivery** only. `orders.paymentMethod` is
-  `v.literal("cod")` and `paymentStatus` is `unpaid` until the buyer
-  confirms delivery, which flips it to `paid`.
+- **Cash on Delivery and GCash via PayMongo.** COD is `unpaid` until the
+  buyer confirms delivery. GCash uses a server-created Payment Intent,
+  GCash Payment Method, and redirect; only a verified webhook changes
+  payment state to `paid` or `failed`.
 - Delivery fee is per seller and is copied onto each order at checkout.
 
 ### Reviews and trust
@@ -127,30 +131,34 @@ courier-handled with per-stall fees.
 - Notifications view (currently mock-backed in
   `lib/mockNotifications.ts`).
 
-### GCash (planned — not built)
+### GCash (PayMongo integration)
 
-Documented here as the next payment feature. **No code exists for it
-yet** — the schema, `constants/orders.ts`, and
-`components/checkout/PaymentMethodCard.tsx` are still COD-only. See
-"Next Up" in `progress-tracker.md` and the open questions below before
-implementing.
+The buyer selects GCash at checkout and is redirected to PayMongo's
+GCash authorization flow. Each seller order has its own payment intent.
 
 Target behavior:
 
 - The buyer chooses **Cash on Delivery** or **GCash** at checkout.
-- With GCash, the order is created as `paymentMethod: "gcash"`,
-  `paymentStatus: "unpaid"`, and the buyer is shown a per-order GCash
-  reference (checkout reference derived from the order id) plus a
-  QR / instruction to send the exact total.
-- The buyer marks the order as **"I have sent the payment"**, which
-  moves the order to a `payment-pending` review state visible to the
-  seller.
-- The seller confirms receipt of the transfer, which sets
-  `paymentStatus: "paid"` and advances the order to `confirmed`.
-- Every GCash transition is appended to the same `events` log the
-  existing lifecycle uses, so the order timeline stays uniform.
-- Seller earnings gain a "pending GCash verification" bucket so
-  transfers that were never confirmed are visible.
+  - Orders use `paymentMethod: "gcash"` and begin as `unpaid`; the buyer
+    receives a per-order PayMongo redirect and exact amount including
+    delivery.
+  - GCash billing uses the signed-in buyer's email from the Clerk identity.
+  - Checkout redirects directly to PayMongo without an intermediate
+    "Order placed" screen. For carts spanning sellers, payments run one
+    seller at a time because each seller order has its own payment intent.
+  - After authorization, the return screen waits for the signed
+    `payment.paid` webhook before showing "Payment successful". Once all
+    seller payments are confirmed, it returns the buyer to the home page.
+    Signed `payment.paid` and `payment.failed` webhooks remain authoritative.
+  - A buyer can resume an unpaid GCash order from its order detail page;
+    the existing PayMongo redirect is reused.
+  - Buyer and seller order cards show payment status (Paid, Unpaid,
+    Failed, Expired, or Refunded) beside order status.
+  - Hide cancellation while an attached GCash payment is unpaid, failed,
+    or paid; cancellation is available again only after the payment expires.
+- Sellers can confirm and reserve stock only after GCash is paid.
+- PayMongo fees are absorbed by the marketplace or seller; the buyer
+  total is unchanged. Each seller order is a separate payment.
 
 ## Scope
 
@@ -160,7 +168,7 @@ Target behavior:
 - Buyer and seller roles with a full order lifecycle on COD.
 - Cloudinary-hosted product and stall imagery.
 - Reviews, ratings, per-seller delivery fees, and seller earnings.
-- GCash as a second payment method on top of COD (planned).
+- GCash as a second payment method on top of COD through PayMongo.
 
 ### Out of Scope
 

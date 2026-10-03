@@ -23,12 +23,12 @@ export function OrderSuccess({ orders, onTrackOrders, onContinueShopping }: Orde
           <CheckCircleOutlined />
         </span>
         <h1 className="mt-4 text-2xl font-semibold tracking-tight text-stone-900">
-          Order placed!
+          {orders.some((order) => order.payment.method === 'gcash') ? 'Payment setup needs attention' : 'Order placed!'}
         </h1>
         <p className="mt-1.5 text-sm text-stone-500 leading-relaxed">
-          We&apos;ve sent your order to the farmers. Pay{' '}
-          <strong className="text-stone-800">{formatPrice(totalPaid)}</strong> to the courier
-          in cash when it arrives.
+          {orders.some((order) => order.payment.method === 'gcash')
+            ? 'Your order is saved, but payment links could not all be prepared. Do not consider it paid until GCash confirms the payment.'
+            : <>We&apos;ve sent your order to the farmers. Pay <strong className="text-stone-800">{formatPrice(totalPaid)}</strong> to the courier in cash when it arrives.</>}
         </p>
 
         <div className="mt-6 text-left space-y-2.5">
@@ -41,9 +41,17 @@ export function OrderSuccess({ orders, onTrackOrders, onContinueShopping }: Orde
                 <p className="text-sm font-semibold text-stone-900 truncate">{order.sellerName}</p>
                 <p className="text-xs text-stone-400 font-mono">{order.id}</p>
               </div>
-              <span className="text-sm font-semibold text-stone-800 shrink-0">
-                {formatPrice(order.total)}
-              </span>
+              <div className="flex flex-col items-end gap-2 shrink-0">
+                <span className="text-sm font-semibold text-stone-800">{formatPrice(order.total)}</span>
+                {order.payment.method === 'gcash' && order.payment.redirectUrl && (
+                  <Button type="primary" size="small" href={order.payment.redirectUrl} target="_self" className="!rounded-lg">
+                    Pay with GCash
+                  </Button>
+                )}
+                {order.payment.method === 'gcash' && !order.payment.redirectUrl && (
+                  <span className="text-xs text-amber-700">Payment setup failed — contact support before paying</span>
+                )}
+              </div>
             </div>
           ))}
         </div>
