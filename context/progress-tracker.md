@@ -110,6 +110,9 @@ No production credentials are stored in the repository.
   to the landing page.
 - Sign-in uses the landing page's role check so seller accounts reach the
   seller dashboard and buyer accounts reach buyer home.
+- Sign-in supports password or one-time email code, including email
+  code verification when Clerk requires an extra factor. Password sign-in
+  uses Clerk's factor-specific method and reports incomplete states clearly.
 
 ## Next Up
 

@@ -68,6 +68,7 @@ seller dashboard based on their stored Clerk role.
 
 - Clerk authentication with `buyer` / `seller` roles mirrored into
   Convex `users.role` and Clerk `publicMetadata`.
+- Sign-in supports both password and one-time email verification code.
 - Route protection in `proxy.ts` — everything is authenticated except
   `/`, `/signin`, `/signup`, and the listed `/api` routes.
 - Multi-step seller onboarding (profile → stall → review) with a

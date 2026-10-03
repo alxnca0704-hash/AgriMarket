@@ -10,11 +10,16 @@ export function SignInView() {
   const {
     identifier,
     password,
+    code,
+    mode,
+    codeSent,
     isLoading,
     error,
     fieldErrors,
     handleIdentifierChange,
     handlePasswordChange,
+    handleCodeChange,
+    handleModeChange,
     handleForgotPassword,
     handleSubmit,
     handleNavigateToSignUp,
@@ -46,7 +51,7 @@ export function SignInView() {
               Sign in to Agrimarket
             </h1>
             <p className="text-sm text-stone-500 mt-1.5">
-              Enter your mobile number or email address
+              {mode === 'password' ? 'Enter your mobile number or email address' : 'Get a one-time sign-in code by email'}
             </p>
           </div>
 
@@ -79,6 +84,7 @@ export function SignInView() {
                 onChange={(e) => handleIdentifierChange(e.target.value)}
                 status={fieldErrors.identifier ? 'error' : ''}
                 autoComplete="username"
+                type={mode === 'code' ? 'email' : 'text'}
                 disabled={isLoading}
                 className="!rounded-lg"
               />
@@ -89,39 +95,43 @@ export function SignInView() {
               )}
             </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label
-                  htmlFor="password"
-                  className="block text-sm font-medium text-stone-700"
-                >
-                  Password
-                </label>
-                <button
-                  type="button"
-                  onClick={handleForgotPassword}
-                  className="text-sm text-sage hover:underline font-medium cursor-pointer"
-                >
-                  Forgot password?
-                </button>
+            {mode === 'password' ? (
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label htmlFor="password" className="block text-sm font-medium text-stone-700">Password</label>
+                  <button type="button" onClick={handleForgotPassword} className="text-sm text-sage hover:underline font-medium cursor-pointer">
+                    Forgot password?
+                  </button>
+                </div>
+                <Input.Password
+                  id="password"
+                  size="large"
+                  placeholder="Enter password"
+                  value={password}
+                  onChange={(e) => handlePasswordChange(e.target.value)}
+                  status={fieldErrors.password ? 'error' : ''}
+                  autoComplete="current-password"
+                  disabled={isLoading}
+                  className="!rounded-lg"
+                />
+                {fieldErrors.password && <p className="text-sm text-error mt-1 font-normal">{fieldErrors.password}</p>}
               </div>
-              <Input.Password
-                id="password"
-                size="large"
-                placeholder="Enter password"
-                value={password}
-                onChange={(e) => handlePasswordChange(e.target.value)}
-                status={fieldErrors.password ? 'error' : ''}
-                autoComplete="current-password"
-                disabled={isLoading}
-                className="!rounded-lg"
-              />
-              {fieldErrors.password && (
-                <p className="text-sm text-error mt-1 font-normal">
-                  {fieldErrors.password}
-                </p>
-              )}
-            </div>
+            ) : codeSent ? (
+              <div>
+                <label htmlFor="code" className="block text-sm font-medium text-stone-700 mb-1.5">Email verification code</label>
+                <Input
+                  id="code"
+                  size="large"
+                  placeholder="Enter the code from your email"
+                  value={code}
+                  onChange={(e) => handleCodeChange(e.target.value)}
+                  autoComplete="one-time-code"
+                  inputMode="numeric"
+                  disabled={isLoading}
+                  className="!rounded-lg"
+                />
+              </div>
+            ) : null}
 
             <div className="pt-2">
               <Button
@@ -132,10 +142,20 @@ export function SignInView() {
                 loading={isLoading}
                 className="!h-11 !text-sm !font-medium !rounded-lg !bg-[#2D6A4F] hover:!bg-[#1B4332]"
               >
-                Sign in
+                {mode === 'password' ? 'Sign in' : codeSent ? 'Verify code' : 'Send sign-in code'}
               </Button>
             </div>
           </form>
+
+          <div className="mt-4 text-center">
+            <button
+              type="button"
+              onClick={() => handleModeChange(mode === 'password' ? 'code' : 'password')}
+              className="text-sm text-sage hover:underline font-medium cursor-pointer"
+            >
+              {mode === 'password' ? 'Sign in with a code instead' : 'Use password instead'}
+            </button>
+          </div>
 
           <div className="mt-7 pt-6 border-t border-stone-100 text-center text-sm text-stone-500">
             Don&apos;t have an account?{' '}

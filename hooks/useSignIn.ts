@@ -13,6 +13,10 @@ export function useSignIn() {
 
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
+  const [code, setCode] = useState('');
+  const [mode, setMode] = useState<'password' | 'code'>('password');
+  const [codeSent, setCodeSent] = useState(false);
+  const [secondFactor, setSecondFactor] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ identifier?: string; password?: string }>({});
@@ -53,6 +57,91 @@ export function useSignIn() {
     }
   };
 
+  const handleCodeChange = (val: string) => {
+    setCode(val.replace(/\D/g, '').slice(0, 8));
+    setError(null);
+  };
+
+  const handleModeChange = (nextMode: 'password' | 'code') => {
+    setMode(nextMode);
+    setCodeSent(false);
+    setSecondFactor(false);
+    setCode('');
+    setError(null);
+    setFieldErrors({});
+    signIn?.reset();
+  };
+
+  const sendEmailCode = async () => {
+    const cleanIdent = identifier.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanIdent)) {
+      setFieldErrors({ identifier: 'Enter a valid email address to receive your code' });
+      return;
+    }
+    if (!signIn) {
+      setError('Sign-in is still loading. Please wait a moment and try again.');
+      return;
+    }
+
+    setError(null);
+    setIsLoading(true);
+    try {
+      const result = await signIn.emailCode.sendCode({ emailAddress: cleanIdent });
+      if (result.error) {
+        setError(result.error.message);
+        return;
+      }
+      setCodeSent(true);
+      message.success('A sign-in code was sent to your email.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not send the sign-in code. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const verifyEmailCode = async () => {
+    if (!signIn || !code.trim()) {
+      setError('Enter the code from your email.');
+      return;
+    }
+    setError(null);
+    setIsLoading(true);
+    try {
+      const result = secondFactor
+        ? await signIn.mfa.verifyEmailCode({ code: code.trim() })
+        : await signIn.emailCode.verifyCode({ code: code.trim() });
+      if (result.error) {
+        setError(result.error.message);
+        return;
+      }
+      if (signIn.status === 'complete') {
+        await signIn.finalize();
+        router.replace(APP_ROUTES.landing);
+        return;
+      }
+      if (signIn.status === 'needs_second_factor' || signIn.status === 'needs_client_trust') {
+        const emailFactor = signIn.supportedSecondFactors.find((factor) => factor.strategy === 'email_code');
+        if (emailFactor) {
+          const sent = await signIn.mfa.sendEmailCode();
+          if (sent.error) {
+            setError(sent.error.message);
+            return;
+          }
+          setSecondFactor(true);
+          setCode('');
+          message.info('Enter the extra verification code sent to your email.');
+          return;
+        }
+      }
+      setError(`Clerk needs another sign-in step (${signIn.status}). Try password sign-in or ask the site administrator to check Clerk settings.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not verify the code. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleForgotPassword = () => {
     message.info('Password reset is not available in this prototype yet.');
   };
@@ -67,7 +156,15 @@ export function useSignIn() {
 
   const handleSubmit = async () => {
     setError(null);
-    if (!validate()) return;
+    if (mode === 'password' && !validate()) return;
+    if (mode === 'code') {
+      if (codeSent) {
+        await verifyEmailCode();
+      } else {
+        await sendEmailCode();
+      }
+      return;
+    }
     if (!signIn) {
       setError('Sign-in is still loading. Please wait a moment and try again.');
       return;
@@ -75,7 +172,7 @@ export function useSignIn() {
 
     setIsLoading(true);
     try {
-      const createResult = await signIn.create({
+      const createResult = await signIn.password({
         identifier: identifier.trim(),
         password,
       });
@@ -90,25 +187,25 @@ export function useSignIn() {
         return;
       }
 
-      if (signIn.status === 'needs_first_factor') {
-        const passwordResult = await signIn.password({ password });
-        if (passwordResult.error) {
-          setError(passwordResult.error.message);
+      if (signIn.status === 'needs_second_factor' || signIn.status === 'needs_client_trust') {
+        const emailFactor = signIn.supportedSecondFactors.find((factor) => factor.strategy === 'email_code');
+        if (emailFactor) {
+          const sent = await signIn.mfa.sendEmailCode();
+          if (sent.error) {
+            setError(sent.error.message);
+            return;
+          }
+          setMode('code');
+          setCodeSent(true);
+          setSecondFactor(true);
+          message.info('Enter the extra verification code sent to your email.');
           return;
         }
-        if (signIn.status as string === 'complete') {
-          await signIn.finalize();
-          router.replace(APP_ROUTES.landing);
-          return;
-        }
-      }
-
-      if (signIn.status === 'needs_second_factor') {
-        setError('This account requires two-factor authentication.');
+        setError('This account requires another verification method that this sign-in page does not support.');
         return;
       }
 
-      setError('Sign-in could not be completed. Please try again.');
+      setError(`Clerk needs another sign-in step (${signIn.status}). Try signing in with a code or ask the site administrator to check Clerk settings.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign-in failed. Please try again.');
     } finally {
@@ -119,11 +216,16 @@ export function useSignIn() {
   return {
     identifier,
     password,
+    code,
+    mode,
+    codeSent,
     isLoading,
     error,
     fieldErrors,
     handleIdentifierChange,
     handlePasswordChange,
+    handleCodeChange,
+    handleModeChange,
     handleForgotPassword,
     handleSubmit,
     handleNavigateToSignUp,
