@@ -42,6 +42,7 @@ export const API_ROUTES = {
   clerkRole: '/api/clerk/role',
   stallImageUpload: '/api/uploads/stall-image',
   productImageUpload: '/api/uploads/product-image',
+  gcashQrUpload: '/api/uploads/gcash-qr',
 } as const;
 
 export const ASSET_ROUTES = {

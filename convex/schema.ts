@@ -120,4 +120,21 @@ export default defineSchema({
     .index("by_sellerId", ["sellerId"])
     .index("by_stallId", ["stallId"])
     .index("by_buyerId", ["buyerId"]),
+
+  gcashSettings: defineTable({
+    key: v.literal("primary"),
+    qrUrl: v.string(),
+    number: v.string(),
+    updatedAt: v.string(),
+  }).index("by_key", ["key"]),
+
+  adminAuditLog: defineTable({
+    actorEmail: v.string(),
+    action: v.literal("gcash_settings_updated"),
+    previousNumber: v.optional(v.string()),
+    nextNumber: v.string(),
+    previousQrUrl: v.optional(v.string()),
+    nextQrUrl: v.string(),
+    createdAt: v.string(),
+  }).index("by_createdAt", ["createdAt"]),
 });

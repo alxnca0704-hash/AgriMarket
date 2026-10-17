@@ -57,6 +57,11 @@
 - **Cloudinary**: all product and stall images, uploaded through
   `app/api/uploads/*`, transformed to `width: 1200, quality: auto`.
   Convex stores only the resulting `secure_url`.
+- **Admin GCash configuration**: the singleton `gcashSettings` document
+  stores the QR Cloudinary URL and mobile number. `adminAuditLog` records
+  each change with the verified allowlisted admin email and before/after
+  values. This configuration does not enable buyer GCash checkout or
+  payment verification by itself.
 - **In-memory demo layer** (`lib/mockSession.ts`, `lib/mockCatalog.ts`,
   `lib/mockEarnings.ts`, `lib/mockNotifications.ts`, `lib/demoSeed.ts`):
   backs the landing page and any unauthenticated or not-yet-migrated
@@ -80,8 +85,10 @@
 - The initial admin account is allowlisted by its primary Clerk email
   (`carbonellalex955@gmail.com`) and receives Clerk `publicMetadata.role`
   only after a successful authenticated sign-in. `/admin` checks both
-  the allowlisted primary email and admin metadata server-side. Admin
-  routes do not use Convex until admin data workflows are specified.
+  the allowlisted primary email and admin metadata server-side. GCash
+  settings reads and writes also check the allowlisted, verified email
+  inside Convex; other admin workflows remain unimplemented until
+  specified.
 - Ownership is always checked inside the function, never inferred from
   the caller: `getBuyerOrder` (`order.buyerId === buyerId`),
   `requireSellerOrder` (`order.sellerId === sellerId`),

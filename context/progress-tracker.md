@@ -84,8 +84,8 @@ onboarding, product catalog management, and responsive buyer experience.
 - Admin sign-in promotes the verified, allowlisted Clerk account and
   routes to `/admin`, with a server-guarded admin shell and sidebar links
   for GCash account management, payment verification, payout approval,
-  refund decisions, and seller verification. Each destination is an
-  intentionally blank placeholder; the workflows are not wired yet.
+  refund decisions, and seller verification. GCash account management is
+  implemented below; the other destinations are blank placeholders.
 
 ### Reliability
 
@@ -107,8 +107,14 @@ onboarding, product catalog management, and responsive buyer experience.
   admin role only when that exact primary email matches.
 - `/admin/*` is protected by Clerk and performs a server-side email and
   role check in the shared layout. The responsive admin shell provides
-  desktop sidebar navigation and a mobile drawer, with blank placeholder
-  pages for the five admin workflow areas.
+  desktop sidebar navigation and a mobile drawer.
+- The GCash account page lets the verified allowlisted admin upload a QR
+  image to Cloudinary and save it with a Philippine mobile number in
+  Convex. Reads and writes recheck the verified admin email in Convex;
+  each update appends an audit entry with prior and new values. This
+  configuration does not implement buyer GCash checkout. The settings
+  screen uses a responsive account form beside a portrait QR preview
+  sized to 720 × 1256 pixels, with Geist Sans typography throughout.
 
 ## In Progress
 
@@ -122,9 +128,9 @@ onboarding, product catalog management, and responsive buyer experience.
 
 ## Next Up
 
-- Implement the admin dashboard workflows for GCash QR/number management,
-  payment review, payout handling, refund decisions, and seller
-  verification, after their data and audit requirements are specified.
+- Implement admin payment review, payout handling, refund decisions, and
+  seller verification after their data and audit requirements are
+  specified.
 - Move seller earnings and notifications off the mock layer in lib/ onto Convex.
 - Add an actor that moves stall verification status to verified.
 - Replace the demo/mock session layer with Convex-only reads for signed-in users.
