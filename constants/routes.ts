@@ -2,6 +2,7 @@ export const APP_ROUTES = {
   landing: '/',
   signIn: '/signin',
   signUp: '/signup',
+  admin: '/admin',
   signUpWithRole: (role: string) => `/signup?role=${encodeURIComponent(role)}`,
   signUpOnboarding: (role: string, step = 1) =>
     `/signup?role=${encodeURIComponent(role)}&step=${step}`,

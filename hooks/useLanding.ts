@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { APP_ROUTES } from '@/constants/routes';
-import { ROLES } from '@/constants/roles';
+import { ADMIN_EMAIL, ADMIN_ROLE, ROLES } from '@/constants/roles';
 
 export interface ProduceItem {
   id: string;
@@ -35,7 +35,10 @@ export function useLanding() {
     if (!isLoaded) return;
     if (isSignedIn) {
       const role = user?.publicMetadata?.role as string | undefined;
-      if (role === ROLES.SELLER) {
+      const primaryEmail = user?.primaryEmailAddress?.emailAddress.toLowerCase();
+      if (role === ADMIN_ROLE && primaryEmail === ADMIN_EMAIL) {
+        router.replace(APP_ROUTES.admin);
+      } else if (role === ROLES.SELLER) {
         router.replace(APP_ROUTES.sellerDashboard);
       } else {
         router.replace(APP_ROUTES.home);

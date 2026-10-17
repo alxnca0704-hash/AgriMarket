@@ -77,6 +77,11 @@
 - Role lives in two places and must agree: Clerk `publicMetadata.role`
   (written by `app/api/clerk/role`) and `users.role` (written by
   `convex/users.setRole` and `completeOnboarding`).
+- The initial admin account is allowlisted by its primary Clerk email
+  (`carbonellalex955@gmail.com`) and receives Clerk `publicMetadata.role`
+  only after a successful authenticated sign-in. `/admin` checks both
+  the allowlisted primary email and admin metadata server-side. Admin
+  routes do not use Convex until admin data workflows are specified.
 - Ownership is always checked inside the function, never inferred from
   the caller: `getBuyerOrder` (`order.buyerId === buyerId`),
   `requireSellerOrder` (`order.sellerId === sellerId`),

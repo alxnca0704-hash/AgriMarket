@@ -81,6 +81,8 @@ onboarding, product catalog management, and responsive buyer experience.
   delivery.
 - Reviews with 1–5 stars, an optional product reference, and a single
   seller reply.
+- Admin sign-in promotes the verified, allowlisted Clerk account and
+  routes directly to a server-guarded blank `/admin` page.
 
 ### Reliability
 
@@ -95,6 +97,15 @@ onboarding, product catalog management, and responsive buyer experience.
   `assertStatus` in `convex/orders.ts` remains the authoritative
   server-side guard.
 
+### Admin access foundation
+
+- The initial admin account is `carbonellalex955@gmail.com`. After a
+  successful Clerk sign-in, the authenticated user is promoted to the
+  admin role only when that exact primary email matches.
+- `/admin` is protected by Clerk and performs a server-side email and
+  role check. Authorized admins reach a blank page; all other signed-in
+  users return to the landing page.
+
 ## In Progress
 
 - Buyer profile and seller settings both sign out through Clerk and return
@@ -107,6 +118,8 @@ onboarding, product catalog management, and responsive buyer experience.
 
 ## Next Up
 
+- Build the admin dashboard workflows for seller verification, payment
+  review, payout handling, and refund decisions.
 - Move seller earnings and notifications off the mock layer in lib/ onto Convex.
 - Add an actor that moves stall verification status to verified.
 - Replace the demo/mock session layer with Convex-only reads for signed-in users.

@@ -4,6 +4,8 @@ export const ROLES = {
 } as const;
 
 export type UserRole = (typeof ROLES)[keyof typeof ROLES];
+export const ADMIN_ROLE = 'admin' as const;
+export const ADMIN_EMAIL = 'carbonellalex955@gmail.com';
 
 export const ROLE_DETAILS = {
   [ROLES.BUYER]: {

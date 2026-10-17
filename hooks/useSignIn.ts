@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { App } from 'antd';
 import { useSignIn as useClerkSignIn } from '@clerk/nextjs';
-import { APP_ROUTES } from '@/constants/routes';
+import { API_ROUTES, APP_ROUTES } from '@/constants/routes';
+import { ADMIN_EMAIL, ADMIN_ROLE } from '@/constants/roles';
 
 export function useSignIn() {
   const router = useRouter();
@@ -20,6 +21,23 @@ export function useSignIn() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ identifier?: string; password?: string }>({});
+
+  const finishSignIn = async () => {
+    await signIn?.finalize();
+    if (identifier.trim().toLowerCase() === ADMIN_EMAIL) {
+      const response = await fetch(API_ROUTES.clerkRole, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: ADMIN_ROLE }),
+      });
+      if (!response.ok) {
+        throw new Error('Could not authorize this account for admin access.');
+      }
+      router.replace(APP_ROUTES.admin);
+      return;
+    }
+    router.replace(APP_ROUTES.landing);
+  };
 
   const validate = (): boolean => {
     const errors: { identifier?: string; password?: string } = {};
@@ -116,8 +134,7 @@ export function useSignIn() {
         return;
       }
       if (signIn.status === 'complete') {
-        await signIn.finalize();
-        router.replace(APP_ROUTES.landing);
+        await finishSignIn();
         return;
       }
       if (signIn.status === 'needs_second_factor' || signIn.status === 'needs_client_trust') {
@@ -182,8 +199,7 @@ export function useSignIn() {
       }
 
       if (signIn.status === 'complete') {
-        await signIn.finalize();
-        router.replace(APP_ROUTES.landing);
+        await finishSignIn();
         return;
       }
 
