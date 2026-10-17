@@ -6,15 +6,11 @@ Update this file after every meaningful implementation change.
 
 Feature-complete MVP. The buyer journey, the seller journey, and the
 full Cash-on-Delivery order lifecycle are built and wired to Convex.
-The next phase is online payments, starting with GCash.
 
 ## Current Goal
 
-Implement PayMongo-hosted GCash payments per seller order alongside COD.
-Use the Clerk identity email for billing, redirect directly from checkout
-to PayMongo, and show a verified payment-success screen before returning
-to home. Payment confirmation comes only from verified PayMongo webhooks.
-No production credentials are stored in the repository.
+Maintain the core Cash-on-Delivery marketplace lifecycle, seller
+onboarding, product catalog management, and responsive buyer experience.
 
 ## Completed
 
@@ -101,11 +97,6 @@ No production credentials are stored in the repository.
 
 ## In Progress
 
-- GCash checkout now uses Clerk email, redirects directly into PayMongo,
-  sequences payments for multi-seller carts, and waits for webhook-backed
-  Convex state before showing success and returning home. Unpaid orders
-  can reopen their existing GCash payment from order details, and cancel is
-  hidden while an attached payment is still active.
 - Buyer profile and seller settings both sign out through Clerk and return
   to the landing page.
 - Sign-in uses the landing page's role check so seller accounts reach the
@@ -116,18 +107,13 @@ No production credentials are stored in the repository.
 
 ## Next Up
 
-### After GCash
-
-- Complete PayMongo refund handling and recovery for expired or failed GCash attempts before production launch.
 - Move seller earnings and notifications off the mock layer in lib/ onto Convex.
 - Add an actor that moves stall verification status to verified.
 - Replace the demo/mock session layer with Convex-only reads for signed-in users.
 
 ## Open Questions
 
-- GCash refunds remain a manual operator task until a separate PayMongo refund unit ships.
-- If PayMongo cannot create a link after order placement, the order remains unpaid and needs support intervention.
-- Configure separate test/live API keys, webhook signing secrets, APP_BASE_URL, and a mode-matched webhook endpoint before launch. GCash must be enabled on the PayMongo merchant account.
+- None at this time.
 
 ## Architecture Decisions
 
@@ -136,8 +122,7 @@ No production credentials are stored in the repository.
   backend is type-safe end to end.
 - **One order per seller, created at checkout** — a cart spanning three
   stalls becomes three orders, each with its own delivery fee. Keeps
-  fulfilment, stock, and payment independent per seller. Consequence:
-  online payments must be per order, not per checkout.
+  fulfilment, stock, and payment independent per seller.
 - **Immutable line-item snapshots on the order** — `sellerName`,
   `sellerLocation`, and every item's name, price, unit, and image are
   copied at checkout so a later product edit or stall rename never
@@ -148,8 +133,8 @@ No production credentials are stored in the repository.
 - **Append-only `events` array on the order** — a single audit trail
   that powers the timeline, the status tabs, and future notifications
   without a separate history table.
-- **COD as the first payment method** — no payment integration is needed
-  to launch, and it is how most produce is sold locally.
+- **COD as the payment method** — Cash on Delivery with payment status
+  transition to `paid` upon delivery confirmation.
 - **Cloudinary for media, Convex for URLs** — keeps documents small and
   lets images be transformed and cached at the CDN.
 - **Clerk `publicMetadata.role` mirrored into `users.role`** — Clerk
@@ -164,7 +149,7 @@ No production credentials are stored in the repository.
 
 ## Session Notes
 
-- PayMongo hosted Payment Intents replace the manual-transfer plan. Each seller order is charged independently; signature-verified webhooks are authoritative for payment state.
+- Cash on Delivery is the sole payment method; PayMongo/GCash modules have been removed.
 - Verification for this project is `npm run build` + `npm run lint`
   plus a manual walkthrough — there is no test script.
 - `convex/_generated/ai/guidelines.md` must be read before touching any

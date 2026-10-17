@@ -25,7 +25,7 @@ export function PaymentMethodCard({ total }: PaymentMethodCardProps) {
             </span>
           </div>
           <p className="text-xs text-stone-500 leading-relaxed mt-1">
-            Pay in cash (or via GCash scan) to the courier when your order arrives. No online
+            Pay in cash to the courier when your order arrives. No online
             payment needed today.
           </p>
         </div>

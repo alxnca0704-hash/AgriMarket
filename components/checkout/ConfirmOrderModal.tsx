@@ -87,7 +87,7 @@ export function ConfirmOrderModal({
         </div>
 
         <p className="text-xs text-stone-400 leading-relaxed -mt-1">
-          You&apos;ll pay {formatPrice(total)} to the courier in cash or via GCash when your
+          You&apos;ll pay {formatPrice(total)} to the courier in cash when your
           order arrives. Orders ship separately per farm.
         </p>
 

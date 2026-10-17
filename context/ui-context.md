@@ -65,7 +65,7 @@ once — and reference it everywhere else.
 | -------------- | --------------- | ----------------------- | -------------------------------------------- |
 | UI / body      | Geist Sans      | `--font-sans`           | All interface text, buttons, labels, tables  |
 | Display        | Newsreader      | `--font-display`        | Hero headings, section titles, prices on hero |
-| Code / mono    | Geist Mono      | `--font-mono`           | Reference numbers, GCash refs, codes         |
+| Code / mono    | Geist Mono      | `--font-mono`           | Reference numbers, order IDs, codes          |
 
 Loaded in `app/layout.tsx` via `next/font/google` (Newsreader ships
 normal + italic). `h-full antialiased` on `<html>`.
