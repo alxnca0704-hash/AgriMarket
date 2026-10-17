@@ -33,10 +33,6 @@ export function OrderActions({
   const confirmPending = isActionPending(ORDER_ACTIONS.confirmDelivery, order.id);
   const cancelPending = isActionPending(ORDER_ACTIONS.cancelOrder, order.id);
   const refundPending = isActionPending(ORDER_ACTIONS.requestRefund, order.id);
-  const canCancel = order.status === 'pending' && (
-    order.payment.method !== 'gcash' ||
-    (order.payment.status !== 'paid' && (!order.payment.hasPaymentIntent || order.payment.status === 'expired'))
-  );
 
   const openCancel = () => {
     setReason('');
@@ -75,7 +71,7 @@ export function OrderActions({
         </Button>
       )}
 
-      {canCancel && (
+      {order.status === 'pending' && (
         <Button
           size={compact ? 'middle' : 'large'}
           onClick={openCancel}

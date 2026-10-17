@@ -80,19 +80,7 @@ export const orderStatusValidator = v.union(
   v.literal("completed"),
   v.literal("cancelled"),
   v.literal("refund-requested"),
-  v.literal("refunded"),
-  v.literal("awaiting_gcash_authorization"),
-  v.literal("awaiting_payment_method")
-);
-
-export const paymentMethodValidator = v.union(v.literal("cod"), v.literal("gcash"));
-export const paymentStatusValidator = v.union(
-  v.literal("unpaid"),
-  v.literal("paid"),
-  v.literal("failed"),
-  v.literal("expired"),
-  v.literal("awaiting_gcash_authorization"),
-  v.literal("awaiting_payment_method")
+  v.literal("refunded")
 );
 
 export const orderItemValidator = v.object({
@@ -115,13 +103,7 @@ export const orderEventValidator = v.object({
     v.literal("cancelled"),
     v.literal("refund-requested"),
     v.literal("refunded"),
-    v.literal("refund-rejected"),
-    v.literal("payment-pending"),
-    v.literal("payment-failed"),
-    v.literal("payment-paid"),
-    v.literal("payment-expired"),
-    v.literal("awaiting_gcash_authorization"),
-    v.literal("awaiting_payment_method")
+    v.literal("refund-rejected")
   ),
   label: v.string(),
   at: v.string(),

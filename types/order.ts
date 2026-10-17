@@ -10,8 +10,7 @@ export type OrderStatus =
   | 'refund-requested'
   | 'refunded';
 
-export type PaymentStatus = 'unpaid' | 'paid' | 'failed' | 'expired' | 'awaiting_gcash_authorization' | 'awaiting_payment_method';
-export type PaymentMethod = 'cod' | 'gcash';
+export type PaymentStatus = 'unpaid' | 'paid';
 
 export interface OrderLineItem {
   productId: string;
@@ -23,7 +22,7 @@ export interface OrderLineItem {
 }
 
 export interface OrderEvent {
-  status: OrderStatus | 'placed' | 'refund-rejected' | 'payment-pending' | 'payment-failed' | 'payment-paid' | 'payment-expired' | 'awaiting_gcash_authorization' | 'awaiting_payment_method';
+  status: OrderStatus | 'placed' | 'refund-rejected';
   label: string;
   at: string;
 }
@@ -40,12 +39,10 @@ export interface Order {
   subtotal: number;
   deliveryFee: number;
   total: number;
-    payment: {
-      method: PaymentMethod;
-      status: PaymentStatus;
-      redirectUrl?: string;
-      hasPaymentIntent: boolean;
-    };
+  payment: {
+    method: 'cod';
+    status: PaymentStatus;
+  };
   address: DeliveryAddress;
   note?: string;
   status: OrderStatus;

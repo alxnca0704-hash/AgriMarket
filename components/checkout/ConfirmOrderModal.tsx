@@ -17,7 +17,6 @@ interface ConfirmOrderModalProps {
   isDefault: boolean;
   total: number;
   itemCount: number;
-  paymentMethod: 'cod' | 'gcash';
   onClose: () => void;
   onConfirm: () => void;
 }
@@ -29,7 +28,6 @@ export function ConfirmOrderModal({
   isDefault,
   total,
   itemCount,
-  paymentMethod,
   onClose,
   onConfirm,
 }: ConfirmOrderModalProps) {
@@ -83,15 +81,14 @@ export function ConfirmOrderModal({
 
         <div className="flex items-center justify-between text-sm">
           <span className="text-stone-600">
-            {itemCount} {itemCount === 1 ? 'item' : 'items'} · {paymentMethod === 'gcash' ? 'GCash via PayMongo' : 'Cash on Delivery'}
+            {itemCount} {itemCount === 1 ? 'item' : 'items'} · Cash on Delivery
           </span>
           <span className="text-lg font-bold text-stone-900">{formatPrice(total)}</span>
         </div>
 
         <p className="text-xs text-stone-400 leading-relaxed -mt-1">
-          {paymentMethod === 'gcash'
-            ? `You will pay ${formatPrice(total)} online through GCash. Orders are paid separately per farm.`
-            : `You will pay ${formatPrice(total)} to the courier in cash when it arrives. Orders ship separately per farm.`}
+          You&apos;ll pay {formatPrice(total)} to the courier in cash or via GCash when your
+          order arrives. Orders ship separately per farm.
         </p>
 
         <div className="flex flex-col-reverse sm:flex-row gap-2.5 pt-1">

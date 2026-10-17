@@ -5,8 +5,6 @@ import {
   deliveryAddressValidator,
   orderEventValidator,
   orderItemValidator,
-  paymentMethodValidator,
-  paymentStatusValidator,
   orderStatusValidator,
   productInputValidator,
   stallLocationValidator,
@@ -76,18 +74,13 @@ export default defineSchema({
     subtotal: v.number(),
     deliveryFee: v.number(),
     total: v.number(),
-    paymentMethod: paymentMethodValidator,
-    paymentStatus: paymentStatusValidator,
-    paymentIntentId: v.optional(v.string()),
-    paymentClientKey: v.optional(v.string()),
-    paymentMethodId: v.optional(v.string()),
-    paymentRedirectUrl: v.optional(v.string()),
+    paymentMethod: v.literal("cod"),
+    paymentStatus: v.union(v.literal("unpaid"), v.literal("paid")),
     address: deliveryAddressValidator,
     note: v.optional(v.string()),
     status: orderStatusValidator,
     events: v.array(orderEventValidator),
     placedAt: v.string(),
-    paidAt: v.optional(v.string()),
     confirmedAt: v.optional(v.string()),
     toReceiveAt: v.optional(v.string()),
     deliveredAt: v.optional(v.string()),
@@ -103,8 +96,7 @@ export default defineSchema({
   })
     .index("by_buyerId", ["buyerId"])
     .index("by_sellerId", ["sellerId"])
-    .index("by_stallId", ["stallId"])
-    .index("by_paymentIntentId", ["paymentIntentId"]),
+    .index("by_stallId", ["stallId"]),
 
   reviews: defineTable({
     orderId: v.id("orders"),

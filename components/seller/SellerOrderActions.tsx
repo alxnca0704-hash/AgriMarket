@@ -42,8 +42,6 @@ export function SellerOrderActions({
   const completePending = isActionPending(ORDER_ACTIONS.completeOrder, order.id);
   const approvePending = isActionPending(ORDER_ACTIONS.approveRefund, order.id);
   const rejectRefundPending = isActionPending(ORDER_ACTIONS.rejectRefund, order.id);
-  const canConfirmPending = order.payment.method === 'cod' || order.payment.status === 'paid';
-  const canRejectPending = order.payment.method === 'cod' || order.payment.status === 'expired';
 
   const openReject = () => {
     setReason('');
@@ -69,16 +67,7 @@ export function SellerOrderActions({
     <div className={compact ? 'flex flex-wrap items-center justify-end gap-2' : 'flex flex-wrap gap-2.5'}>
       {order.status === 'pending' && (
         <>
-          {order.payment.method === 'gcash' && !canConfirmPending && (
-            <p className="w-full text-xs text-stone-500">
-              {order.payment.status === 'failed'
-                ? 'GCash payment attempt failed; waiting for PayMongo to close the payment intent.'
-                : order.payment.status === 'expired'
-                ? 'GCash payment link expired.'
-                : 'Waiting for PayMongo to verify GCash payment.'}
-            </p>
-          )}
-          {canConfirmPending && <Button
+          <Button
             type="primary"
             size={compact ? 'middle' : 'large'}
             icon={<CheckCircleOutlined />}
@@ -87,8 +76,8 @@ export function SellerOrderActions({
             className="!rounded-xl !font-semibold"
           >
             Confirm order
-          </Button>}
-          {canRejectPending && <Button
+          </Button>
+          <Button
             size={compact ? 'middle' : 'large'}
             onClick={openReject}
             disabled={rejectPending}
@@ -97,7 +86,7 @@ export function SellerOrderActions({
             className="!rounded-xl"
           >
             Reject
-          </Button>}
+          </Button>
         </>
       )}
 

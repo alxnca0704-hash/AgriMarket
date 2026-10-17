@@ -2,13 +2,12 @@
 
 import { useCallback, useState } from 'react';
 import { App } from 'antd';
-import { useAction, useMutation, useQuery } from 'convex/react';
+import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { Order } from '@/types/order';
 import { Review } from '@/types/review';
 import { ORDER_ACTION_KEYS, OrderAction } from '@/constants/orders';
-import { APP_ROUTES } from '@/constants/routes';
 import { usePendingAction } from '@/hooks/usePendingAction';
 import { toOrder } from '@/lib/convexSync';
 
@@ -67,9 +66,7 @@ export function useOrderDetail(orderId: string) {
   const confirmDeliveryMutation = useMutation(api.orders.confirmDelivery);
   const requestRefundMutation = useMutation(api.orders.requestRefund);
   const submitReviewMutation = useMutation(api.reviews.submitReview);
-  const createGcashPayment = useAction(api.paymentActions.createGcashPayment);
   const { run, isPending } = usePendingAction();
-  const [isPayingGcash, setIsPayingGcash] = useState(false);
 
   // Review modal state — per product
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
@@ -127,21 +124,6 @@ export function useOrderDetail(orderId: string) {
       () => requestRefundMutation({ orderId: order.id as Id<'orders'>, reason }),
       { success: 'Refund requested — seller will review', error: 'Could not request refund' }
     );
-  };
-
-  const handlePayGcash = async () => {
-    if (!order || order.payment.method !== 'gcash') return;
-    setIsPayingGcash(true);
-    try {
-      const payment = await createGcashPayment({
-        orderId: order.id as Id<'orders'>,
-        returnUrl: `${window.location.origin}${APP_ROUTES.paymentReturn([order.id], 0)}`,
-      });
-      window.location.assign(payment.redirectUrl);
-    } catch (e) {
-      message.error(e instanceof Error ? e.message : 'Could not reopen GCash payment');
-      setIsPayingGcash(false);
-    }
   };
 
   const handleOpenReviewModal = (productId: string, productName: string) => {
@@ -207,9 +189,6 @@ export function useOrderDetail(orderId: string) {
     handleCancel,
     handleConfirmDelivery,
     handleRequestRefund,
-    handlePayGcash,
-    isPayingGcash,
-    canPayGcash: order?.status === 'pending' && order.payment.method === 'gcash' && order.payment.status === 'unpaid',
     isActionPending,
   };
 }
