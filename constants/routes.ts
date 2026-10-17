@@ -3,6 +3,11 @@ export const APP_ROUTES = {
   signIn: '/signin',
   signUp: '/signup',
   admin: '/admin',
+  adminGcash: '/admin/gcash',
+  adminPayments: '/admin/payments',
+  adminPayouts: '/admin/payouts',
+  adminRefunds: '/admin/refunds',
+  adminSellerVerification: '/admin/seller-verification',
   signUpWithRole: (role: string) => `/signup?role=${encodeURIComponent(role)}`,
   signUpOnboarding: (role: string, step = 1) =>
     `/signup?role=${encodeURIComponent(role)}&step=${step}`,
