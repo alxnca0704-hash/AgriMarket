@@ -12,6 +12,7 @@ import {
   CloseOutlined,
   HomeOutlined,
   MenuOutlined,
+  MessageOutlined,
   SettingOutlined,
   ShopOutlined,
   StarOutlined,
@@ -20,6 +21,7 @@ import {
 import { APP_ROUTES } from '@/constants/routes';
 import { BrandMark } from '@/components/BrandMark';
 import { useSellerShell } from '@/hooks/useSellerShell';
+import { useUnreadMessages } from '@/hooks/useUnreadMessages';
 
 const { Sider, Content } = Layout;
 
@@ -27,6 +29,7 @@ const TABS = [
   { key: 'dashboard', label: 'Dashboard', href: APP_ROUTES.sellerDashboard, icon: <HomeOutlined /> },
   { key: 'products', label: 'Products', href: APP_ROUTES.sellerProducts, icon: <ShopOutlined /> },
   { key: 'orders', label: 'Orders', href: APP_ROUTES.sellerOrders, icon: <UnorderedListOutlined /> },
+  { key: 'messages', label: 'Messages', href: APP_ROUTES.sellerMessages, icon: <MessageOutlined /> },
   { key: 'stall', label: 'My stall', href: APP_ROUTES.sellerStall, icon: <ShopOutlined /> },
   { key: 'earnings', label: 'Earnings', href: APP_ROUTES.sellerEarnings, icon: <AccountBookOutlined /> },
   { key: 'reviews', label: 'Reviews', href: APP_ROUTES.sellerReviews, icon: <StarOutlined /> },
@@ -44,6 +47,7 @@ function resolveActiveKey(pathname: string): string | null {
     return 'dashboard';
   if (pathname.startsWith('/seller/products')) return 'products';
   if (pathname.startsWith('/seller/orders')) return 'orders';
+  if (pathname.startsWith(APP_ROUTES.sellerMessages)) return 'messages';
   if (pathname === APP_ROUTES.sellerStall) return 'stall';
   if (pathname === APP_ROUTES.sellerEarnings) return 'earnings';
   if (pathname === APP_ROUTES.sellerReviews) return 'reviews';
@@ -56,6 +60,7 @@ export function SellerShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, stall, unreadCount } = useSellerShell();
+  const unreadMessageCount = useUnreadMessages();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const TAB_ROOTS = TABS.map((tab) => tab.href);
@@ -74,11 +79,16 @@ export function SellerShell({ children }: { children: React.ReactNode }) {
                 {unreadCount > 99 ? '99+' : unreadCount}
               </span>
             </span>
+          ) : tab.key === 'messages' && unreadMessageCount > 0 ? (
+            <span className="inline-flex items-center gap-1.5">
+              <span>{tab.label}</span>
+              <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-[#2D6A4F] px-1 text-[10px] font-semibold leading-none text-white">{unreadMessageCount > 99 ? '99+' : unreadMessageCount}</span>
+            </span>
           ) : (
             tab.label
           ),
       })),
-    [unreadCount]
+    [unreadCount, unreadMessageCount]
   );
 
   const handleNavigate: MenuProps['onClick'] = ({ key }) => {

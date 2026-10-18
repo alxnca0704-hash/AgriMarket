@@ -153,6 +153,29 @@ export default defineSchema({
     .index("by_stallId", ["stallId"])
     .index("by_buyerId", ["buyerId"]),
 
+  conversations: defineTable({
+    buyerId: v.id("users"),
+    sellerId: v.id("users"),
+    stallId: v.id("stalls"),
+    orderId: v.optional(v.id("orders")),
+    buyerLastReadAt: v.optional(v.string()),
+    sellerLastReadAt: v.optional(v.string()),
+    buyerUnreadCount: v.optional(v.number()),
+    sellerUnreadCount: v.optional(v.number()),
+    updatedAt: v.string(),
+  })
+    .index("by_buyerId", ["buyerId"])
+    .index("by_sellerId", ["sellerId"])
+    .index("by_buyerId_and_sellerId", ["buyerId", "sellerId"]),
+
+  messages: defineTable({
+    conversationId: v.id("conversations"),
+    senderId: v.id("users"),
+    senderName: v.string(),
+    body: v.string(),
+    createdAt: v.string(),
+  }).index("by_conversationId", ["conversationId"]),
+
   gcashSettings: defineTable({
     key: v.literal("primary"),
     qrUrl: v.string(),

@@ -145,6 +145,18 @@ has been closed. Completed.
   `assertStatus` in `convex/orders.ts` remains the authoritative
   server-side guard.
 
+### Buyer and seller messaging
+
+- Added persistent buyer/seller conversations and text messages in Convex.
+  Buyers can open a conversation from the shops directory and buyer order
+  details; either participant can open the thread from order details.
+- Added Messages tabs for both roles, with live conversation lists and replies.
+  Messages are limited to 2,000 characters and reads/sends verify participant
+  access on the server.
+- Added per-participant unread counts and unread message count badges in
+  both navigation sidebars. Seller-authored messages display the stall name,
+  not the stall owner's personal name.
+
 ### Admin access foundation
 
 - The initial admin account is `carbonellalex955@gmail.com`. After a

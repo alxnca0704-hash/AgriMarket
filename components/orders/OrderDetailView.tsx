@@ -9,6 +9,7 @@ import {
   EnvironmentOutlined,
   HomeOutlined,
   MobileOutlined,
+  MessageOutlined,
   StarOutlined,
 } from '@ant-design/icons';
 import { useOrderDetail } from '@/hooks/useOrderDetail';
@@ -19,6 +20,7 @@ import { OrderActions } from '@/components/orders/OrderActions';
 import { ReviewModal } from '@/components/orders/ReviewModal';
 import { APP_ROUTES } from '@/constants/routes';
 import { formatAddressSummary, formatOrderTime, formatPrice } from '@/lib/format';
+import { useMessages } from '@/hooks/useMessages';
 
 function DetailSkeleton() {
   return (
@@ -39,6 +41,7 @@ function DetailSkeleton() {
 
 export function OrderDetailView({ orderId }: { orderId: string }) {
   const router = useRouter();
+  const { startConversation, isStarting } = useMessages();
   const {
     isLoading,
     error,
@@ -133,6 +136,7 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
             onCancel={handleCancel}
             onRequestRefund={handleRequestRefund}
           />
+          <Button icon={<MessageOutlined />} loading={isStarting} onClick={() => void startConversation(order.stallId, order.id)}>Message shop</Button>
         </div>
 
         <div className="mt-5">

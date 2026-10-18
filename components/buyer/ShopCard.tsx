@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import { CheckCircleFilled, EnvironmentOutlined, ShopOutlined, StarFilled } from '@ant-design/icons';
-import { Tag } from 'antd';
+import { Button, Tag } from 'antd';
+import { CheckCircleFilled, EnvironmentOutlined, MessageOutlined, ShopOutlined, StarFilled } from '@ant-design/icons';
 import { Seller } from '@/types/product';
 import { formatPrice } from '@/lib/format';
 
@@ -10,9 +10,10 @@ interface ShopCardProps {
   seller: Seller;
   productCount: number;
   onOpen: (stallId: string) => void;
+  onMessage: (stallId: string) => void;
 }
 
-export function ShopCard({ seller, productCount, onOpen }: ShopCardProps) {
+export function ShopCard({ seller, productCount, onOpen, onMessage }: ShopCardProps) {
   return (
     <div
       role="button"
@@ -77,6 +78,7 @@ export function ShopCard({ seller, productCount, onOpen }: ShopCardProps) {
             Visit shop →
           </span>
         </div>
+        <Button icon={<MessageOutlined />} className="!mt-2 !rounded-xl" onClick={(event) => { event.stopPropagation(); onMessage(seller.id); }} onKeyDown={(event) => event.stopPropagation()}>Message shop</Button>
       </div>
     </div>
   );

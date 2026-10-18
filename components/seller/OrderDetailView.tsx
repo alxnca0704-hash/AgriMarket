@@ -9,6 +9,7 @@ import {
   EnvironmentOutlined,
   HomeOutlined,
   MobileOutlined,
+  MessageOutlined,
 } from '@ant-design/icons';
 import { useSellerOrderDetail } from '@/hooks/useSellerOrderDetail';
 import { OrderItems } from '@/components/orders/OrderItems';
@@ -18,6 +19,7 @@ import { SellerOrderActions } from '@/components/seller/SellerOrderActions';
 import { getSellerOrderGroup } from '@/constants/sellerOrders';
 import { APP_ROUTES } from '@/constants/routes';
 import { formatAddressSummary, formatOrderTime, formatPrice } from '@/lib/format';
+import { useMessages } from '@/hooks/useMessages';
 
 function DetailSkeleton() {
   return (
@@ -30,6 +32,7 @@ function DetailSkeleton() {
 
 export function SellerOrderDetailView({ orderId }: { orderId: string }) {
   const router = useRouter();
+  const { startConversation, isStarting } = useMessages(true);
   const {
     isLoading,
     error,
@@ -107,6 +110,7 @@ export function SellerOrderDetailView({ orderId }: { orderId: string }) {
             onComplete={handleComplete}
             onConfirmReturnReceived={handleConfirmReturnReceived}
           />
+          <Button icon={<MessageOutlined />} loading={isStarting} onClick={() => void startConversation(order.stallId, order.id)}>Message buyer</Button>
         </div>
 
         <div className="mt-5">

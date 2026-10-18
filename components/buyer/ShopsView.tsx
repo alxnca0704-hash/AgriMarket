@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Alert, Button, Empty, Input, Select, Skeleton, Tag } from 'antd';
+import { Alert, Button, Input, Select, Skeleton, Tag } from 'antd';
 import { EnvironmentOutlined, SearchOutlined, ShopOutlined } from '@ant-design/icons';
 import { useShops, ShopSort } from '@/hooks/useShops';
 import { ShopCard } from '@/components/buyer/ShopCard';
@@ -47,6 +47,7 @@ export function ShopsView() {
     sort,
     setSort,
     handleOpenShop,
+    handleMessageShop,
     handleQueryChange,
     clearSearch,
   } = useShops();
@@ -135,7 +136,7 @@ export function ShopsView() {
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:gap-5">
             {shops.map(({ seller, productCount, stallId }) => (
-              <ShopCard key={stallId} seller={seller} productCount={productCount} onOpen={handleOpenShop} />
+              <ShopCard key={stallId} seller={seller} productCount={productCount} onOpen={handleOpenShop} onMessage={handleMessageShop} />
             ))}
           </div>
         </section>

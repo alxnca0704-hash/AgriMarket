@@ -10,6 +10,7 @@ import {
   CloseOutlined,
   HomeOutlined,
   MenuOutlined,
+  MessageOutlined,
   ShopOutlined,
   ShoppingCartOutlined,
   UnorderedListOutlined,
@@ -18,6 +19,7 @@ import {
 import { APP_ROUTES } from '@/constants/routes';
 import { BrandMark } from '@/components/BrandMark';
 import { useCartContext } from '@/components/buyer/CartProvider';
+import { useUnreadMessages } from '@/hooks/useUnreadMessages';
 import { DEMO_BUYER, getSessionUserSnapshot, subscribeSessionUser } from '@/lib/mockSession';
 
 const { Sider, Content } = Layout;
@@ -27,6 +29,7 @@ const TABS = [
   { key: 'shops', label: 'Shops', href: APP_ROUTES.shops, icon: <ShopOutlined /> },
   { key: 'cart', label: 'Cart', href: APP_ROUTES.cart, icon: <ShoppingCartOutlined /> },
   { key: 'orders', label: 'Orders', href: APP_ROUTES.orders, icon: <UnorderedListOutlined /> },
+  { key: 'messages', label: 'Messages', href: APP_ROUTES.messages, icon: <MessageOutlined /> },
   { key: 'profile', label: 'Profile', href: APP_ROUTES.profile, icon: <UserOutlined /> },
 ] as const;
 
@@ -34,6 +37,7 @@ export function BuyerShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { itemCount } = useCartContext();
+  const unreadMessageCount = useUnreadMessages();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const user = useSyncExternalStore(
     subscribeSessionUser,
@@ -46,6 +50,7 @@ export function BuyerShell({ children }: { children: React.ReactNode }) {
     APP_ROUTES.shops,
     APP_ROUTES.cart,
     APP_ROUTES.orders,
+    APP_ROUTES.messages,
     APP_ROUTES.profile,
   ];
 
@@ -58,8 +63,10 @@ export function BuyerShell({ children }: { children: React.ReactNode }) {
           ? 'cart'
           : pathname === APP_ROUTES.orders || pathname.startsWith('/orders')
             ? 'orders'
-            : pathname === APP_ROUTES.profile || pathname.startsWith('/profile')
-              ? 'profile'
+            : pathname.startsWith(APP_ROUTES.messages)
+              ? 'messages'
+              : pathname === APP_ROUTES.profile || pathname.startsWith('/profile')
+                ? 'profile'
               : null;
 
   const showBack = !TAB_ROOTS.includes(pathname as (typeof TAB_ROOTS)[number]);
@@ -77,11 +84,16 @@ export function BuyerShell({ children }: { children: React.ReactNode }) {
                 {itemCount > 99 ? '99+' : itemCount}
               </span>
             </span>
+          ) : tab.key === 'messages' && unreadMessageCount > 0 ? (
+            <span className="inline-flex items-center gap-1.5">
+              <span>{tab.label}</span>
+              <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-[#2D6A4F] px-1 text-[10px] font-semibold leading-none text-white">{unreadMessageCount > 99 ? '99+' : unreadMessageCount}</span>
+            </span>
           ) : (
             tab.label
           ),
       })),
-    [itemCount]
+    [itemCount, unreadMessageCount]
   );
 
   const handleNavigate: MenuProps['onClick'] = ({ key }) => {

@@ -11,6 +11,7 @@
 import type * as admin from "../admin.js";
 import type * as cart from "../cart.js";
 import type * as market from "../market.js";
+import type * as messages from "../messages.js";
 import type * as orders from "../orders.js";
 import type * as payouts from "../payouts.js";
 import type * as products from "../products.js";
@@ -29,6 +30,7 @@ declare const fullApi: ApiFromModules<{
   admin: typeof admin;
   cart: typeof cart;
   market: typeof market;
+  messages: typeof messages;
   orders: typeof orders;
   payouts: typeof payouts;
   products: typeof products;

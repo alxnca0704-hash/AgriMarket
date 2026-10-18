@@ -133,6 +133,9 @@ Sider, and Tabs.
   and 8 seller tabs (Dashboard, Products, Orders, My stall, Earnings,
   Reviews, Notifications, Settings). Active state comes from
   `usePathname()` with `startsWith` prefix matching for nested routes.
+- Buyer and seller shells also include a Messages tab. The message view stacks
+  conversations on mobile and uses a list/thread split on larger screens.
+  Unread message counts appear as muted sage badges beside the tab label.
 - **Cards** — `rounded-2xl bg-white shadow-sm p-4 sm:p-6`. Interior
   blocks that need separation use `rounded-xl bg-stone-50/80 p-4`
   rather than a border.

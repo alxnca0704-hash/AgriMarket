@@ -27,6 +27,15 @@ reason or record the GCash transfer reference to close the payout. The app
 records the transaction but does not move money. Multiple payout requests
 may remain pending when they reserve different orders.
 
+Buyers and sellers can exchange text messages in one shared conversation per
+buyer/seller pair. Buyers can start a conversation from the shops directory or
+their order details; either participant can open it from order details. Both
+roles return to conversations from a Messages tab in their app shell. Opening
+the thread from an order attaches that order as its current context.
+Unread messages are counted separately for each participant and shown as a
+badge on each role's Messages navigation item. Seller-authored chat messages
+display the stall name as the sender label.
+
 Within 24 hours of delivery, buyers can submit a return/refund request with the
 order ID, a reason, and 1–5 photos or videos as evidence. Submission
 sets the order to `refund-requested` (shown as “Return Requested”) and

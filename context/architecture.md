@@ -51,7 +51,8 @@
   `stalls` (seller storefront + location + verification + rating),
   `products` (catalogue, stock, sold count), `cartItems` (buyer cart
   keyed by user), `orders` (immutable line-item snapshot plus a mutable
-  status/event log), `reviews` (rating, comment, seller reply).
+  status/event log), `reviews` (rating, comment, seller reply),
+  `conversations` (buyer/seller threads), and `messages` (text messages).
 - **Clerk** (identity): user id, session, and `publicMetadata.role`.
   `users.tokenIdentifier` and `users.clerkId` are the join keys.
 - **Cloudinary**: all product and stall images, uploaded through
@@ -95,6 +96,12 @@
   stall's current identity, location, and verification details for review. Admins may
   reject with a reason (releasing reserved orders) or mark paid after
   recording a GCash transfer reference. The app does not execute transfers.
+- **Buyer/seller messages**: one conversation is shared by each buyer and
+  seller pair. An optional order reference marks the latest order context that
+  opened the thread. Reads and sends require membership; message text is
+  trimmed and limited to 2,000 characters. Per-participant unread counters
+  update atomically with sends and clear when read; seller-authored message
+  labels use the stall name.
 
 ## Auth and Access Model
 
@@ -170,3 +177,6 @@
 11. **No raw paths outside `constants/routes.ts`.** Every `<Link>`,
     `router.push`, and `fetch` target comes from `APP_ROUTES`,
     `API_ROUTES`, or `ASSET_ROUTES`.
+12. **Messages are participant scoped.** Only a conversation's buyer and
+    seller can read or send its messages. Buyers start shop conversations;
+    either order participant can open the pair's existing conversation.

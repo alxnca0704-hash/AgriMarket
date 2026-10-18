@@ -3,7 +3,10 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from 'convex/react';
+import { useMutation } from 'convex/react';
+import { App } from 'antd';
 import { api } from '@/convex/_generated/api';
+import { Id } from '@/convex/_generated/dataModel';
 import { APP_ROUTES } from '@/constants/routes';
 import { toBuyerSeller } from '@/lib/convexSync';
 import { Seller } from '@/types/product';
@@ -18,6 +21,8 @@ interface EnrichedShop {
 
 export function useShops() {
   const router = useRouter();
+  const { message } = App.useApp();
+  const startMutation = useMutation(api.messages.startConversation);
   const rawStalls = useQuery(api.market.listStalls);
   const rawProducts = useQuery(api.market.listActiveProducts);
 
@@ -109,6 +114,15 @@ export function useShops() {
     router.push(APP_ROUTES.shop(stallId));
   };
 
+  const handleMessageShop = async (stallId: string) => {
+    try {
+      const conversationId = await startMutation({ stallId: stallId as Id<'stalls'> });
+      router.push(APP_ROUTES.messageThread(conversationId));
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : 'Could not open messages.');
+    }
+  };
+
   const handleQueryChange = (value: string) => setQuery(value);
   const clearSearch = () => setQuery('');
 
@@ -123,6 +137,7 @@ export function useShops() {
     sort,
     setSort,
     handleOpenShop,
+    handleMessageShop,
     handleQueryChange,
     clearSearch,
   };
