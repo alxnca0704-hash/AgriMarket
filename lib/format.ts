@@ -33,6 +33,20 @@ export function formatOrderTime(iso: string): string {
   });
 }
 
+export function formatMessageDateGroup(iso: string): string {
+  const date = new Date(iso);
+  const now = new Date();
+  if (date.toDateString() === now.toDateString()) return 'Today';
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return date.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+export function formatMessageTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' });
+}
+
 export function getProductImageUrl(url: string, w = 735, h = 919): string {
   if (!url || !url.includes('res.cloudinary.com')) return url;
   // Inject Cloudinary fill transform so every image is exactly w×h, prevents inconsistent heights from varying source aspect

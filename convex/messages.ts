@@ -66,6 +66,14 @@ export const getThread = query({
       buyerUnreadCount: v.optional(v.number()), sellerUnreadCount: v.optional(v.number()), updatedAt: v.string(),
     }),
     partnerName: v.string(), stallName: v.string(),
+    orderSummary: v.optional(v.object({
+      _id: v.id("orders"),
+      status: v.string(),
+      total: v.number(),
+      itemsCount: v.number(),
+      firstItemName: v.string(),
+      placedAt: v.string(),
+    })),
     messages: v.array(v.object({ _id: v.id("messages"), _creationTime: v.number(), conversationId: v.id("conversations"), senderId: v.id("users"), senderName: v.string(), body: v.string(), createdAt: v.string() })),
   })),
   async handler(ctx, args) {
@@ -74,16 +82,33 @@ export const getThread = query({
     const conversation = await ctx.db.get("conversations", args.conversationId);
     if (conversation === null || !hasAccess(conversation, user._id)) return null;
     const partnerId = user._id === conversation.buyerId ? conversation.sellerId : conversation.buyerId;
-    const [partner, stall, messages] = await Promise.all([
+    const [partner, stall, messages, order] = await Promise.all([
       ctx.db.get("users", partnerId), ctx.db.get("stalls", conversation.stallId),
       ctx.db.query("messages").withIndex("by_conversationId", (q) => q.eq("conversationId", conversation._id)).order("asc").take(200),
+      conversation.orderId ? ctx.db.get("orders", conversation.orderId) : Promise.resolve(null),
     ]);
     const stallName = stall?.stallName ?? "Shop";
     const displayMessages = messages.map((item) => ({
       ...item,
       senderName: item.senderId === conversation.sellerId ? stallName : item.senderName,
     }));
-    return { conversation, partnerName: partner?.fullName ?? "Marketplace member", stallName, messages: displayMessages };
+    const orderSummary = order
+      ? {
+          _id: order._id,
+          status: order.status,
+          total: order.total,
+          itemsCount: order.items.length,
+          firstItemName: order.items[0]?.name ?? "Farm produce",
+          placedAt: order.placedAt,
+        }
+      : undefined;
+    return {
+      conversation,
+      partnerName: partner?.fullName ?? "Marketplace member",
+      stallName,
+      orderSummary,
+      messages: displayMessages,
+    };
   },
 });
 

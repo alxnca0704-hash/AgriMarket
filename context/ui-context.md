@@ -129,13 +129,18 @@ Sider, and Tabs.
   a hamburger, optional back button, brand mark, and avatar; the nav
   moves into a left `Drawer` (`size={248}`, `padding: 0`) that reuses
   the exact same sidebar markup.
-- **Navigation** — 5 buyer tabs (Home, Shops, Cart, Orders, Profile)
-  and 8 seller tabs (Dashboard, Products, Orders, My stall, Earnings,
+- **Navigation** — 6 buyer tabs (Home, Shops, Cart, Orders, Messages, Profile)
+  and 9 seller tabs (Dashboard, Products, Orders, Messages, My stall, Earnings,
   Reviews, Notifications, Settings). Active state comes from
   `usePathname()` with `startsWith` prefix matching for nested routes.
-- Buyer and seller shells also include a Messages tab. The message view stacks
-  conversations on mobile and uses a list/thread split on larger screens.
-  Unread message counts appear as muted sage badges beside the tab label.
+- Buyer and seller shells also include a Messages tab. The messaging experience is
+  cleanly separated into a dedicated Inbox view and a dedicated Chat Room view.
+  The Inbox provides search, unread and order filters, rich cards with contact
+  and order tags, and responsive empty states. Clicking any conversation opens the
+  dedicated Chat Room featuring prominent "Back to Inbox" navigation, an attached
+  order banner with live status and direct order link, message date grouping,
+  quick reply chips, character limits, auto-scrolling message streams, and a desktop
+  chat switcher drawer. Unread counts appear as muted sage badges beside the tab.
 - **Cards** — `rounded-2xl bg-white shadow-sm p-4 sm:p-6`. Interior
   blocks that need separation use `rounded-xl bg-stone-50/80 p-4`
   rather than a border.

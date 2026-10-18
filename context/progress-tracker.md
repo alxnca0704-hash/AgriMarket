@@ -9,9 +9,8 @@ full Cash-on-Delivery order lifecycle are built and wired to Convex.
 
 ## Current Goal
 
-Complete seller payout requests and admin GCash payout review, with each
-order paid only after its return window has elapsed and any return request
-has been closed. Completed.
+Redesign the messages experience with dedicated, separated Inbox and Chat Room views,
+interactive quick replies, order context integration, search, filter tabs, and responsive UI. Completed.
 
 ## Completed
 
@@ -156,6 +155,10 @@ has been closed. Completed.
 - Added per-participant unread counts and unread message count badges in
   both navigation sidebars. Seller-authored messages display the stall name,
   not the stall owner's personal name.
+- Redesigned the messaging experience with cleanly separated Inbox and Chat Room views:
+  - **Dedicated Inbox View**: Spacious card layout with instant search bar, filter tabs (All, Unread, Orders), conversation counters, role tags, attached order tags, last message snippet with timestamps, unread badges, and role-tailored empty states with CTAs.
+  - **Dedicated Chat Room View**: Focused full-width conversation area with prominent "Back to Inbox" navigation, header with contact details, quick conversation switcher drawer for desktop multitasking, linked order context card with live order status and direct link, message history grouped by date, auto-scrolling message stream, role-specific quick reply suggestion chips (buyer & seller), and composer with keyboard shortcuts and character counter.
+  - **Type & Constant Architecture**: Created `types/message.ts` and `constants/messages.ts` for clean type safety and centralized configuration. Updated `convex/messages.ts` to hydrate order summaries reactively.
 
 ### Admin access foundation
 
