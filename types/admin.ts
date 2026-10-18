@@ -16,3 +16,27 @@ export interface AdminRefundRequest {
 }
 
 export type RefundDisbursementMethod = 'gcash' | 'cash';
+
+export interface AdminPayoutRequest {
+  _id: string;
+  sellerName: string;
+  amount: number;
+  gcashName: string;
+  gcashNumber: string;
+  orderIds: string[];
+  orderSnapshots: Array<{
+    orderId: string;
+    amount: number;
+    placedAt: string;
+    deliveredAt: string;
+    paymentMethod: 'cod' | 'gcash';
+  }>;
+  requestedAt: string;
+  stallName: string;
+  stallPhotoUrl: string;
+  farmType: string;
+  location: string;
+  verificationStatus: 'unverified' | 'pending' | 'verified';
+  idType: string;
+  idNumber: string;
+}

@@ -222,5 +222,6 @@ export function toOrder(order: OrderDoc): Order {
     refundAmount: order.refundAmount,
     refundRejectedAt: order.refundRejectedAt,
     refundRejectReason: order.refundRejectReason,
+    payoutRequestId: order.payoutRequestId,
   };
 }

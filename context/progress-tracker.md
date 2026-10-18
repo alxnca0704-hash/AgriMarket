@@ -9,8 +9,9 @@ full Cash-on-Delivery order lifecycle are built and wired to Convex.
 
 ## Current Goal
 
-Support COD and GCash checkout, including buyer-submitted payment proof,
-while maintaining the seller order lifecycle and responsive buyer experience.
+Complete seller payout requests and admin GCash payout review, with each
+order paid only after its return window has elapsed and any return request
+has been closed. Completed.
 
 ## Completed
 
@@ -111,8 +112,22 @@ while maintaining the seller order lifecycle and responsive buyer experience.
   for GCash account management, payment verification, payout approval,
   return review, and seller verification. GCash account management,
   payment review, and the full audited return workflow through refund
-  closeout are implemented. Payout and seller verification remain
-  unimplemented.
+  closeout are implemented. Seller verification remains unimplemented.
+- Seller earnings now use paid Convex orders and distinguish GCash from COD.
+  The earnings page shows separate GCash and COD totals; COD counts after
+  delivery confirmation marks the order paid. All totals exclude orders whose
+  return has been refunded. The order list shows dates and payout status.
+  Sellers select specific ready orders for GCash payout; requests snapshot
+  each selected order and its amount. Multiple requests can be pending when
+  they contain different orders. Orders with a pending refund remain on hold.
+  Eligibility starts after the 24-hour buyer return window and excludes
+  already reserved orders.
+- Admin payout review shows stall identity, location, verification status,
+  submitted ID details, GCash destination, requested amount, and selected
+  order dates, payment methods, and amounts.
+  Admins can reject with a reason or record a sent transfer with its
+  reference. Paid/rejected actions are written to the admin audit log, and
+  rejected requests release their orders.
 
 ### Reliability
 
@@ -154,11 +169,9 @@ while maintaining the seller order lifecycle and responsive buyer experience.
 
 ## Next Up
 
-- Implement payout handling that excludes orders with an active return
-  hold; define payout records and audit requirements first.
 - Implement seller verification after its data and audit requirements
   are specified.
-- Move seller earnings and notifications off the mock layer in lib/ onto Convex.
+- Move seller notifications off the mock layer in lib/ onto Convex.
 - Add an actor that moves stall verification status to verified.
 - Replace the demo/mock session layer with Convex-only reads for signed-in users.
 

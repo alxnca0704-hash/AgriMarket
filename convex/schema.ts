@@ -119,6 +119,7 @@ export default defineSchema({
     refundAmount: v.optional(v.number()),
     refundRejectedAt: v.optional(v.string()),
     refundRejectReason: v.optional(v.string()),
+    payoutRequestId: v.optional(v.id("payoutRequests")),
     updatedAt: v.string(),
   })
     .index("by_buyerId", ["buyerId"])
@@ -159,19 +160,48 @@ export default defineSchema({
     updatedAt: v.string(),
   }).index("by_key", ["key"]),
 
+  payoutRequests: defineTable({
+    sellerId: v.id("users"),
+    stallId: v.id("stalls"),
+    orderIds: v.array(v.id("orders")),
+    orderSnapshots: v.optional(v.array(v.object({
+      orderId: v.id("orders"),
+      amount: v.number(),
+      placedAt: v.string(),
+      deliveredAt: v.string(),
+      paymentMethod: v.union(v.literal("cod"), v.literal("gcash")),
+    }))),
+    amount: v.number(),
+    gcashName: v.string(),
+    gcashNumber: v.string(),
+    status: v.union(v.literal("pending"), v.literal("paid"), v.literal("rejected")),
+    requestedAt: v.string(),
+    reviewedAt: v.optional(v.string()),
+    reviewedBy: v.optional(v.string()),
+    transferReference: v.optional(v.string()),
+    rejectionReason: v.optional(v.string()),
+  })
+    .index("by_sellerId", ["sellerId"])
+    .index("by_status", ["status"]),
+
   adminAuditLog: defineTable({
     actorEmail: v.string(),
     action: v.union(
       v.literal("gcash_settings_updated"),
       v.literal("return_approved"),
       v.literal("return_rejected"),
-      v.literal("return_refunded")
+      v.literal("return_refunded"),
+      v.literal("payout_paid"),
+      v.literal("payout_rejected")
     ),
     orderId: v.optional(v.id("orders")),
+    payoutRequestId: v.optional(v.id("payoutRequests")),
     paymentReference: v.optional(v.string()),
     refundReference: v.optional(v.string()),
+    payoutReference: v.optional(v.string()),
     refundMethod: v.optional(v.union(v.literal("gcash"), v.literal("cash"))),
     refundAmount: v.optional(v.number()),
+    payoutAmount: v.optional(v.number()),
     reason: v.optional(v.string()),
     previousNumber: v.optional(v.string()),
     nextNumber: v.optional(v.string()),

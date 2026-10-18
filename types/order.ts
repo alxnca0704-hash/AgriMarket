@@ -79,6 +79,7 @@ export interface Order {
   refundAmount?: number;
   refundRejectedAt?: string;
   refundRejectReason?: string;
+  payoutRequestId?: string;
 }
 
 export interface SellerOrderStats {

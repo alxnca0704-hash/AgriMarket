@@ -1,17 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useMemo, useState } from 'react';
 import { App } from 'antd';
-import { useQuery } from 'convex/react';
+import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
-import { PayoutMethod } from '@/types/seller';
-import {
-  EarningsPeriod,
-  getEarningsSummary,
-  getPayoutMethodSnapshot,
-  subscribePayout,
-  savePayoutMethod,
-} from '@/lib/mockEarnings';
+import { Id } from '@/convex/_generated/dataModel';
+import { EarningsPeriod, getEarningsSummary } from '@/lib/earnings';
 import { toOrder } from '@/lib/convexSync';
 
 export const EARNINGS_PERIOD_OPTIONS: Array<{ key: EarningsPeriod; label: string }> = [
@@ -23,80 +17,65 @@ export const EARNINGS_PERIOD_OPTIONS: Array<{ key: EarningsPeriod; label: string
 export function useSellerEarnings() {
   const { message } = App.useApp();
   const rawOrders = useQuery(api.orders.listSellerOrders);
-  const payout = useSyncExternalStore(
-    subscribePayout,
-    getPayoutMethodSnapshot,
-    () => getPayoutMethodSnapshot()
-  );
-
-  const [isLoading, setIsLoading] = useState(true);
+  const payoutData = useQuery(api.payouts.getSellerPayouts, {});
+  const requestMutation = useMutation(api.payouts.requestPayout);
   const [period, setPeriod] = useState<EarningsPeriod>('weekly');
   const [payoutOpen, setPayoutOpen] = useState(false);
-  const [payoutDraft, setPayoutDraft] = useState<PayoutMethod>(() => payout);
-  const [payoutErrors, setPayoutErrors] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 300);
-    return () => clearTimeout(timer);
-  }, []);
+  const [gcashName, setGcashName] = useState('');
+  const [gcashNumber, setGcashNumber] = useState('');
+  const [isRequesting, setIsRequesting] = useState(false);
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
 
   const sellerOrders = useMemo(
     () => (Array.isArray(rawOrders) ? rawOrders.map(toOrder) : []),
     [rawOrders]
   );
-
   const summary = useMemo(() => getEarningsSummary(period, sellerOrders), [period, sellerOrders]);
+  const selectedPayoutOrderIds = payoutData && 'orders' in payoutData
+    ? payoutData.orders.filter((order) => order.payoutStatus === 'ready' && selectedOrderIds.includes(order.orderId)).map((order) => order.orderId)
+    : [];
+  const selectedPayoutAmount = payoutData && 'orders' in payoutData
+    ? payoutData.orders.filter((order) => selectedPayoutOrderIds.includes(order.orderId)).reduce((total, order) => total + order.amount, 0)
+    : 0;
 
-  const openPayout = () => {
-    setPayoutDraft(payout);
-    setPayoutErrors({});
-    setPayoutOpen(true);
-  };
-
-  const closePayout = () => setPayoutOpen(false);
-
-  const updatePayoutField = <K extends keyof PayoutMethod>(
-    field: K,
-    value: PayoutMethod[K]
-  ) => {
-    setPayoutDraft((prev) => ({ ...prev, [field]: value }));
-    if (payoutErrors[field]) {
-      setPayoutErrors((prev) => {
-        const next = { ...prev };
-        delete next[field];
-        return next;
-      });
+  const requestPayout = async () => {
+    if (isRequesting) return;
+    setIsRequesting(true);
+    try {
+      await requestMutation({ gcashName, gcashNumber, orderIds: selectedPayoutOrderIds as Id<'orders'>[] });
+      message.success('Payout request sent for admin review.');
+      setPayoutOpen(false);
+      setSelectedOrderIds([]);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : 'Could not request payout.');
+    } finally {
+      setIsRequesting(false);
     }
-  };
-
-  const savePayout = () => {
-    const errs: Record<string, string> = {};
-    if (!payoutDraft.accountName.trim()) errs.accountName = 'Account name is required';
-    if (!payoutDraft.accountNumber.trim()) errs.accountNumber = 'Account number is required';
-    if (!payoutDraft.bankName?.trim()) {
-      errs.bankName = 'Bank name is required';
-    }
-    setPayoutErrors(errs);
-    if (Object.keys(errs).length > 0) return;
-
-    savePayoutMethod(payoutDraft);
-    setPayoutOpen(false);
-    message.success('Payout method saved');
   };
 
   return {
-    isLoading: isLoading || rawOrders === undefined,
-    error: rawOrders instanceof Error ? rawOrders.message : null,
+    isLoading: rawOrders === undefined || payoutData === undefined,
+    error: rawOrders instanceof Error ? rawOrders.message : payoutData instanceof Error ? payoutData.message : null,
     summary,
     period,
     setPeriod,
-    payout,
+    payoutData,
+    selectedOrderIds: selectedPayoutOrderIds,
+    selectedPayoutAmount,
+    togglePayoutOrder: (orderId: string) => setSelectedOrderIds((previous) => previous.includes(orderId)
+      ? previous.filter((id) => id !== orderId)
+      : previous.length < 100 ? [...previous, orderId] : previous),
+    selectAllReadyOrders: () => setSelectedOrderIds(payoutData && 'orders' in payoutData
+      ? payoutData.orders.filter((order) => order.payoutStatus === 'ready').slice(0, 100).map((order) => order.orderId)
+      : []),
     payoutOpen,
-    payoutDraft,
-    payoutErrors,
-    openPayout,
-    closePayout,
-    updatePayoutField,
-    savePayout,
+    openPayout: () => setPayoutOpen(true),
+    closePayout: () => setPayoutOpen(false),
+    gcashName,
+    setGcashName,
+    gcashNumber,
+    setGcashNumber,
+    requestPayout,
+    isRequesting,
   };
 }

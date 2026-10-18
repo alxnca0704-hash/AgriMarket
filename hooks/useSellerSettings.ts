@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useSyncExternalStore } from 'react';
+import { useState } from 'react';
 import { App } from 'antd';
 import { useClerk } from '@clerk/nextjs';
 import { useMutation } from 'convex/react';
@@ -10,7 +10,6 @@ import { ProfileEditData } from '@/types/profile';
 import { toSessionUser, toStallProfile } from '@/lib/convexSync';
 import { useConvexUserSync } from '@/hooks/useConvexUserSync';
 import { clearMockUser, setActiveView, updateSessionUser } from '@/lib/mockSession';
-import { getPayoutMethodSnapshot, subscribePayout } from '@/lib/mockEarnings';
 import { APP_ROUTES } from '@/constants/routes';
 
 const EMPTY_USER: AuthenticatedUser = {
@@ -59,11 +58,6 @@ export function useSellerSettings() {
   const user =
     isAuthedWithConvex && current ? toSessionUser(current.user, current.addresses, current.email) : null;
   const stall = current?.stall ? toStallProfile(current.stall) : null;
-  const payout = useSyncExternalStore(
-    subscribePayout,
-    getPayoutMethodSnapshot,
-    () => getPayoutMethodSnapshot()
-  );
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [draft, setDraft] = useState<ProfileEditData>(() => toProfileDraft(EMPTY_USER));
@@ -136,7 +130,6 @@ export function useSellerSettings() {
     error: null,
     user,
     stall,
-    payout,
     isEditOpen,
     draft,
     errors,

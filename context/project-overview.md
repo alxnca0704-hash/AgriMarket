@@ -18,6 +18,15 @@ seller verification. Admins are not
 self-signup: they are promoted manually, and every admin action is
 enforced server-side and recorded in an audit log.
 
+Sellers select specific orders from eligible earnings and request payout by
+submitting their GCash account name and number. Completed, paid orders become eligible after the
+24-hour return window; orders with an open return hold remain excluded until
+the return is rejected or the refund is recorded. Admins review the request
+alongside the stall's location and verification details, then reject with a
+reason or record the GCash transfer reference to close the payout. The app
+records the transaction but does not move money. Multiple payout requests
+may remain pending when they reserve different orders.
+
 Within 24 hours of delivery, buyers can submit a return/refund request with the
 order ID, a reason, and 1–5 photos or videos as evidence. Submission
 sets the order to `refund-requested` (shown as “Return Requested”) and

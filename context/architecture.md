@@ -85,6 +85,17 @@
   backs the landing page and any unauthenticated or not-yet-migrated
   view. Not persisted.
 
+- **Seller payouts**: payout requests snapshot the seller's GCash name and
+  number, the seller-selected eligible completed/paid order IDs with order
+  dates and amounts, and the request total. Multiple requests may be pending
+  at once when they contain different orders; each order is reserved by one
+  request at most. Eligibility begins 24 hours after
+  delivery (the buyer return window), requires `completed` and paid status,
+  and excludes any active `refundPayoutHold`. The admin queue includes the
+  stall's current identity, location, and verification details for review. Admins may
+  reject with a reason (releasing reserved orders) or mark paid after
+  recording a GCash transfer reference. The app does not execute transfers.
+
 ## Auth and Access Model
 
 - `proxy.ts` runs Clerk middleware for every request. Only `/`,
@@ -105,8 +116,8 @@
   only after a successful authenticated sign-in. `/admin` checks both
   the allowlisted primary email and admin metadata server-side. GCash
   settings, payment review, and return request queue functions also
-  check the allowlisted, verified email inside Convex. Payout processing,
-  return request closeout, and seller verification remain unimplemented.
+  check the allowlisted, verified email inside Convex. Seller verification
+  remains unimplemented.
 - Ownership is always checked inside the function, never inferred from
   the caller: `getBuyerOrder` (`order.buyerId === buyerId`),
   `requireSellerOrder` (`order.sellerId === sellerId`),
@@ -144,8 +155,10 @@
 7. **Return requests block seller payouts.** The order's
    `refundPayoutHold` is set in the same transaction as the request and
    stays set throughout approval and return transit, until the request is
-   rejected or the admin records the completed refund. Any payout
-   implementation must exclude orders with this hold.
+   rejected or the admin records the completed refund. Payout requests and
+   payments exclude orders with this hold. Orders become eligible only after
+   the full 24-hour return window passes. A pending request reserves its
+   order IDs so another request cannot claim them.
 8. **Timestamps are ISO 8601 strings** from `new Date().toISOString()`,
    not epoch numbers, in both Convex documents and the app types.
 9. **The cart is emptied only as part of a successful order.** All cart
