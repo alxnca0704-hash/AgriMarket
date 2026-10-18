@@ -113,10 +113,12 @@ interactive quick replies, order context integration, search, filter tabs, and r
   payment review, and the full audited return workflow through refund
   closeout are implemented. Seller verification remains unimplemented.
 - Seller earnings now use paid Convex orders and distinguish GCash from COD.
-  The earnings page shows separate GCash and COD totals; COD counts after
-  delivery confirmation marks the order paid. All totals exclude orders whose
-  return has been refunded. The order list shows dates and payout status.
-  Sellers select specific ready orders for GCash payout; requests snapshot
+  The earnings page shows separate GCash and COD sales; COD cash is handed
+  directly to the seller on delivery, so COD orders never enter the payout
+  queue. Only completed GCash orders can be selected for payout, after the
+  24-hour return window. All sales totals exclude orders whose return has been
+  refunded. The order list shows dates and payout status. Sellers select
+  specific ready GCash orders; requests snapshot
   each selected order and its amount. Multiple requests can be pending when
   they contain different orders. Orders with a pending refund remain on hold.
   Eligibility starts after the 24-hour buyer return window and excludes
@@ -160,6 +162,11 @@ interactive quick replies, order context integration, search, filter tabs, and r
   - **Dedicated Chat Room View**: Focused full-width conversation area with prominent "Back to Inbox" navigation, header with contact details, quick conversation switcher drawer for desktop multitasking, linked order context card with live order status and direct link, message history grouped by date, auto-scrolling message stream, role-specific quick reply suggestion chips (buyer & seller), and composer with keyboard shortcuts and character counter.
   - **Type & Constant Architecture**: Created `types/message.ts` and `constants/messages.ts` for clean type safety and centralized configuration. Updated `convex/messages.ts` to hydrate order summaries reactively.
 
+### Buyer and seller notifications
+
+- Added persistent buyer and seller notification queries and read mutations in Convex, with unread counts in both navigation sidebars.
+- Kept legacy notification records valid during schema rollout by making `role` optional and accepting the existing `refId` field. The development deployment is synced with the public notification queries.
+
 ### Admin access foundation
 
 - The initial admin account is `carbonellalex955@gmail.com`. After a
@@ -189,7 +196,6 @@ interactive quick replies, order context integration, search, filter tabs, and r
 
 - Implement seller verification after its data and audit requirements
   are specified.
-- Move seller notifications off the mock layer in lib/ onto Convex.
 - Add an actor that moves stall verification status to verified.
 - Replace the demo/mock session layer with Convex-only reads for signed-in users.
 

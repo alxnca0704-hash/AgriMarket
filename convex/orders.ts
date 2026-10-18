@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { Doc, Id } from "./_generated/dataModel";
 import { MutationCtx, QueryCtx } from "./_generated/server";
 import { deliveryAddressValidator } from "./shared";
+import { createNotification } from "./notifications";
 
 const BUYER_ORDER_LIMIT = 100;
 const SELLER_ORDER_LIMIT = 200;
@@ -189,6 +190,22 @@ export const placeOrders = mutation({
         updatedAt: now,
       });
       createdIds.push(orderId);
+      await createNotification(ctx, {
+        userId: stall.ownerId,
+        role: "seller",
+        orderId,
+        type: "order_placed",
+        title: "New order received",
+        body: `Order #${orderId.slice(-6).toUpperCase()} placed by ${user.fullName} (${lineItems.length} item${lineItems.length > 1 ? "s" : ""} · ₱${(subtotal + deliveryFee).toLocaleString()}). Review and confirm the order.`,
+      });
+      await createNotification(ctx, {
+        userId: user._id,
+        role: "buyer",
+        orderId,
+        type: "order_placed",
+        title: "Order placed successfully",
+        body: `Your order #${orderId.slice(-6).toUpperCase()} with ${stall.stallName} (₱${(subtotal + deliveryFee).toLocaleString()}) has been placed.`,
+      });
     }
 
     if (args.paymentMethod === "gcash") {
@@ -351,6 +368,22 @@ export const cancelOrder = mutation({
       ...(reason ? { cancelReason: reason } : {}),
       updatedAt: now,
     });
+    await createNotification(ctx, {
+      userId: order.sellerId,
+      role: "seller",
+      orderId: order._id,
+      type: "order_cancelled",
+      title: "Order cancelled by buyer",
+      body: `Buyer cancelled order #${order._id.slice(-6).toUpperCase()}${reason ? `: "${reason}"` : "."}`,
+    });
+    await createNotification(ctx, {
+      userId: order.buyerId,
+      role: "buyer",
+      orderId: order._id,
+      type: "order_cancelled",
+      title: "Order cancelled",
+      body: `You cancelled order #${order._id.slice(-6).toUpperCase()}.`,
+    });
     return null;
   },
 });
@@ -374,6 +407,22 @@ export const confirmDelivery = mutation({
           { status: "completed", label: "Buyer confirmed receipt · order completed", at: now },
         ],
       updatedAt: now,
+    });
+    await createNotification(ctx, {
+      userId: order.sellerId,
+      role: "seller",
+      orderId: order._id,
+      type: "order_completed",
+      title: "Order completed",
+      body: `Buyer confirmed delivery for order #${order._id.slice(-6).toUpperCase()}. Payment recorded.`,
+    });
+    await createNotification(ctx, {
+      userId: order.buyerId,
+      role: "buyer",
+      orderId: order._id,
+      type: "order_completed",
+      title: "Order completed",
+      body: `You confirmed delivery for order #${order._id.slice(-6).toUpperCase()}. Thank you!`,
     });
     return null;
   },
@@ -416,6 +465,14 @@ export const confirmOrder = mutation({
       ],
       updatedAt: now,
     });
+    await createNotification(ctx, {
+      userId: order.buyerId,
+      role: "buyer",
+      orderId: order._id,
+      type: "order_confirmed",
+      title: "Order confirmed",
+      body: `${order.sellerName} confirmed order #${order._id.slice(-6).toUpperCase()}. Your items are being prepared.`,
+    });
     return null;
   },
 });
@@ -440,6 +497,14 @@ export const rejectOrder = mutation({
       ...(reason ? { cancelReason: reason } : {}),
       updatedAt: now,
     });
+    await createNotification(ctx, {
+      userId: order.buyerId,
+      role: "buyer",
+      orderId: order._id,
+      type: "order_cancelled",
+      title: "Order rejected",
+      body: `${order.sellerName} rejected order #${order._id.slice(-6).toUpperCase()}${reason ? `: "${reason}"` : "."}`,
+    });
     return null;
   },
 });
@@ -461,6 +526,14 @@ export const dispatchOrder = mutation({
       ],
       updatedAt: now,
     });
+    await createNotification(ctx, {
+      userId: order.buyerId,
+      role: "buyer",
+      orderId: order._id,
+      type: "order_dispatched",
+      title: "Order out for delivery",
+      body: `Order #${order._id.slice(-6).toUpperCase()} from ${order.sellerName} is out for delivery!`,
+    });
     return null;
   },
 });
@@ -481,6 +554,14 @@ export const completeOrder = mutation({
         { status: "completed", label: "Order completed", at: now },
       ],
       updatedAt: now,
+    });
+    await createNotification(ctx, {
+      userId: order.buyerId,
+      role: "buyer",
+      orderId: order._id,
+      type: "order_completed",
+      title: "Order completed",
+      body: `Order #${order._id.slice(-6).toUpperCase()} from ${order.sellerName} has been completed.`,
     });
     return null;
   },
@@ -526,6 +607,22 @@ export const requestRefund = mutation({
     if (order.refundRejectedAt !== undefined) patch["refundRejectedAt"] = undefined;
     if (order.refundRejectReason !== undefined) patch["refundRejectReason"] = undefined;
     await ctx.db.patch("orders", order._id, patch as never);
+    await createNotification(ctx, {
+      userId: order.sellerId,
+      role: "seller",
+      orderId: order._id,
+      type: "refund_requested",
+      title: "Return requested",
+      body: `Buyer requested a return for order #${order._id.slice(-6).toUpperCase()}: "${reason}".`,
+    });
+    await createNotification(ctx, {
+      userId: order.buyerId,
+      role: "buyer",
+      orderId: order._id,
+      type: "refund_requested",
+      title: "Return request submitted",
+      body: `Your return request for order #${order._id.slice(-6).toUpperCase()} was submitted for admin review.`,
+    });
     return null;
   },
 });
@@ -555,6 +652,14 @@ export const submitReturnShipment = mutation({
       events: [...order.events, { status: "return-in-transit", label: "Return shipment sent", at: now }],
       updatedAt: now,
     });
+    await createNotification(ctx, {
+      userId: order.sellerId,
+      role: "seller",
+      orderId: order._id,
+      type: "return_in_transit",
+      title: "Return items shipped",
+      body: `Buyer shipped return items for order #${order._id.slice(-6).toUpperCase()} via ${carrier} (Tracking: ${trackingNumber}).`,
+    });
     return null;
   },
 });
@@ -572,6 +677,14 @@ export const confirmReturnReceived = mutation({
       returnReceivedAt: now,
       events: [...order.events, { status: "return-received", label: "Seller received returned goods", at: now }],
       updatedAt: now,
+    });
+    await createNotification(ctx, {
+      userId: order.buyerId,
+      role: "buyer",
+      orderId: order._id,
+      type: "return_received",
+      title: "Returned items received",
+      body: `${order.sellerName} received your returned items for order #${order._id.slice(-6).toUpperCase()}. Refund will be processed soon.`,
     });
     return null;
   },

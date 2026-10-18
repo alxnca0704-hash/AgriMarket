@@ -86,9 +86,12 @@
   backs the landing page and any unauthenticated or not-yet-migrated
   view. Not persisted.
 
-- **Seller payouts**: payout requests snapshot the seller's GCash name and
-  number, the seller-selected eligible completed/paid order IDs with order
-  dates and amounts, and the request total. Multiple requests may be pending
+- **Seller payouts**: only completed, paid GCash orders can be included in
+  seller payout requests. COD is a direct buyer-to-seller cash handoff on
+  delivery, so it is recorded as a sale and never enters the payout queue.
+  Payout requests snapshot the seller's GCash name and number, the
+  seller-selected eligible order IDs with order dates and amounts, and the
+  request total. Multiple requests may be pending
   at once when they contain different orders; each order is reserved by one
   request at most. Eligibility begins 24 hours after
   delivery (the buyer return window), requires `completed` and paid status,

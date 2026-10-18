@@ -3,6 +3,7 @@ import { ADMIN_EMAIL } from "../constants/roles";
 import { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
+import { createNotification } from "./notifications";
 
 const settingsValidator = v.union(
   v.null(),
@@ -146,6 +147,22 @@ export const approveReturnRequest = mutation({
       paymentReference: order.paymentReference ?? "Not provided",
       createdAt: now,
     });
+    await createNotification(ctx, {
+      userId: order.buyerId,
+      role: "buyer",
+      orderId: order._id,
+      type: "return_approved",
+      title: "Return request approved",
+      body: `Your return request for order #${order._id.slice(-6).toUpperCase()} was approved! Please ship items to: ${returnAddress}`,
+    });
+    await createNotification(ctx, {
+      userId: order.sellerId,
+      role: "seller",
+      orderId: order._id,
+      type: "return_approved",
+      title: "Return request approved",
+      body: `Admin approved return request for order #${order._id.slice(-6).toUpperCase()}. Awaiting buyer shipment.`,
+    });
     return null;
   },
 });
@@ -176,6 +193,22 @@ export const rejectReturnRequest = mutation({
       paymentReference: order.paymentReference ?? "Not provided",
       reason,
       createdAt: now,
+    });
+    await createNotification(ctx, {
+      userId: order.buyerId,
+      role: "buyer",
+      orderId: order._id,
+      type: "refund_rejected",
+      title: "Return request rejected",
+      body: `Your return request for order #${order._id.slice(-6).toUpperCase()} was rejected: "${reason}".`,
+    });
+    await createNotification(ctx, {
+      userId: order.sellerId,
+      role: "seller",
+      orderId: order._id,
+      type: "refund_rejected",
+      title: "Return request rejected",
+      body: `Admin rejected return request for order #${order._id.slice(-6).toUpperCase()}. Payout hold lifted.`,
     });
     return null;
   },
@@ -222,6 +255,22 @@ export const completeReturnRefund = mutation({
       refundMethod: args.refundMethod,
       refundAmount: order.total,
       createdAt: now,
+    });
+    await createNotification(ctx, {
+      userId: order.buyerId,
+      role: "buyer",
+      orderId: order._id,
+      type: "refunded",
+      title: "Refund completed",
+      body: `Refund of ₱${order.total.toLocaleString()} for order #${order._id.slice(-6).toUpperCase()} has been processed via ${args.refundMethod === "gcash" ? "GCash" : "cash"}.`,
+    });
+    await createNotification(ctx, {
+      userId: order.sellerId,
+      role: "seller",
+      orderId: order._id,
+      type: "refunded",
+      title: "Refund completed",
+      body: `Refund for order #${order._id.slice(-6).toUpperCase()} has been processed by admin.`,
     });
     return null;
   },
@@ -391,6 +440,33 @@ export const reviewGcashPayment = mutation({
         ],
         updatedAt: now,
       });
+      if (args.decision === "paid") {
+        await createNotification(ctx, {
+          userId: order.buyerId,
+          role: "buyer",
+          orderId: order._id,
+          type: "payment_approved",
+          title: "GCash payment approved",
+          body: `GCash payment for order #${order._id.slice(-6).toUpperCase()} was approved! The seller can now prepare your order.`,
+        });
+        await createNotification(ctx, {
+          userId: order.sellerId,
+          role: "seller",
+          orderId: order._id,
+          type: "payment_approved",
+          title: "GCash payment verified",
+          body: `GCash payment for order #${order._id.slice(-6).toUpperCase()} was approved by admin. You can now confirm the order.`,
+        });
+      } else {
+        await createNotification(ctx, {
+          userId: order.buyerId,
+          role: "buyer",
+          orderId: order._id,
+          type: "payment_rejected",
+          title: "GCash payment rejected",
+          body: `GCash payment for order #${order._id.slice(-6).toUpperCase()} was rejected${reason ? `: "${reason}"` : ""}. Please resubmit your payment reference.`,
+        });
+      }
     }
     return null;
   },

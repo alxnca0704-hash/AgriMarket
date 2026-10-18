@@ -43,7 +43,7 @@ export function EarningsView() {
       {earnings.error && <Alert type="error" title={earnings.error} showIcon />}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="rounded-2xl bg-white p-4 shadow-sm sm:p-5"><p className="text-xs font-medium uppercase tracking-wide text-stone-400">Total sales</p><p className="mt-1 text-2xl font-semibold text-stone-900 sm:text-3xl">{formatPrice(earnings.summary.total)}</p><p className="mt-1 text-xs text-stone-400">{earnings.summary.orderCount} paid orders · refunded orders excluded</p></div>
-        <div className="rounded-2xl bg-white p-4 shadow-sm sm:p-5"><p className="text-xs font-medium uppercase tracking-wide text-stone-400">Eligible for payout</p><p className="mt-1 text-2xl font-semibold text-sage sm:text-3xl">{formatPrice(payoutData?.eligibleAmount ?? 0)}</p><p className="mt-1 text-xs text-stone-400">{payoutData?.eligibleOrderCount ?? 0} orders after the 24-hour return window</p></div>
+        <div className="rounded-2xl bg-white p-4 shadow-sm sm:p-5"><p className="text-xs font-medium uppercase tracking-wide text-stone-400">GCash ready for payout</p><p className="mt-1 text-2xl font-semibold text-sage sm:text-3xl">{formatPrice(payoutData?.eligibleAmount ?? 0)}</p><p className="mt-1 text-xs text-stone-400">{payoutData?.eligibleOrderCount ?? 0} GCash orders after the 24-hour return window</p></div>
         <div className="rounded-2xl bg-white p-4 shadow-sm sm:p-5"><p className="text-xs font-medium uppercase tracking-wide text-stone-400">In transit</p><p className="mt-1 text-2xl font-semibold text-stone-900 sm:text-3xl">{formatPrice(earnings.summary.inTransit)}</p><p className="mt-1 text-xs text-stone-400">Shipped, not yet confirmed</p></div>
       </div>
 
@@ -56,16 +56,16 @@ export function EarningsView() {
         <div className="rounded-2xl bg-white p-4 shadow-sm sm:p-5">
           <p className="text-xs font-medium uppercase tracking-wide text-stone-400">Cash on Delivery earnings</p>
           <p className="mt-1 text-xl font-semibold text-stone-900">{formatPrice(earnings.summary.codTotal)}</p>
-          <p className="mt-1 text-xs text-stone-400">COD paid after delivery confirmation · refunded orders excluded</p>
+          <p className="mt-1 text-xs text-stone-400">Cash collected directly from the buyer on delivery · no payout request needed</p>
         </div>
       </div>
 
       <section className="space-y-4 rounded-2xl bg-white p-4 shadow-sm sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div><h2 className="text-sm font-semibold text-stone-900">Choose orders for payout</h2><p className="mt-1 text-sm text-stone-500">Request payout 24 hours after delivery. Orders with a pending refund stay on hold until it is closed.</p></div>
+          <div><h2 className="text-sm font-semibold text-stone-900">Choose GCash orders for payout</h2><p className="mt-1 text-sm text-stone-500">COD cash is handed to you directly on delivery, so only approved GCash orders can be requested here. GCash orders become eligible 24 hours after delivery; return holds remain excluded.</p></div>
           <Button onClick={earnings.selectAllReadyOrders} disabled={!payoutOrders.some((order) => order.payoutStatus === 'ready')}>Select all ready</Button>
         </div>
-        {payoutOrders.length === 0 ? <p className="text-sm text-stone-500">No paid orders to show yet.</p> : <div className="space-y-2">{payoutOrders.map((order) => {
+        {payoutOrders.length === 0 ? <p className="text-sm text-stone-500">No paid GCash orders to show yet.</p> : <div className="space-y-2">{payoutOrders.map((order) => {
           const isReady = order.payoutStatus === 'ready';
           return <article key={order.orderId} className="flex items-start gap-3 rounded-xl bg-stone-50/80 p-4">
             <Checkbox checked={earnings.selectedOrderIds.includes(order.orderId)} disabled={!isReady} onChange={() => earnings.togglePayoutOrder(order.orderId)} aria-label={`Select order ${order.orderId} for payout`} />

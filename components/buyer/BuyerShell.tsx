@@ -7,6 +7,7 @@ import { Drawer, Layout, Menu } from 'antd';
 import type { MenuProps } from 'antd';
 import {
   ArrowLeftOutlined,
+  BellOutlined,
   CloseOutlined,
   HomeOutlined,
   MenuOutlined,
@@ -20,6 +21,7 @@ import { APP_ROUTES } from '@/constants/routes';
 import { BrandMark } from '@/components/BrandMark';
 import { useCartContext } from '@/components/buyer/CartProvider';
 import { useUnreadMessages } from '@/hooks/useUnreadMessages';
+import { useUnreadNotifications } from '@/hooks/useUnreadNotifications';
 import { DEMO_BUYER, getSessionUserSnapshot, subscribeSessionUser } from '@/lib/mockSession';
 
 const { Sider, Content } = Layout;
@@ -30,6 +32,7 @@ const TABS = [
   { key: 'cart', label: 'Cart', href: APP_ROUTES.cart, icon: <ShoppingCartOutlined /> },
   { key: 'orders', label: 'Orders', href: APP_ROUTES.orders, icon: <UnorderedListOutlined /> },
   { key: 'messages', label: 'Messages', href: APP_ROUTES.messages, icon: <MessageOutlined /> },
+  { key: 'notifications', label: 'Notifications', href: APP_ROUTES.notifications, icon: <BellOutlined /> },
   { key: 'profile', label: 'Profile', href: APP_ROUTES.profile, icon: <UserOutlined /> },
 ] as const;
 
@@ -38,6 +41,7 @@ export function BuyerShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { itemCount } = useCartContext();
   const unreadMessageCount = useUnreadMessages();
+  const unreadNotificationCount = useUnreadNotifications('buyer');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const user = useSyncExternalStore(
     subscribeSessionUser,
@@ -51,6 +55,7 @@ export function BuyerShell({ children }: { children: React.ReactNode }) {
     APP_ROUTES.cart,
     APP_ROUTES.orders,
     APP_ROUTES.messages,
+    APP_ROUTES.notifications,
     APP_ROUTES.profile,
   ];
 
@@ -65,9 +70,11 @@ export function BuyerShell({ children }: { children: React.ReactNode }) {
             ? 'orders'
             : pathname.startsWith(APP_ROUTES.messages)
               ? 'messages'
-              : pathname === APP_ROUTES.profile || pathname.startsWith('/profile')
-                ? 'profile'
-              : null;
+              : pathname.startsWith(APP_ROUTES.notifications)
+                ? 'notifications'
+                : pathname === APP_ROUTES.profile || pathname.startsWith('/profile')
+                  ? 'profile'
+                  : null;
 
   const showBack = !TAB_ROOTS.includes(pathname as (typeof TAB_ROOTS)[number]);
 
@@ -89,11 +96,16 @@ export function BuyerShell({ children }: { children: React.ReactNode }) {
               <span>{tab.label}</span>
               <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-[#2D6A4F] px-1 text-[10px] font-semibold leading-none text-white">{unreadMessageCount > 99 ? '99+' : unreadMessageCount}</span>
             </span>
+          ) : tab.key === 'notifications' && unreadNotificationCount > 0 ? (
+            <span className="inline-flex items-center gap-1.5">
+              <span>{tab.label}</span>
+              <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-[#2D6A4F] px-1 text-[10px] font-semibold leading-none text-white">{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</span>
+            </span>
           ) : (
             tab.label
           ),
       })),
-    [itemCount, unreadMessageCount]
+    [itemCount, unreadMessageCount, unreadNotificationCount]
   );
 
   const handleNavigate: MenuProps['onClick'] = ({ key }) => {
@@ -183,11 +195,25 @@ export function BuyerShell({ children }: { children: React.ReactNode }) {
               </Link>
             </div>
 
-            <Link href={APP_ROUTES.profile} aria-label="Open profile">
-              <span className="w-8 h-8 rounded-full bg-[#2D6A4F]/10 text-[#2D6A4F] flex items-center justify-center text-sm font-semibold">
-                {initial}
-              </span>
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link
+                href={APP_ROUTES.notifications}
+                aria-label="Open notifications"
+                className="relative w-8 h-8 flex items-center justify-center rounded-lg text-stone-600 hover:text-[#2D6A4F]"
+              >
+                <BellOutlined />
+                {unreadNotificationCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#2D6A4F] px-1 text-[9px] font-semibold leading-none text-white">
+                    {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
+                  </span>
+                )}
+              </Link>
+              <Link href={APP_ROUTES.profile} aria-label="Open profile">
+                <span className="w-8 h-8 rounded-full bg-[#2D6A4F]/10 text-[#2D6A4F] flex items-center justify-center text-sm font-semibold">
+                  {initial}
+                </span>
+              </Link>
+            </div>
           </div>
         </div>
 

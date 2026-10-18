@@ -63,7 +63,21 @@ export type SellerNotificationType =
   | 'order-cancelled'
   | 'low-stock'
   | 'new-review'
-  | 'order-shipped';
+  | 'order-shipped'
+  | 'order_placed'
+  | 'order_confirmed'
+  | 'order_dispatched'
+  | 'order_completed'
+  | 'order_cancelled'
+  | 'refund_requested'
+  | 'return_approved'
+  | 'return_in_transit'
+  | 'return_received'
+  | 'refunded'
+  | 'refund_rejected'
+  | 'payment_approved'
+  | 'payment_rejected'
+  | (string & {});
 
 export interface SellerNotification {
   id: string;
@@ -71,6 +85,7 @@ export interface SellerNotification {
   title: string;
   body: string;
   refId?: string;
+  orderId?: string;
   read: boolean;
   createdAt: string;
 }

@@ -55,12 +55,14 @@ async function requireAdmin(ctx: QueryCtx | MutationCtx) {
 function isPayoutEligible(order: {
   status: string;
   paymentStatus: string;
+  paymentMethod: "cod" | "gcash";
   deliveredAt?: string;
   refundPayoutHold?: boolean;
   payoutRequestId?: Id<"payoutRequests">;
 }, now: number) {
   return order.status === "completed"
     && order.paymentStatus === "paid"
+    && order.paymentMethod === "gcash"
     && order.refundPayoutHold !== true
     && order.payoutRequestId === undefined
     && order.deliveredAt !== undefined
@@ -87,7 +89,7 @@ export const getSellerPayouts = query({
       .order("desc")
       .take(100);
     const payoutStatuses = new Map(requests.map((request) => [request._id, request.status]));
-    const earningsOrders = orders.filter((order) => order.paymentStatus === "paid" && order.status !== "cancelled" && order.status !== "refunded");
+    const earningsOrders = orders.filter((order) => order.paymentMethod === "gcash" && order.paymentStatus === "paid" && order.status !== "cancelled" && order.status !== "refunded");
     const sellerOrders = earningsOrders.map((order) => {
       let payoutStatus: "ready" | "held" | "return-window" | "awaiting-completion" | "requested" | "paid-out";
       if (order.refundPayoutHold === true) {
@@ -197,6 +199,7 @@ const adminPayoutValidator = v.object({
   verificationStatus: v.union(v.literal("unverified"), v.literal("pending"), v.literal("verified")),
   idType: v.string(),
   idNumber: v.string(),
+  allOrdersGcash: v.boolean(),
 });
 
 export const listPendingPayouts = query({
@@ -213,6 +216,11 @@ export const listPendingPayouts = query({
       const seller = await ctx.db.get("users", request.sellerId);
       const stall = await ctx.db.get("stalls", request.stallId);
       if (!seller || !stall) continue;
+      let allOrdersGcash = request.orderIds.length > 0;
+      for (const orderId of request.orderIds) {
+        const order = await ctx.db.get("orders", orderId);
+        if (!order || order.paymentMethod !== "gcash") allOrdersGcash = false;
+      }
       result.push({
         _id: request._id,
         sellerName: seller.fullName,
@@ -229,6 +237,7 @@ export const listPendingPayouts = query({
         verificationStatus: stall.verification.status,
         idType: stall.verification.idType,
         idNumber: stall.verification.idNumber,
+        allOrdersGcash,
       });
     }
     return result;

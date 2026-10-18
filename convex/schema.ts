@@ -232,4 +232,19 @@ export default defineSchema({
     nextQrUrl: v.optional(v.string()),
     createdAt: v.string(),
   }).index("by_createdAt", ["createdAt"]),
+
+  notifications: defineTable({
+    userId: v.id("users"),
+    role: v.optional(v.union(v.literal("buyer"), v.literal("seller"))),
+    orderId: v.optional(v.id("orders")),
+    refId: v.optional(v.string()),
+    type: v.string(),
+    title: v.string(),
+    body: v.string(),
+    read: v.boolean(),
+    createdAt: v.string(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_and_read", ["userId", "read"])
+    .index("by_orderId", ["orderId"]),
 });

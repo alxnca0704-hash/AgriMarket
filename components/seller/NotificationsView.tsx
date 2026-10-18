@@ -8,11 +8,13 @@ import {
   CarOutlined,
   CheckCircleFilled,
   CloseCircleFilled,
+  DollarOutlined,
   MessageOutlined,
+  RedoOutlined,
   ShoppingOutlined,
 } from '@ant-design/icons';
 import { useSellerNotifications } from '@/hooks/useSellerNotifications';
-import { SellerNotificationType } from '@/types/seller';
+import { SellerNotification } from '@/types/seller';
 import { APP_ROUTES } from '@/constants/routes';
 
 function NotificationsSkeleton() {
@@ -26,21 +28,51 @@ function NotificationsSkeleton() {
   );
 }
 
-function iconFor(type: SellerNotificationType) {
+function iconFor(type: string) {
   switch (type) {
     case 'new-order':
+    case 'order_placed':
       return <ShoppingOutlined />;
     case 'order-cancelled':
+    case 'order_cancelled':
       return <CloseCircleFilled className="!text-red-400" />;
     case 'low-stock':
       return <BellOutlined className="!text-amber-500" />;
     case 'new-review':
       return <MessageOutlined />;
     case 'order-shipped':
+    case 'order_dispatched':
       return <CarOutlined />;
+    case 'order_confirmed':
+    case 'order_completed':
+      return <CheckCircleFilled className="!text-green-500" />;
+    case 'refund_requested':
+    case 'return_approved':
+    case 'return_in_transit':
+    case 'return_received':
+    case 'refunded':
+    case 'refund_rejected':
+      return <RedoOutlined className="!text-amber-500" />;
+    case 'payment_approved':
+    case 'payment_rejected':
+      return <DollarOutlined />;
     default:
       return <BellOutlined />;
   }
+}
+
+function orderRouteFor(type: string, orderId?: string): string | null {
+  if (!orderId) return null;
+  const orderTypes = [
+    'new-order', 'order_placed', 'order_confirmed', 'order_dispatched',
+    'order_completed', 'order-cancelled', 'order_cancelled',
+    'refund_requested', 'return_approved', 'return_in_transit', 'return_received',
+    'refunded', 'refund_rejected', 'payment_approved', 'payment_rejected',
+  ];
+  if (orderTypes.includes(type)) {
+    return APP_ROUTES.sellerOrderDetail(orderId);
+  }
+  return null;
 }
 
 export function NotificationsView() {
@@ -60,13 +92,13 @@ export function NotificationsView() {
           </h1>
         </div>
         {unreadCount > 0 && (
-          <Button size="small" onClick={handleReadAll} className="!rounded-lg">
+          <Button size="small" onClick={() => void handleReadAll()} className="!rounded-lg">
             Mark all read
           </Button>
         )}
       </div>
 
-      {error && <Alert type="error" title={error} showIcon />}
+      {error && <Alert type="error" message={error} showIcon />}
 
       {notifications.length === 0 ? (
         <div className="rounded-2xl bg-white shadow-sm py-14">
@@ -77,16 +109,17 @@ export function NotificationsView() {
         </div>
       ) : (
         <div className="space-y-3">
-          {notifications.map((n) => {
+          {notifications.map((n: SellerNotification) => {
             const isUnread = !n.read;
+            const destination = orderRouteFor(n.type as string, n.orderId ?? n.refId);
             return (
               <button
                 key={n.id}
                 type="button"
                 onClick={() => {
-                  handleRead(n);
-                  if (n.type === 'new-order' && n.refId) {
-                    router.push(APP_ROUTES.sellerOrderDetail(n.refId));
+                  void handleRead(n);
+                  if (destination) {
+                    router.push(destination);
                   }
                 }}
                 className={`w-full text-left rounded-2xl shadow-sm p-4 sm:p-5 flex items-start gap-3.5 cursor-pointer transition-shadow hover:shadow-md ${
@@ -98,7 +131,7 @@ export function NotificationsView() {
                     isUnread ? 'bg-sage-soft text-sage' : 'bg-stone-100 text-stone-400'
                   }`}
                 >
-                  {iconFor(n.type)}
+                  {iconFor(n.type as string)}
                 </span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-3">

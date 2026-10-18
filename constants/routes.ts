@@ -19,6 +19,7 @@ export const APP_ROUTES = {
   orderDetail: (id: string) => `/orders/${id}`,
   messages: '/messages',
   messageThread: (id: string) => `/messages?conversation=${encodeURIComponent(id)}`,
+  notifications: '/notifications',
   profile: '/profile',
   profileAddresses: '/profile/addresses',
   seller: '/seller',

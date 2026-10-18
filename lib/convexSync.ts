@@ -1,9 +1,10 @@
-import type { Doc } from '@/convex/_generated/dataModel';
+﻿import type { Doc } from '@/convex/_generated/dataModel';
 import { AuthenticatedUser, DeliveryAddress } from '@/types/auth';
 import { AddressLabel, ADDRESS_LABELS } from '@/constants/phLocations';
 import { SellerListing, StallProfile } from '@/types/seller';
 import { Product, Seller } from '@/types/product';
 import { Order } from '@/types/order';
+import { AppNotification } from '@/types/notification';
 import { formatAddressSummary } from '@/lib/format';
 
 type UserDoc = Doc<'users'>;
@@ -11,6 +12,7 @@ type AddressDoc = Doc<'addresses'>;
 type StallDoc = Doc<'stalls'>;
 type ProductDoc = Doc<'products'>;
 type OrderDoc = Doc<'orders'>;
+type NotificationDoc = Doc<'notifications'>;
 
 export function toAddressLabel(value: string): AddressLabel {
   return (ADDRESS_LABELS as readonly string[]).includes(value)
@@ -223,5 +225,19 @@ export function toOrder(order: OrderDoc): Order {
     refundRejectedAt: order.refundRejectedAt,
     refundRejectReason: order.refundRejectReason,
     payoutRequestId: order.payoutRequestId,
+  };
+}
+
+export function toAppNotification(doc: NotificationDoc): AppNotification {
+  return {
+    id: doc._id,
+    userId: doc.userId,
+    role: doc.role,
+    orderId: doc.orderId,
+    type: doc.type as AppNotification['type'],
+    title: doc.title,
+    body: doc.body,
+    read: doc.read,
+    createdAt: doc.createdAt,
   };
 }

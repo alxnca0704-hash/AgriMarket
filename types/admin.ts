@@ -39,4 +39,5 @@ export interface AdminPayoutRequest {
   verificationStatus: 'unverified' | 'pending' | 'verified';
   idType: string;
   idNumber: string;
+  allOrdersGcash: boolean;
 }

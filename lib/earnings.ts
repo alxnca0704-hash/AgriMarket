@@ -56,7 +56,8 @@ export function getEarningsSummary(period: EarningsPeriod, orders: Order[]): Ear
   });
   const buckets = Array.from(grouped.entries()).map(([key, value]) => ({ label: bucketLabel(key, period), ...value })).sort((a, b) => a.label.localeCompare(b.label));
   const now = Date.now();
-  const availableBalance = orders.filter((order) => order.status === 'completed'
+  const availableBalance = orders.filter((order) => order.payment.method === 'gcash'
+    && order.status === 'completed'
     && order.payment.status === 'paid'
     && order.refundPayoutHold !== true
     && !order.payoutRequestId
