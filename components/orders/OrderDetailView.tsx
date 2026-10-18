@@ -13,10 +13,10 @@ import {
 } from '@ant-design/icons';
 import { useOrderDetail } from '@/hooks/useOrderDetail';
 import { OrderItems } from '@/components/orders/OrderItems';
-import { OrderSteps } from '@/components/orders/OrderSteps';
+import { OrderProgress } from '@/components/orders/OrderProgress';
+import { OrderStatusBadge } from '@/components/orders/OrderStatusBadge';
 import { OrderActions } from '@/components/orders/OrderActions';
 import { ReviewModal } from '@/components/orders/ReviewModal';
-import { ORDER_STATUS_LABELS, ORDER_STATUS_TAG_COLORS } from '@/constants/orders';
 import { APP_ROUTES } from '@/constants/routes';
 import { formatAddressSummary, formatOrderTime, formatPrice } from '@/lib/format';
 
@@ -113,17 +113,12 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="min-w-0">
             <div className="flex items-center gap-2.5 flex-wrap">
-              <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-stone-900">
+              <h1 className="font-display text-3xl leading-tight tracking-tight text-stone-900 sm:text-4xl">
                 {order.sellerName}
               </h1>
-              <Tag
-                color={ORDER_STATUS_TAG_COLORS[order.status]}
-                className="!m-0 !border-none !rounded-full !px-2.5 !py-0.5 !text-xs !font-semibold"
-              >
-                {ORDER_STATUS_LABELS[order.status]}
-              </Tag>
+              <OrderStatusBadge status={order.status} />
             </div>
-            <p className="text-sm text-stone-400 mt-1">
+            <p className="mt-1.5 text-sm text-stone-400">
               Order{' '}
               <span className="font-mono text-stone-500">{order.id}</span> · Placed{' '}
               {formatOrderTime(order.placedAt)}
@@ -138,6 +133,10 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
             onCancel={handleCancel}
             onRequestRefund={handleRequestRefund}
           />
+        </div>
+
+        <div className="mt-5">
+          <OrderProgress order={order} audience="buyer" />
         </div>
 
         {order.cancelReason && (
@@ -413,10 +412,6 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
             </div>
           </section>
 
-          <section className="rounded-2xl bg-white shadow-sm p-4 sm:p-6">
-            <h2 className="text-sm font-semibold text-stone-900 mb-2">Status timeline</h2>
-            <OrderSteps order={order} />
-          </section>
         </div>
       </div>
 

@@ -136,6 +136,13 @@ Sider, and Tabs.
 - **Cards** — `rounded-2xl bg-white shadow-sm p-4 sm:p-6`. Interior
   blocks that need separation use `rounded-xl bg-stone-50/80 p-4`
   rather than a border.
+- **Orders** — buyer and seller lists share four filters (in-progress,
+  past, returns, all orders) with counts. The lists open directly on
+  filters and orders without a dashboard header or summary metrics. Cards
+  show the order identity, a product preview and total, plus a compact
+  fulfilment progress strip. Status labels use muted semantic fills.
+  Detail pages lead with the next step and a five-stage progress track;
+  return and cancelled states show their current update in the same space.
 - **Checkout** — stacked single-column sections on mobile
   (`grid grid-cols-1 md:grid-cols-2 gap-4` inside forms), each section
   its own white card, with a sticky action bar at the bottom.

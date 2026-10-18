@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { Alert, Button, Result, Skeleton, Tag } from 'antd';
+import { Alert, Button, Result, Skeleton } from 'antd';
 import {
   ArrowLeftOutlined,
   BankOutlined,
@@ -12,9 +12,10 @@ import {
 } from '@ant-design/icons';
 import { useSellerOrderDetail } from '@/hooks/useSellerOrderDetail';
 import { OrderItems } from '@/components/orders/OrderItems';
-import { OrderSteps } from '@/components/orders/OrderSteps';
+import { OrderProgress } from '@/components/orders/OrderProgress';
+import { OrderStatusBadge } from '@/components/orders/OrderStatusBadge';
 import { SellerOrderActions } from '@/components/seller/SellerOrderActions';
-import { SELLER_ORDER_GROUP_LABELS, getSellerOrderGroup, SELLER_ORDER_TAG_COLORS } from '@/constants/sellerOrders';
+import { getSellerOrderGroup } from '@/constants/sellerOrders';
 import { APP_ROUTES } from '@/constants/routes';
 import { formatAddressSummary, formatOrderTime, formatPrice } from '@/lib/format';
 
@@ -84,17 +85,12 @@ export function SellerOrderDetailView({ orderId }: { orderId: string }) {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="min-w-0">
             <div className="flex items-center gap-2.5 flex-wrap">
-              <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-stone-900">
+              <h1 className="font-display text-3xl leading-tight tracking-tight text-stone-900 sm:text-4xl">
                 {order.address.receiverName}
               </h1>
-              <Tag
-                color={SELLER_ORDER_TAG_COLORS[group]}
-                className="!m-0 !border-none !rounded-full !px-2.5 !py-0.5 !text-xs !font-semibold"
-              >
-                {SELLER_ORDER_GROUP_LABELS[group]}
-              </Tag>
+              <OrderStatusBadge status={group} />
             </div>
-            <p className="text-sm text-stone-400 mt-1">
+            <p className="mt-1.5 text-sm text-stone-400">
               Order{' '}
               <span className="font-mono text-stone-500">{order.id}</span> · Placed{' '}
               {formatOrderTime(order.placedAt)}
@@ -111,6 +107,10 @@ export function SellerOrderDetailView({ orderId }: { orderId: string }) {
             onComplete={handleComplete}
             onConfirmReturnReceived={handleConfirmReturnReceived}
           />
+        </div>
+
+        <div className="mt-5">
+          <OrderProgress order={order} audience="seller" />
         </div>
 
         {order.cancelReason && (
@@ -242,10 +242,6 @@ export function SellerOrderDetailView({ orderId }: { orderId: string }) {
             </div>
           </section>
 
-          <section className="rounded-2xl bg-white shadow-sm p-4 sm:p-6">
-            <h2 className="text-sm font-semibold text-stone-900 mb-2">Fulfillment timeline</h2>
-            <OrderSteps order={order} />
-          </section>
         </div>
       </div>
     </div>

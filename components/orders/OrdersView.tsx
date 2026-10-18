@@ -37,13 +37,7 @@ export function OrdersView() {
   } = useOrders();
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-5 sm:pt-10 pb-16 space-y-5 sm:space-y-6">
-      <h1 className="text-2xl sm:text-[28px] font-semibold tracking-tight text-stone-900">
-        Orders{' '}
-        <span className="text-stone-400 font-normal text-lg sm:text-xl">
-          ({orders.length})
-        </span>
-      </h1>
+    <div className="mx-auto max-w-5xl space-y-5 px-4 pb-16 pt-6 sm:space-y-6 sm:px-6 sm:pt-10">
 
       {error && <Alert type="error" title={error} showIcon />}
 

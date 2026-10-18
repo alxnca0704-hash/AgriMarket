@@ -35,24 +35,20 @@ export const ORDER_STATUS_TAG_COLORS: Record<OrderStatus, string> = {
   refunded: 'success',
 };
 
-export interface OrderStatusTab {
-  key: OrderStatus;
-  label: string;
-}
+export const ORDER_LIST_FILTERS = [
+  { key: 'active', label: 'In progress' },
+  { key: 'past', label: 'Past orders' },
+  { key: 'returns', label: 'Returns' },
+  { key: 'all', label: 'All orders' },
+] as const;
 
-export const ORDER_STATUS_TABS: OrderStatusTab[] = [
-  { key: 'pending', label: 'Pending' },
-  { key: 'confirmed', label: 'Confirmed' },
-  { key: 'to-receive', label: 'To receive' },
-  { key: 'delivered', label: 'Delivered' },
-  { key: 'completed', label: 'Completed' },
-  { key: 'cancelled', label: 'Cancelled' },
-  { key: 'refund-requested', label: 'Return Requested' },
-  { key: 'return-approved', label: 'Return Approved' },
-  { key: 'return-in-transit', label: 'Return In Transit' },
-  { key: 'return-received', label: 'Return Received' },
-  { key: 'refunded', label: 'Refunded' },
-];
+export type OrderListFilter = (typeof ORDER_LIST_FILTERS)[number]['key'];
+
+export const ORDER_FILTER_STATUSES: Record<Exclude<OrderListFilter, 'all'>, OrderStatus[]> = {
+  active: ['pending', 'confirmed', 'to-receive', 'delivered'],
+  past: ['completed', 'cancelled'],
+  returns: ['refund-requested', 'return-approved', 'return-in-transit', 'return-received', 'refunded'],
+};
 
 export const ORDER_STATUSES: OrderStatus[] = [
   'pending',

@@ -3,8 +3,9 @@
 import React from 'react';
 import { Alert, Empty, Skeleton } from 'antd';
 import { useSellerOrders } from '@/hooks/useSellerOrders';
-import { SellerOrderGroupKey, SELLER_ORDER_TABS, SELLER_ORDER_GROUP_LABELS } from '@/constants/sellerOrders';
+import { SELLER_ORDER_GROUP_LABELS } from '@/constants/sellerOrders';
 import { SellerOrderCard } from '@/components/seller/SellerOrderCard';
+import { OrderStatusTabs } from '@/components/orders/OrderStatusTabs';
 
 function OrdersSkeleton() {
   return (
@@ -36,16 +37,7 @@ export function SellerOrdersView() {
   } = useSellerOrders();
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-6 pb-16 space-y-5">
-      <div>
-        <p className="text-xs font-medium uppercase tracking-wide text-stone-400">Incoming</p>
-        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-stone-900">
-          Orders{' '}
-          <span className="text-stone-400 font-normal text-lg sm:text-xl">
-            ({orders.length})
-          </span>
-        </h1>
-      </div>
+    <div className="mx-auto max-w-5xl space-y-5 px-4 pb-16 pt-6 sm:px-6">
 
       {error && <Alert type="error" title={error} showIcon />}
 
@@ -67,50 +59,7 @@ export function SellerOrdersView() {
         </div>
       ) : (
         <>
-          <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0">
-            <button
-              type="button"
-              onClick={() => setActiveTab('all')}
-              className={`shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-colors cursor-pointer ${
-                activeTab === 'all'
-                  ? 'bg-[#2D6A4F] text-white'
-                  : 'bg-white text-stone-600 hover:bg-stone-100'
-              }`}
-            >
-              All
-              <span
-                className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full ${
-                  activeTab === 'all' ? 'bg-white/20 text-white' : 'bg-stone-100 text-stone-500'
-                }`}
-              >
-                {counts.all}
-              </span>
-            </button>
-            {SELLER_ORDER_TABS.map((tab) => {
-              const isActive = activeTab === tab.key;
-              return (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => setActiveTab(tab.key as SellerOrderGroupKey)}
-                  className={`shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-colors cursor-pointer ${
-                    isActive
-                      ? 'bg-[#2D6A4F] text-white'
-                      : 'bg-white text-stone-600 hover:bg-stone-100'
-                  }`}
-                >
-                  {tab.label}
-                  <span
-                    className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full ${
-                      isActive ? 'bg-white/20 text-white' : 'bg-stone-100 text-stone-500'
-                    }`}
-                  >
-                    {counts[tab.key]}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          <OrderStatusTabs activeTab={activeTab} counts={counts} onChange={setActiveTab} />
 
           {sortedOrders.length === 0 ? (
             <div className="rounded-2xl bg-white shadow-sm py-10">

@@ -5,7 +5,7 @@ import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { Order } from '@/types/order';
-import { SellerOrderGroupKey } from '@/constants/sellerOrders';
+import { SELLER_ORDER_FILTER_STATUSES, SellerOrderGroupKey } from '@/constants/sellerOrders';
 import { ORDER_ACTION_KEYS, OrderAction } from '@/constants/orders';
 import { usePendingAction } from '@/hooks/usePendingAction';
 import { toOrder } from '@/lib/convexSync';
@@ -30,31 +30,18 @@ export function useSellerOrders() {
   const error = raw instanceof Error ? raw.message : null;
 
   const counts = useMemo(() => {
-    const result: Record<SellerOrderGroupKey, number> = {
-      all: orders.length,
-      pending: 0,
-      confirmed: 0,
-      'to-receive': 0,
-      delivered: 0,
-      completed: 0,
-      cancelled: 0,
-      'refund-requested': 0,
-      refunded: 0,
-      'return-approved': 0,
-      'return-in-transit': 0,
-      'return-received': 0,
-    };
-    orders.forEach((order) => {
-      result[order.status] += 1;
-    });
+    const result: Record<SellerOrderGroupKey, number> = { all: orders.length, active: 0, past: 0, returns: 0 };
+    for (const order of orders) {
+      const filter = Object.entries(SELLER_ORDER_FILTER_STATUSES).find(([, statuses]) => statuses.includes(order.status));
+      if (filter) result[filter[0] as Exclude<SellerOrderGroupKey, 'all'>] += 1;
+    }
     return result;
   }, [orders]);
 
   const sortedOrders = useMemo(() => {
-    const visible =
-      activeTab === 'all'
-        ? orders
-        : orders.filter((order) => order.status === activeTab);
+    const visible = activeTab === 'all'
+      ? orders
+      : orders.filter((order) => SELLER_ORDER_FILTER_STATUSES[activeTab].includes(order.status));
     return [...visible].sort(
       (a, b) => new Date(b.placedAt).getTime() - new Date(a.placedAt).getTime()
     );

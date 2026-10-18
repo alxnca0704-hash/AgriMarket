@@ -52,6 +52,9 @@ while maintaining the seller order lifecycle and responsive buyer experience.
   refund request.
 - Profile: edit profile, address book with a single default address,
   address form modal.
+- Buyer order list and details redesigned with four grouped filters,
+  no summary dashboard, product summaries, muted status badges, visible
+  progress, and clearer payment, delivery, and return sections.
 
 ### Seller surface
 
@@ -62,7 +65,10 @@ while maintaining the seller order lifecycle and responsive buyer experience.
   cancelled, and total sales.
 - Product management: list, create, edit, archive/delete, mark out of
   stock, with Cloudinary multi-image upload.
-- Order management: confirm, reject with a reason, dispatch, complete.
+- Order management: confirm, reject with a reason, dispatch, complete;
+  order list and details now open without summary dashboards and use
+  grouped filters, muted status badges, product summaries, and a clear
+  fulfilment progress display.
 - Stall profile editing, earnings view, reviews view with reply,
   notifications view, settings.
 

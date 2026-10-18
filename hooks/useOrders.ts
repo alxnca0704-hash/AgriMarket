@@ -4,12 +4,10 @@ import { useCallback, useMemo, useState } from 'react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
-import { Order, OrderStatus } from '@/types/order';
-import { ORDER_ACTION_KEYS, OrderAction } from '@/constants/orders';
+import { Order } from '@/types/order';
+import { ORDER_ACTION_KEYS, ORDER_FILTER_STATUSES, ORDER_LIST_FILTERS, OrderAction, OrderListFilter } from '@/constants/orders';
 import { usePendingAction } from '@/hooks/usePendingAction';
 import { toOrder } from '@/lib/convexSync';
-
-export type OrderTabKey = 'all' | OrderStatus;
 
 export function useOrders() {
   const raw = useQuery(api.orders.listMyOrders);
@@ -18,7 +16,7 @@ export function useOrders() {
   const requestRefundMutation = useMutation(api.orders.requestRefund);
   const { run, isPending } = usePendingAction();
 
-  const [activeTab, setActiveTab] = useState<OrderTabKey>('all');
+  const [activeTab, setActiveTab] = useState<OrderListFilter>('all');
 
   const orders = useMemo(
     () => (Array.isArray(raw) ? raw.map(toOrder) : []),
@@ -29,29 +27,19 @@ export function useOrders() {
   const error = raw instanceof Error ? raw.message : null;
 
   const counts = useMemo(() => {
-    const result: Record<OrderTabKey, number> = {
-      all: orders.length,
-      pending: 0,
-      confirmed: 0,
-      'to-receive': 0,
-      delivered: 0,
-      completed: 0,
-      cancelled: 0,
-      'refund-requested': 0,
-      refunded: 0,
-      'return-approved': 0,
-      'return-in-transit': 0,
-      'return-received': 0,
-    };
-    orders.forEach((order) => {
-      result[order.status] += 1;
-    });
+    const result: Record<OrderListFilter, number> = { all: orders.length, active: 0, past: 0, returns: 0 };
+    for (const order of orders) {
+      const filter = ORDER_LIST_FILTERS.find(({ key }) =>
+        key !== 'all' && ORDER_FILTER_STATUSES[key].includes(order.status)
+      );
+      if (filter) result[filter.key] += 1;
+    }
     return result;
   }, [orders]);
 
   const visibleOrders = useMemo(() => {
     if (activeTab === 'all') return orders;
-    return orders.filter((order) => order.status === activeTab);
+    return orders.filter((order) => ORDER_FILTER_STATUSES[activeTab].includes(order.status));
   }, [orders, activeTab]);
 
   const handleCancel = (order: Order, reason: string) =>
