@@ -66,7 +66,13 @@ export function SellerOrderActions({
   return (
     <div className={compact ? 'flex flex-wrap items-center justify-end gap-2' : 'flex flex-wrap gap-2.5'}>
       {order.status === 'pending' && (
-        <>
+        order.payment.method === 'gcash' && order.payment.status !== 'paid' ? (
+          <p className="w-full rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            {order.payment.status === 'rejected'
+              ? 'GCash proof was rejected. The buyer must resubmit payment proof before fulfilment can begin.'
+              : 'Waiting for admin approval of GCash payment before fulfilment can begin.'}
+          </p>
+        ) : <>
           <Button
             type="primary"
             size={compact ? 'middle' : 'large'}

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { App } from 'antd';
-import { useMutation } from 'convex/react';
+import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { toDeliveryAddress, toOrder } from '@/lib/convexSync';
 import { useCart } from '@/hooks/useCart';
@@ -18,6 +18,7 @@ import {
 } from '@/lib/mockSession';
 import { fetchProvinces, fetchCities, fetchBarangays } from '@/lib/phAddress';
 import { formatAddressSummary } from '@/lib/format';
+import { PaymentMethod } from '@/types/order';
 
 function validateDeliveryAddress(
   delivery: DeliveryAddress
@@ -73,6 +74,7 @@ export function useCheckout() {
   const { user, groups } = useCart();
   const { message } = App.useApp();
   const placeOrdersMutation = useMutation(api.orders.placeOrders);
+  const gcashSettings = useQuery(api.orders.getPublicGcashSettings, {});
   const { current, isAuthedWithConvex } = useConvexUserSync();
   const addAddressMutation = useMutation(api.users.addAddress);
   const updateAddressMutation = useMutation(api.users.updateAddress);
@@ -136,11 +138,38 @@ export function useCheckout() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [isPlacing, setIsPlacing] = useState(false);
   const [placedOrders, setPlacedOrders] = useState<Order[] | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cod');
+  const [paymentNote, setPaymentNote] = useState('');
+  const [paymentReference, setPaymentReference] = useState('');
+  const copyGcashNumber = async () => {
+    if (!gcashSettings?.number) return;
+    try {
+      await navigator.clipboard.writeText(gcashSettings.number);
+      message.success('GCash number copied');
+    } catch {
+      message.error('Could not copy the GCash number.');
+    }
+  };
+  const copyPaymentNote = async () => {
+    try {
+      await navigator.clipboard.writeText(paymentNote);
+      message.success('Payment note copied');
+    } catch {
+      message.error('Could not copy the payment note.');
+    }
+  };
 
   useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 300);
     return () => clearTimeout(timer);
   }, []);
+
+  const handlePaymentMethodChange = (method: PaymentMethod) => {
+    setPaymentMethod(method);
+    if (method === 'gcash' && !paymentNote) {
+      setPaymentNote(`AG-${crypto.randomUUID().replaceAll('-', '').slice(0, 12).toUpperCase()}`);
+    }
+  };
 
   const selectedAddress = addresses[selectedIndex] ?? addresses[0];
 
@@ -460,6 +489,11 @@ export function useCheckout() {
       const created = await placeOrdersMutation({
         address: { ...selectedAddress, label: selectedAddress.label ?? 'Home' },
         notes: trimmedNotes,
+        paymentMethod,
+        ...(paymentMethod === 'gcash' ? {
+          paymentReference: paymentReference.trim(),
+          paymentNote,
+        } : {}),
       });
 
       const mapped = (Array.isArray(created) ? created : []).map(toOrder);
@@ -505,6 +539,14 @@ export function useCheckout() {
     isBarangaysLoading,
     confirmOpen,
     isPlacing,
+    gcashSettings,
+    paymentMethod,
+    setPaymentMethod: handlePaymentMethodChange,
+    paymentReference,
+    setPaymentReference,
+    paymentNote,
+    copyGcashNumber,
+    copyPaymentNote,
     placedOrders,
     updateDraftField,
     handleSelectRegion,

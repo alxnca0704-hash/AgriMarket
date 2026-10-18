@@ -9,6 +9,7 @@ import {
 } from '@ant-design/icons';
 import { DeliveryAddress } from '@/types/auth';
 import { formatAddressSummary, formatPrice } from '@/lib/format';
+import { PaymentMethod } from '@/types/order';
 
 interface ConfirmOrderModalProps {
   open: boolean;
@@ -17,6 +18,7 @@ interface ConfirmOrderModalProps {
   isDefault: boolean;
   total: number;
   itemCount: number;
+  paymentMethod: PaymentMethod;
   onClose: () => void;
   onConfirm: () => void;
 }
@@ -28,6 +30,7 @@ export function ConfirmOrderModal({
   isDefault,
   total,
   itemCount,
+  paymentMethod,
   onClose,
   onConfirm,
 }: ConfirmOrderModalProps) {
@@ -81,14 +84,15 @@ export function ConfirmOrderModal({
 
         <div className="flex items-center justify-between text-sm">
           <span className="text-stone-600">
-            {itemCount} {itemCount === 1 ? 'item' : 'items'} · Cash on Delivery
+            {itemCount} {itemCount === 1 ? 'item' : 'items'} · {paymentMethod === 'gcash' ? 'GCash' : 'Cash on Delivery'}
           </span>
           <span className="text-lg font-bold text-stone-900">{formatPrice(total)}</span>
         </div>
 
         <p className="text-xs text-stone-400 leading-relaxed -mt-1">
-          You&apos;ll pay {formatPrice(total)} to the courier in cash when your
-          order arrives. Orders ship separately per farm.
+          {paymentMethod === 'gcash'
+            ? 'Your GCash transfer and receipt will be reviewed after you place the order.'
+            : `You’ll pay ${formatPrice(total)} to the courier in cash when your order arrives.`} Orders ship separately per farm.
         </p>
 
         <div className="flex flex-col-reverse sm:flex-row gap-2.5 pt-1">

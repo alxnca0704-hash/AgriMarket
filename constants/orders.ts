@@ -2,6 +2,7 @@ import { OrderStatus } from '@/types/order';
 
 export const PAYMENT_METHOD = {
   COD: 'cod',
+  GCASH: 'gcash',
 } as const;
 
 export type PaymentMethod = (typeof PAYMENT_METHOD)[keyof typeof PAYMENT_METHOD];

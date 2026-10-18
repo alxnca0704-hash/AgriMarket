@@ -102,6 +102,14 @@ export function CheckoutView() {
     isBarangaysLoading,
     confirmOpen,
     isPlacing,
+    gcashSettings,
+    paymentMethod,
+    setPaymentMethod,
+    paymentReference,
+    setPaymentReference,
+    paymentNote,
+    copyGcashNumber,
+    copyPaymentNote,
     placedOrders,
     updateDraftField,
     handleSelectRegion,
@@ -210,7 +218,17 @@ export function CheckoutView() {
             />
           ))}
 
-          <PaymentMethodCard total={total} />
+          <PaymentMethodCard
+            total={total}
+            paymentMethod={paymentMethod}
+            onPaymentMethodChange={setPaymentMethod}
+            gcashSettings={gcashSettings}
+            paymentReference={paymentReference}
+            onPaymentReferenceChange={setPaymentReference}
+            paymentNote={paymentNote}
+            onCopyPaymentNote={copyPaymentNote}
+            onCopyNumber={copyGcashNumber}
+          />
         </div>
 
         <div className="lg:col-span-4">
@@ -219,7 +237,8 @@ export function CheckoutView() {
             deliveryFee={deliveryFee}
             total={total}
             itemCount={itemCount}
-            disabled={!detailsConfirmed || editMode}
+            paymentMethod={paymentMethod}
+            disabled={!detailsConfirmed || editMode || (paymentMethod === 'gcash' && (!gcashSettings || !paymentNote || !paymentReference.trim()))}
             onPlaceOrder={openConfirm}
           />
         </div>
@@ -232,6 +251,7 @@ export function CheckoutView() {
         isDefault={selectedAddress != null && selectedIndex === defaultIndex}
         total={total}
         itemCount={itemCount}
+        paymentMethod={paymentMethod}
         onClose={closeConfirm}
         onConfirm={placeOrder}
       />

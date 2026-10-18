@@ -172,7 +172,14 @@ export function toOrder(order: OrderDoc): Order {
     subtotal: order.subtotal,
     deliveryFee: order.deliveryFee,
     total: order.total,
-    payment: { method: order.paymentMethod, status: order.paymentStatus },
+      payment: {
+        method: order.paymentMethod,
+        status: order.paymentStatus,
+        ...(order.paymentReference ? { reference: order.paymentReference } : {}),
+        ...(order.paymentNote ? { note: order.paymentNote } : {}),
+        ...(order.paymentSubmittedAt ? { submittedAt: order.paymentSubmittedAt } : {}),
+        ...(order.paymentRejectionReason ? { rejectionReason: order.paymentRejectionReason } : {}),
+      },
     address: {
       label: toAddressLabel(order.address.label),
       receiverName: order.address.receiverName,

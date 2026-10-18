@@ -26,9 +26,9 @@ export function OrderSuccess({ orders, onTrackOrders, onContinueShopping }: Orde
           Order placed!
         </h1>
         <p className="mt-1.5 text-sm text-stone-500 leading-relaxed">
-          We&apos;ve sent your order to the farmers. Pay{' '}
-          <strong className="text-stone-800">{formatPrice(totalPaid)}</strong> to the courier
-          in cash when it arrives.
+          {orders[0]?.payment.method === 'gcash'
+            ? `We’ve sent your order to the farmers. Your ${formatPrice(totalPaid)} GCash payment is awaiting verification.`
+            : <>We&apos;ve sent your order to the farmers. Pay <strong className="text-stone-800">{formatPrice(totalPaid)}</strong> to the courier in cash when it arrives.</>}
         </p>
 
         <div className="mt-6 text-left space-y-2.5">

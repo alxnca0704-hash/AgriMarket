@@ -11,6 +11,7 @@ interface PlaceOrderBarProps {
   deliveryFee: number;
   total: number;
   itemCount: number;
+  paymentMethod?: 'cod' | 'gcash';
   disabled?: boolean;
   onPlaceOrder: () => void;
 }
@@ -56,8 +57,8 @@ export function PlaceOrderBar(props: PlaceOrderBarProps) {
       <div className="lg:hidden fixed bottom-0 inset-x-0 z-20 bg-white/95 backdrop-blur-md shadow-[0_-4px_25px_rgba(0,0,0,0.08)] pb-[env(safe-area-inset-bottom)]">
         <div className="max-w-6xl mx-auto px-4 py-3 space-y-2.5">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-stone-500">
-              {props.itemCount} {props.itemCount === 1 ? 'item' : 'items'} · Cash on Delivery
+          <span className="text-stone-500">
+            {props.itemCount} {props.itemCount === 1 ? 'item' : 'items'} · {props.paymentMethod === 'gcash' ? 'GCash' : 'Cash on Delivery'}
             </span>
             <span className="text-lg font-bold text-stone-900">
               {formatPrice(props.total)}

@@ -66,6 +66,7 @@ export function useOrderDetail(orderId: string) {
   const confirmDeliveryMutation = useMutation(api.orders.confirmDelivery);
   const requestRefundMutation = useMutation(api.orders.requestRefund);
   const submitReviewMutation = useMutation(api.reviews.submitReview);
+  const resubmitPaymentMutation = useMutation(api.orders.resubmitGcashPayment);
   const { run, isPending } = usePendingAction();
 
   // Review modal state — per product
@@ -75,10 +76,27 @@ export function useOrderDetail(orderId: string) {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [paymentReference, setPaymentReference] = useState('');
+  const [isResubmittingPayment, setIsResubmittingPayment] = useState(false);
 
   const isLoading = !skip && raw === undefined;
   const order: Order | undefined = !skip && raw ? toOrder(raw) : undefined;
   const error = raw instanceof Error ? raw.message : null;
+  const handleResubmitPayment = async () => {
+    if (!order) return;
+    setIsResubmittingPayment(true);
+    try {
+      await resubmitPaymentMutation({
+        orderId: order.id as Id<'orders'>,
+        paymentReference: paymentReference.trim(),
+      });
+      message.success('Payment proof resubmitted for verification.');
+    } catch (submitError) {
+      message.error(submitError instanceof Error ? submitError.message : 'Could not resubmit payment proof.');
+    } finally {
+      setIsResubmittingPayment(false);
+    }
+  };
   const notFound = skip || (!isLoading && !order);
   const reviews: Review[] = Array.isArray(rawReviews) ? rawReviews.map(toReview) : [];
   const reviewsByProductId = new Map<string, Review>();
@@ -190,5 +208,9 @@ export function useOrderDetail(orderId: string) {
     handleConfirmDelivery,
     handleRequestRefund,
     isActionPending,
+    paymentReference,
+    setPaymentReference,
+    isResubmittingPayment,
+    handleResubmitPayment,
   };
 }

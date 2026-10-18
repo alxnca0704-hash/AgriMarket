@@ -22,6 +22,16 @@ region/province/city/barangay cascades, prices are in PHP peso, mobile
 numbers are validated as `+63 9XXXXXXXXX`, and delivery is
 courier-handled with per-stall fees.
 
+For GCash, checkout displays the expected amount, configured QR and number,
+and a unique payment note. Buyers submit only the transaction reference
+number. Admins verify the reference against the expected amount in their
+GCash transaction history, then approve or reject with a reason; rejected
+payments can be resubmitted with a new reference. The order shows Pending
+verification until admin approval. Approval releases the
+orders to the seller for confirmation and fulfilment. New submissions
+appear in the admin payment queue, and buyers see approval or rejection
+in their live order details.
+
 ### Roles
 
 | Role | Access | Responsibilities |

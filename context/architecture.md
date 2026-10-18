@@ -60,8 +60,12 @@
 - **Admin GCash configuration**: the singleton `gcashSettings` document
   stores the QR Cloudinary URL and mobile number. `adminAuditLog` records
   each change with the verified allowlisted admin email and before/after
-  values. This configuration does not enable buyer GCash checkout or
-  payment verification by itself.
+  values. GCash orders store a unique checkout payment note, reference,
+  submission status, and review events. The expected amount is derived from
+  stored order totals and checked manually in GCash; buyers submit no amount,
+  sender details, or receipt. The checkout's seller orders update atomically; only
+  admin approval marks payment paid. COD remains unpaid until delivery
+  confirmation.
 - **In-memory demo layer** (`lib/mockSession.ts`, `lib/mockCatalog.ts`,
   `lib/mockEarnings.ts`, `lib/mockNotifications.ts`, `lib/demoSeed.ts`):
   backs the landing page and any unauthenticated or not-yet-migrated
@@ -86,9 +90,9 @@
   (`carbonellalex955@gmail.com`) and receives Clerk `publicMetadata.role`
   only after a successful authenticated sign-in. `/admin` checks both
   the allowlisted primary email and admin metadata server-side. GCash
-  settings reads and writes also check the allowlisted, verified email
-  inside Convex; other admin workflows remain unimplemented until
-  specified.
+  settings and payment review functions also check the allowlisted,
+  verified email inside Convex; payout, refund, and seller verification
+  workflows remain unimplemented until specified.
 - Ownership is always checked inside the function, never inferred from
   the caller: `getBuyerOrder` (`order.buyerId === buyerId`),
   `requireSellerOrder` (`order.sellerId === sellerId`),
@@ -113,9 +117,12 @@
 4. **Status transitions are guarded.** Every mutation calls
    `assertStatus(order, expected)` and appends to `order.events`.
    Illegal transitions throw and never mutate.
-5. **Payment state is server-authoritative.** Cash on Delivery (COD)
-   is the payment method; `paymentStatus` starts as `unpaid` and becomes
-   `paid` when the buyer confirms delivery.
+5. **Payment state is server-authoritative.** COD orders start `unpaid`
+   and become `paid` when the buyer confirms delivery. GCash orders start
+   `pending` after the buyer submits a reference, exact total, sender
+   identity, and receipt; only admin approval may mark them paid or
+   unlock seller confirmation. Rejected submissions retain a reason and
+   can be resubmitted by the buyer.
 6. **Images never enter the database as bytes.** Cloudinary holds the
    file; Convex holds a `secure_url` string.
 7. **Timestamps are ISO 8601 strings** from `new Date().toISOString()`,

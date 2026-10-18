@@ -194,15 +194,17 @@ export function SellerOrderDetailView({ orderId }: { orderId: string }) {
               <div>
                 <h2 className="text-sm font-semibold text-stone-900">Payment</h2>
                 <p className="text-xs text-stone-400">
-                  {order.status === 'cancelled' ? 'No payment was taken' : 'Cash on Delivery'}
+                  {order.status === 'cancelled' ? 'No payment was taken' : order.payment.method === 'gcash' ? 'GCash payment' : 'Cash on Delivery'}
                 </p>
               </div>
             </div>
             <div className="rounded-xl bg-stone-50/80 p-4 text-sm">
               {order.payment.status === 'paid' ? (
-                <p className="text-stone-700">
-                  <strong className="font-semibold text-stone-900">Paid</strong> — cash received by the courier.
-                </p>
+                <p className="text-stone-700"><strong className="font-semibold text-stone-900">Paid</strong> — {order.payment.method === 'gcash' ? 'GCash payment verified.' : 'cash received by the courier.'}</p>
+              ) : order.payment.method === 'gcash' ? (
+                <div className="space-y-2 text-stone-700">
+                  <p><strong className="font-semibold text-stone-900">{order.payment.status === 'pending' ? 'Awaiting verification' : order.payment.status === 'rejected' ? 'Payment proof rejected' : 'Unpaid'}</strong> · Reference {order.payment.reference ?? 'not provided'}</p>
+                </div>
               ) : (
                 <p className="text-stone-700">
                   <strong className="font-semibold text-stone-900">{formatPrice(order.total)}</strong> to collect on delivery.

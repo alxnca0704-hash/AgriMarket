@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Drawer, Layout, Menu } from 'antd';
+import { Badge, Drawer, Layout, Menu } from 'antd';
 import type { MenuProps } from 'antd';
 import {
   AccountBookOutlined,
@@ -17,6 +17,7 @@ import {
 } from '@ant-design/icons';
 import { BrandMark } from '@/components/BrandMark';
 import { APP_ROUTES } from '@/constants/routes';
+import { useAdminShell } from '@/hooks/useAdminShell';
 
 const { Sider, Content } = Layout;
 
@@ -36,10 +37,15 @@ function resolveActiveKey(pathname: string): string | null {
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { pendingGcashCount } = useAdminShell();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const navItems: MenuProps['items'] = useMemo(
-    () => TABS.map((tab) => ({ key: tab.key, label: tab.label, icon: tab.icon })),
-    []
+    () => TABS.map((tab) => ({
+      key: tab.key,
+      label: tab.key === 'payments' ? <span className="flex items-center gap-3">{tab.label}<Badge count={pendingGcashCount} size="small" /></span> : tab.label,
+      icon: tab.icon,
+    })),
+    [pendingGcashCount]
   );
   const handleNavigate: MenuProps['onClick'] = ({ key }) => {
     const tab = TABS.find((item) => item.key === key);

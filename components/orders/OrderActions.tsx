@@ -72,7 +72,9 @@ export function OrderActions({
       )}
 
       {order.status === 'pending' && (
-        <Button
+        order.payment.method === 'gcash' ? (
+          <span className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">Contact support to cancel a GCash order.</span>
+        ) : <Button
           size={compact ? 'middle' : 'large'}
           onClick={openCancel}
           disabled={cancelPending}

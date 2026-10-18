@@ -10,7 +10,8 @@ export type OrderStatus =
   | 'refund-requested'
   | 'refunded';
 
-export type PaymentStatus = 'unpaid' | 'paid';
+export type PaymentStatus = 'unpaid' | 'pending' | 'paid' | 'rejected';
+export type PaymentMethod = 'cod' | 'gcash';
 
 export interface OrderLineItem {
   productId: string;
@@ -40,8 +41,12 @@ export interface Order {
   deliveryFee: number;
   total: number;
   payment: {
-    method: 'cod';
+    method: PaymentMethod;
     status: PaymentStatus;
+    reference?: string;
+    note?: string;
+    submittedAt?: string;
+    rejectionReason?: string;
   };
   address: DeliveryAddress;
   note?: string;

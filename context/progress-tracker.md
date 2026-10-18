@@ -9,8 +9,8 @@ full Cash-on-Delivery order lifecycle are built and wired to Convex.
 
 ## Current Goal
 
-Maintain the core Cash-on-Delivery marketplace lifecycle, seller
-onboarding, product catalog management, and responsive buyer experience.
+Support COD and GCash checkout, including buyer-submitted payment proof,
+while maintaining the seller order lifecycle and responsive buyer experience.
 
 ## Completed
 
@@ -77,15 +77,22 @@ onboarding, product catalog management, and responsive buyer experience.
   `delivered`.
 - Stock decremented on seller confirm, restored on cancel, reject, and
   refund approval.
-- COD only: `paymentStatus` flips to `paid` when the buyer confirms
-  delivery.
+- COD `paymentStatus` flips to `paid` when the buyer confirms delivery.
+- GCash checkout is in scope: select the method, download the configured
+  QR, copy the configured account number, view the expected total, and
+  submit the unique payment note and transaction reference number only.
+- Live admin payment notifications, approval, rejection with a reason,
+  seller fulfilment unlock, and buyer resubmission are implemented.
+- Buyer and seller order details show the GCash reference and payment
+  review state. Buyer resubmission requires a new reference number only.
 - Reviews with 1–5 stars, an optional product reference, and a single
   seller reply.
 - Admin sign-in promotes the verified, allowlisted Clerk account and
   routes to `/admin`, with a server-guarded admin shell and sidebar links
   for GCash account management, payment verification, payout approval,
   refund decisions, and seller verification. GCash account management is
-  implemented below; the other destinations are blank placeholders.
+  implemented. Payment review is implemented; payout, refund, and seller
+  verification destinations remain placeholders.
 
 ### Reliability
 
@@ -111,9 +118,8 @@ onboarding, product catalog management, and responsive buyer experience.
 - The GCash account page lets the verified allowlisted admin upload a QR
   image to Cloudinary and save it with a Philippine mobile number in
   Convex. Reads and writes recheck the verified admin email in Convex;
-  each update appends an audit entry with prior and new values. This
-  configuration does not implement buyer GCash checkout. The settings
-  screen uses a responsive account form beside a portrait QR preview
+  each update appends an audit entry with prior and new values. The
+  settings screen uses a responsive account form beside a portrait QR preview
   sized to 720 × 1256 pixels, with Geist Sans typography throughout.
 
 ## In Progress
@@ -128,16 +134,16 @@ onboarding, product catalog management, and responsive buyer experience.
 
 ## Next Up
 
-- Implement admin payment review, payout handling, refund decisions, and
-  seller verification after their data and audit requirements are
-  specified.
+- Implement payout handling, refund decisions, and seller verification
+  after their data and audit requirements are specified.
 - Move seller earnings and notifications off the mock layer in lib/ onto Convex.
 - Add an actor that moves stall verification status to verified.
 - Replace the demo/mock session layer with Convex-only reads for signed-in users.
 
 ## Open Questions
 
-- None at this time.
+- How canceled GCash orders with a submitted transfer should be
+  reconciled still needs a defined refund process.
 
 ## Architecture Decisions
 
@@ -157,8 +163,11 @@ onboarding, product catalog management, and responsive buyer experience.
 - **Append-only `events` array on the order** — a single audit trail
   that powers the timeline, the status tabs, and future notifications
   without a separate history table.
-- **COD as the payment method** — Cash on Delivery with payment status
-  transition to `paid` upon delivery confirmation.
+- **COD and manual GCash proof as payment methods** — COD becomes paid
+  when delivery is confirmed; GCash uses one payment per checkout, linked
+  to each seller order with a unique payment note. Submission awaits
+  admin review; approval marks it paid and unlocks fulfilment. Rejection
+  is reasoned and resubmittable.
 - **Cloudinary for media, Convex for URLs** — keeps documents small and
   lets images be transformed and cached at the CDN.
 - **Clerk `publicMetadata.role` mirrored into `users.role`** — Clerk
@@ -173,7 +182,15 @@ onboarding, product catalog management, and responsive buyer experience.
 
 ## Session Notes
 
-- Cash on Delivery is the sole payment method; PayMongo/GCash modules have been removed.
+- GCash checkout reuses the admin-configured account and QR; buyers submit
+  a reference number only. Admins compare it and the displayed expected
+  amount against their GCash transaction history. A unique payment note
+  and append-only review history link the seller orders. Admin payment
+  status changes appear in the buyer's reactive order view.
+- GCash proof collection was simplified: no buyer-entered amount, sender
+  identity, receipt upload, or receipt image is collected. Admins see the
+  expected amount calculated from grouped order totals and verify the
+  submitted reference manually.
 - Verification for this project is `npm run build` + `npm run lint`
   plus a manual walkthrough — there is no test script.
 - `convex/_generated/ai/guidelines.md` must be read before touching any

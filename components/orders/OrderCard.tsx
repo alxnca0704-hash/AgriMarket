@@ -42,12 +42,19 @@ export function OrderCard({
           </span>
           <RightOutlined className="text-[10px] text-stone-300" />
         </button>
-        <Tag
-          color={ORDER_STATUS_TAG_COLORS[order.status]}
-          className="!m-0 !border-none !rounded-full !px-2.5 !py-0.5 !text-xs !font-semibold shrink-0"
-        >
-          {ORDER_STATUS_LABELS[order.status]}
-        </Tag>
+        <span className="flex shrink-0 flex-wrap justify-end gap-1.5">
+          <Tag
+            color={ORDER_STATUS_TAG_COLORS[order.status]}
+            className="!m-0 !border-none !rounded-full !px-2.5 !py-0.5 !text-xs !font-semibold"
+          >
+            {ORDER_STATUS_LABELS[order.status]}
+          </Tag>
+          {order.payment.method === 'gcash' && (
+            <Tag color={order.payment.status === 'paid' ? 'success' : order.payment.status === 'rejected' ? 'error' : 'gold'} className="!m-0 !border-none !rounded-full !px-2 !py-0.5 !text-xs">
+              {order.payment.status === 'paid' ? 'GCash paid' : order.payment.status === 'rejected' ? 'Proof rejected' : 'Pending verification'}
+            </Tag>
+          )}
+        </span>
       </div>
 
       <div className="px-4 sm:px-5 py-4 flex items-center gap-3">

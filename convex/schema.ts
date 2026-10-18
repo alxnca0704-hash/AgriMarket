@@ -74,8 +74,23 @@ export default defineSchema({
     subtotal: v.number(),
     deliveryFee: v.number(),
     total: v.number(),
-    paymentMethod: v.literal("cod"),
-    paymentStatus: v.union(v.literal("unpaid"), v.literal("paid")),
+    paymentMethod: v.union(v.literal("cod"), v.literal("gcash")),
+    paymentStatus: v.union(v.literal("unpaid"), v.literal("pending"), v.literal("paid"), v.literal("rejected")),
+    paymentReference: v.optional(v.string()),
+    paymentReceiptUrl: v.optional(v.string()),
+    paymentAmount: v.optional(v.number()),
+    paymentSenderName: v.optional(v.string()),
+    paymentSenderNumber: v.optional(v.string()),
+    paymentNote: v.optional(v.string()),
+    paymentSubmittedAt: v.optional(v.string()),
+    paymentRejectionReason: v.optional(v.string()),
+    paymentReviewEvents: v.optional(v.array(v.object({
+      status: v.union(v.literal("pending"), v.literal("paid"), v.literal("rejected")),
+      label: v.string(),
+      at: v.string(),
+      actorEmail: v.optional(v.string()),
+      reason: v.optional(v.string()),
+    }))),
     address: deliveryAddressValidator,
     note: v.optional(v.string()),
     status: orderStatusValidator,
@@ -96,7 +111,10 @@ export default defineSchema({
   })
     .index("by_buyerId", ["buyerId"])
     .index("by_sellerId", ["sellerId"])
-    .index("by_stallId", ["stallId"]),
+    .index("by_stallId", ["stallId"])
+    .index("by_paymentReference", ["paymentReference"])
+    .index("by_paymentNote", ["paymentNote"])
+    .index("by_paymentMethod_and_paymentStatus", ["paymentMethod", "paymentStatus"]),
 
   reviews: defineTable({
     orderId: v.id("orders"),

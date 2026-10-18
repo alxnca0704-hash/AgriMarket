@@ -85,9 +85,29 @@ export const placeOrders = mutation({
   args: {
     address: deliveryAddressValidator,
     notes: v.record(v.string(), v.string()),
+    paymentMethod: v.union(v.literal("cod"), v.literal("gcash")),
+    paymentReference: v.optional(v.string()),
+    paymentNote: v.optional(v.string()),
   },
   async handler(ctx, args) {
     const user = await requireUser(ctx);
+    const paymentReference = args.paymentReference?.trim();
+    const paymentNote = args.paymentNote?.trim();
+    if (args.paymentMethod === "gcash") {
+      if (!paymentReference || paymentReference.length < 4 || paymentReference.length > 40 || !paymentNote || !/^AG-[A-Z0-9]{12}$/.test(paymentNote)) {
+        throw new Error("GCash reference number and payment note are required.");
+      }
+      const existingNote = await ctx.db.query("orders")
+        .withIndex("by_paymentNote", (q) => q.eq("paymentNote", paymentNote))
+        .first();
+      if (existingNote) throw new Error("Payment note collision. Please refresh checkout and try again.");
+      const existingReference = await ctx.db.query("orders")
+        .withIndex("by_paymentReference", (q) => q.eq("paymentReference", paymentReference))
+        .first();
+      if (existingReference) {
+        throw new Error("This GCash reference number has already been submitted.");
+      }
+    }
 
     const cartItems = await ctx.db
       .query("cartItems")
@@ -152,8 +172,11 @@ export const placeOrders = mutation({
         subtotal,
         deliveryFee,
         total: subtotal + deliveryFee,
-        paymentMethod: "cod",
-        paymentStatus: "unpaid",
+        paymentMethod: args.paymentMethod,
+        paymentStatus: args.paymentMethod === "gcash" ? "pending" : "unpaid",
+        ...(args.paymentMethod === "gcash" ? {
+          paymentReference,
+        } : {}),
         address: args.address,
         ...(note ? { note } : {}),
         status: "pending",
@@ -162,6 +185,22 @@ export const placeOrders = mutation({
         updatedAt: now,
       });
       createdIds.push(orderId);
+    }
+
+    if (args.paymentMethod === "gcash") {
+      const storedOrders: Doc<"orders">[] = [];
+      for (const id of createdIds) {
+        const order = await ctx.db.get("orders", id);
+        if (order) storedOrders.push(order);
+      }
+      const now = new Date().toISOString();
+      for (const order of storedOrders) {
+        await ctx.db.patch("orders", order._id, {
+          paymentNote,
+          paymentSubmittedAt: now,
+          paymentReviewEvents: [{ status: "pending", label: "Payment submitted", at: now }],
+        });
+      }
     }
 
     for (const item of cartItems) {
@@ -174,6 +213,67 @@ export const placeOrders = mutation({
       if (order !== null) orders.push(order);
     }
     return orders;
+  },
+});
+
+export const resubmitGcashPayment = mutation({
+  args: {
+    orderId: v.id("orders"),
+    paymentReference: v.string(),
+  },
+  async handler(ctx, args) {
+    const user = await requireUser(ctx);
+    const order = await getBuyerOrder(ctx, user._id, args.orderId);
+    if (order.paymentMethod !== "gcash" || order.paymentStatus !== "rejected" || !order.paymentNote) {
+      throw new Error("This GCash payment cannot be resubmitted.");
+    }
+    const paymentReference = args.paymentReference.trim();
+    if (!paymentReference) {
+      throw new Error("Enter a new GCash reference number.");
+    }
+    if (paymentReference.length < 4 || paymentReference.length > 40) {
+      throw new Error("Enter a valid GCash reference number.");
+    }
+    if (paymentReference === order.paymentReference) {
+      throw new Error("Enter the new reference number for the replacement transfer.");
+    }
+    const siblings = await ctx.db.query("orders")
+      .withIndex("by_paymentNote", (q) => q.eq("paymentNote", order.paymentNote))
+      .take(200);
+    if (siblings.some((sibling) => sibling.buyerId !== user._id || sibling.paymentStatus !== "rejected" || sibling.status === "cancelled")) {
+      throw new Error("The checkout payment group is not eligible for resubmission.");
+    }
+    const existingReference = await ctx.db.query("orders")
+      .withIndex("by_paymentReference", (q) => q.eq("paymentReference", paymentReference))
+      .first();
+    if (existingReference) {
+      throw new Error("This GCash reference number has already been submitted.");
+    }
+    const now = new Date().toISOString();
+    for (const sibling of siblings) {
+      await ctx.db.patch("orders", sibling._id, {
+        paymentStatus: "pending",
+        paymentReference,
+        paymentSubmittedAt: now,
+        paymentRejectionReason: undefined,
+        paymentReviewEvents: [
+          ...(sibling.paymentReviewEvents ?? []),
+          { status: "pending", label: "Payment proof resubmitted", at: now },
+        ],
+        updatedAt: now,
+      });
+    }
+    return null;
+  },
+});
+
+export const getPublicGcashSettings = query({
+  args: {},
+  async handler(ctx) {
+    const settings = await ctx.db.query("gcashSettings")
+      .withIndex("by_key", (q) => q.eq("key", "primary"))
+      .first();
+    return settings ? { qrUrl: settings.qrUrl, number: settings.number } : null;
   },
 });
 
@@ -231,6 +331,9 @@ export const cancelOrder = mutation({
     const user = await requireUser(ctx);
     const order = await getBuyerOrder(ctx, user._id, args.orderId);
     assertStatus(order, "pending");
+    if (order.paymentMethod === "gcash") {
+      throw new Error("GCash orders cannot be cancelled while payment approval and refunds are handled by support.");
+    }
 
     await restoreStock(ctx, order);
     const now = new Date().toISOString();
@@ -259,11 +362,11 @@ export const confirmDelivery = mutation({
     const now = new Date().toISOString();
     await ctx.db.patch("orders", order._id, {
       status: "delivered",
-      paymentStatus: "paid",
+      ...(order.paymentMethod === "cod" ? { paymentStatus: "paid" as const } : {}),
       deliveredAt: now,
       events: [
         ...order.events,
-        { status: "delivered", label: "Delivered · payment received", at: now },
+        { status: "delivered", label: order.paymentMethod === "cod" ? "Delivered · payment received" : "Delivery confirmed", at: now },
       ],
       updatedAt: now,
     });
@@ -277,6 +380,9 @@ export const confirmOrder = mutation({
     const user = await requireUser(ctx);
     const order = await requireSellerOrder(ctx, user._id, args.orderId);
     assertStatus(order, "pending");
+    if (order.paymentMethod === "gcash" && order.paymentStatus !== "paid") {
+      throw new Error("GCash payment must be approved before this order can be confirmed.");
+    }
 
     const reserved: Array<{ product: Doc<"products">; qty: number }> = [];
     for (const item of order.items) {

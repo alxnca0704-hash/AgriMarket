@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { Alert, Button, Rate, Result, Skeleton, Tag } from 'antd';
+import { Alert, Button, Input, Rate, Result, Skeleton, Tag } from 'antd';
 import {
   ArrowLeftOutlined,
   BankOutlined,
@@ -62,6 +62,10 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
     handleCancel,
     handleRequestRefund,
     isActionPending,
+    paymentReference,
+    setPaymentReference,
+    isResubmittingPayment,
+    handleResubmitPayment,
   } = useOrderDetail(orderId);
 
   if (isLoading) return <DetailSkeleton />;
@@ -212,15 +216,21 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
                     ? 'No payment was taken'
                     : order.payment.status === 'paid'
                     ? 'Already paid'
+                    : order.payment.status === 'pending'
+                    ? 'Awaiting GCash verification'
+                    : order.payment.status === 'rejected'
+                    ? 'Payment proof rejected'
                     : 'Pay on delivery'}
                 </p>
               </div>
             </div>
             <div className="rounded-xl bg-stone-50/80 p-4 flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold text-stone-900">Cash on Delivery</p>
+                <p className="text-sm font-semibold text-stone-900">{order.payment.method === 'gcash' ? 'GCash' : 'Cash on Delivery'}</p>
                 <p className="text-xs text-stone-500 mt-0.5">
-                  {order.payment.status === 'paid'
+                  {order.payment.method === 'gcash'
+                    ? `Reference ${order.payment.reference ?? 'submitted'} · ${order.payment.status === 'paid' ? 'Payment approved.' : order.payment.status === 'rejected' ? 'Please review the rejection reason below.' : 'Receipt submitted for review.'}`
+                    : order.payment.status === 'paid'
                     ? 'Payment settled — cash received by the courier.'
                     : `Pay ${formatPrice(order.total)} in cash when it arrives.`}
                 </p>
@@ -231,11 +241,33 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
                 </Tag>
               ) : (
                 <Tag className="!m-0 !border-none !rounded-full !text-xs !font-semibold">
-                  Unpaid
+                  {order.payment.status === 'pending' ? 'Under review' : order.payment.status === 'rejected' ? 'Rejected' : 'Unpaid'}
                 </Tag>
               )}
             </div>
+            {order.payment.method === 'gcash' && (
+              <div className="mt-3 space-y-1 text-xs text-stone-500">
+                {order.payment.note && <p>Payment note: <span className="font-mono text-stone-700">{order.payment.note}</span></p>}
+                {order.payment.reference && <p>Reference number: <span className="font-mono text-stone-700">{order.payment.reference}</span></p>}
+              </div>
+            )}
+            {order.payment.method === 'gcash' && order.payment.rejectionReason && (
+              <Alert className="mt-3" type="error" showIcon message="Payment proof rejected" description={order.payment.rejectionReason} />
+            )}
           </section>
+
+          {order.payment.method === 'gcash' && order.payment.status === 'rejected' && (
+            <section className="space-y-4 rounded-2xl bg-white p-4 shadow-sm sm:p-6">
+              <div>
+                <h2 className="text-sm font-semibold text-stone-900">Resubmit GCash payment proof</h2>
+                <p className="mt-1 text-xs text-stone-500">Submit the new reference number from your replacement GCash transfer.</p>
+              </div>
+              <Input placeholder="New GCash reference number" value={paymentReference} onChange={(event) => setPaymentReference(event.target.value)} />
+              <Button type="primary" block loading={isResubmittingPayment} disabled={!paymentReference.trim()} onClick={() => void handleResubmitPayment()}>
+                Resubmit for verification
+              </Button>
+            </section>
+          )}
 
           {/* Review section — shown only for delivered/completed orders */}
           {(canReview || reviews.length > 0) && (
