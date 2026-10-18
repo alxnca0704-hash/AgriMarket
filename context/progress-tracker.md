@@ -131,6 +131,9 @@ has been closed. Completed.
 
 ### Reliability
 
+- Buyer must confirm in a second step before marking an order received. The
+  prompt explains that confirmation completes the order and stays open if the
+  mutation fails.
 - All seven active order mutations are double-submit safe. `usePendingAction`
   (`hooks/usePendingAction.ts`) keys in-flight calls by
   `ORDER_ACTION_KEYS` (`constants/orders.ts`) and blocks same-tick

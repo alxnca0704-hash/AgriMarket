@@ -26,6 +26,7 @@ export function OrderActions({
   onRequestRefund,
 }: OrderActionsProps) {
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [confirmDeliveryOpen, setConfirmDeliveryOpen] = useState(false);
   const [reason, setReason] = useState('');
   const [refundOpen, setRefundOpen] = useState(false);
   const [refundReason, setRefundReason] = useState('');
@@ -53,6 +54,11 @@ export function OrderActions({
     setRefundOpen(true);
   };
 
+  const confirmDelivery = async () => {
+    const result = await onConfirmDelivery();
+    if (result === 'success') setConfirmDeliveryOpen(false);
+  };
+
   const confirmRefund = async () => {
     const trimmed = refundReason.trim();
     if (trimmed.length < 10) return;
@@ -68,14 +74,31 @@ export function OrderActions({
         <Button
           type="primary"
           size={compact ? 'middle' : 'large'}
-          onClick={onConfirmDelivery}
-          loading={confirmPending}
+          onClick={() => setConfirmDeliveryOpen(true)}
+          disabled={confirmPending}
           icon={<CheckCircleOutlined />}
           className="!rounded-xl !font-semibold"
         >
           Confirm received
         </Button>
       )}
+
+      <Modal
+        open={confirmDeliveryOpen}
+        onCancel={() => setConfirmDeliveryOpen(false)}
+        onOk={confirmDelivery}
+        title="Did you receive this order?"
+        okText="Yes, I received it"
+        okButtonProps={{ loading: confirmPending, disabled: confirmPending, className: '!rounded-lg' }}
+        cancelText="Not yet"
+        cancelButtonProps={{ className: '!rounded-lg', disabled: confirmPending }}
+        width="min(92%, 420px)"
+        centered
+      >
+        <p className="text-sm text-stone-500 leading-relaxed">
+          Confirm only if your order has arrived. This will mark the order as complete. If it has not arrived, choose “Not yet.”
+        </p>
+      </Modal>
 
       {order.status === 'pending' && (
         order.payment.method === 'gcash' ? (
