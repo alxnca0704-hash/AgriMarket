@@ -15,7 +15,7 @@ interface OrderCardProps {
   isActionPending: (action: OrderAction, orderId: string) => boolean;
   onConfirmDelivery: () => void | Promise<unknown>;
   onCancel: (reason: string) => void | Promise<unknown>;
-  onRequestRefund?: (reason: string) => void | Promise<unknown>;
+  onRequestRefund?: (reason: string, evidenceUrls: string[]) => void | Promise<unknown>;
 }
 
 export function OrderCard({

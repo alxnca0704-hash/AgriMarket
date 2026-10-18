@@ -103,8 +103,20 @@ export default defineSchema({
     cancelledAt: v.optional(v.string()),
     cancelReason: v.optional(v.string()),
     refundReason: v.optional(v.string()),
+    refundEvidenceUrls: v.optional(v.array(v.string())),
+    refundPayoutHold: v.optional(v.boolean()),
+    returnFromStatus: v.optional(v.union(v.literal("delivered"), v.literal("completed"))),
     refundRequestedAt: v.optional(v.string()),
+    returnApprovedAt: v.optional(v.string()),
+    returnAddress: v.optional(v.string()),
+    returnCarrier: v.optional(v.string()),
+    returnTrackingNumber: v.optional(v.string()),
+    returnShippedAt: v.optional(v.string()),
+    returnReceivedAt: v.optional(v.string()),
     refundConfirmedAt: v.optional(v.string()),
+    refundMethod: v.optional(v.union(v.literal("gcash"), v.literal("cash"))),
+    refundReference: v.optional(v.string()),
+    refundAmount: v.optional(v.number()),
     refundRejectedAt: v.optional(v.string()),
     refundRejectReason: v.optional(v.string()),
     updatedAt: v.string(),
@@ -114,7 +126,8 @@ export default defineSchema({
     .index("by_stallId", ["stallId"])
     .index("by_paymentReference", ["paymentReference"])
     .index("by_paymentNote", ["paymentNote"])
-    .index("by_paymentMethod_and_paymentStatus", ["paymentMethod", "paymentStatus"]),
+    .index("by_paymentMethod_and_paymentStatus", ["paymentMethod", "paymentStatus"])
+    .index("by_status", ["status"]),
 
   reviews: defineTable({
     orderId: v.id("orders"),
@@ -148,11 +161,22 @@ export default defineSchema({
 
   adminAuditLog: defineTable({
     actorEmail: v.string(),
-    action: v.literal("gcash_settings_updated"),
+    action: v.union(
+      v.literal("gcash_settings_updated"),
+      v.literal("return_approved"),
+      v.literal("return_rejected"),
+      v.literal("return_refunded")
+    ),
+    orderId: v.optional(v.id("orders")),
+    paymentReference: v.optional(v.string()),
+    refundReference: v.optional(v.string()),
+    refundMethod: v.optional(v.union(v.literal("gcash"), v.literal("cash"))),
+    refundAmount: v.optional(v.number()),
+    reason: v.optional(v.string()),
     previousNumber: v.optional(v.string()),
-    nextNumber: v.string(),
+    nextNumber: v.optional(v.string()),
     previousQrUrl: v.optional(v.string()),
-    nextQrUrl: v.string(),
+    nextQrUrl: v.optional(v.string()),
     createdAt: v.string(),
   }).index("by_createdAt", ["createdAt"]),
 });

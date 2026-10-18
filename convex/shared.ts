@@ -80,6 +80,9 @@ export const orderStatusValidator = v.union(
   v.literal("completed"),
   v.literal("cancelled"),
   v.literal("refund-requested"),
+  v.literal("return-approved"),
+  v.literal("return-in-transit"),
+  v.literal("return-received"),
   v.literal("refunded")
 );
 
@@ -102,6 +105,9 @@ export const orderEventValidator = v.object({
     v.literal("completed"),
     v.literal("cancelled"),
     v.literal("refund-requested"),
+    v.literal("return-approved"),
+    v.literal("return-in-transit"),
+    v.literal("return-received"),
     v.literal("refunded"),
     v.literal("refund-rejected")
   ),

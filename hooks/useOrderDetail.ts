@@ -65,6 +65,7 @@ export function useOrderDetail(orderId: string) {
   const cancelMutation = useMutation(api.orders.cancelOrder);
   const confirmDeliveryMutation = useMutation(api.orders.confirmDelivery);
   const requestRefundMutation = useMutation(api.orders.requestRefund);
+  const submitReturnShipmentMutation = useMutation(api.orders.submitReturnShipment);
   const submitReviewMutation = useMutation(api.reviews.submitReview);
   const resubmitPaymentMutation = useMutation(api.orders.resubmitGcashPayment);
   const { run, isPending } = usePendingAction();
@@ -78,6 +79,8 @@ export function useOrderDetail(orderId: string) {
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [paymentReference, setPaymentReference] = useState('');
   const [isResubmittingPayment, setIsResubmittingPayment] = useState(false);
+  const [returnCarrier, setReturnCarrier] = useState('');
+  const [returnTrackingNumber, setReturnTrackingNumber] = useState('');
 
   const isLoading = !skip && raw === undefined;
   const order: Order | undefined = !skip && raw ? toOrder(raw) : undefined;
@@ -131,16 +134,29 @@ export function useOrderDetail(orderId: string) {
     return run(
       ORDER_ACTION_KEYS.confirmDelivery(order.id),
       () => confirmDeliveryMutation({ orderId: order.id as Id<'orders'> }),
-      { success: 'Receipt confirmed', error: 'Could not confirm receipt' }
+      { success: 'Receipt confirmed and order completed', error: 'Could not confirm receipt' }
     );
   };
 
-  const handleRequestRefund = (reason: string) => {
+  const handleRequestRefund = (reason: string, evidenceUrls: string[]) => {
     if (!order) return Promise.resolve('skipped' as const);
     return run(
       ORDER_ACTION_KEYS.requestRefund(order.id),
-      () => requestRefundMutation({ orderId: order.id as Id<'orders'>, reason }),
-      { success: 'Refund requested — seller will review', error: 'Could not request refund' }
+      () => requestRefundMutation({ orderId: order.id as Id<'orders'>, reason, evidenceUrls }),
+      { success: 'Return request sent — the admin has been notified', error: 'Could not request refund' }
+    );
+  };
+
+  const handleSubmitReturnShipment = () => {
+    if (!order) return Promise.resolve('skipped' as const);
+    return run(
+      ORDER_ACTION_KEYS.submitReturnShipment(order.id),
+      () => submitReturnShipmentMutation({
+        orderId: order.id as Id<'orders'>,
+        carrier: returnCarrier.trim(),
+        trackingNumber: returnTrackingNumber.trim(),
+      }),
+      { success: 'Return shipment details sent to the seller', error: 'Could not submit return shipment' }
     );
   };
 
@@ -207,6 +223,11 @@ export function useOrderDetail(orderId: string) {
     handleCancel,
     handleConfirmDelivery,
     handleRequestRefund,
+    handleSubmitReturnShipment,
+    returnCarrier,
+    setReturnCarrier,
+    returnTrackingNumber,
+    setReturnTrackingNumber,
     isActionPending,
     paymentReference,
     setPaymentReference,

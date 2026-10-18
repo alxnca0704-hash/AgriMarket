@@ -66,6 +66,20 @@
   sender details, or receipt. The checkout's seller orders update atomically; only
   admin approval marks payment paid. COD remains unpaid until delivery
   confirmation.
+- **Admin return review**: within 24 hours of delivery, a buyer can
+  submit a 10–500 character reason plus 1–5 Cloudinary photo/video URLs.
+  The server enforces the cutoff using `deliveredAt`. The order records
+  `refundPayoutHold: true` atomically with `refund-requested`. Admins
+  receive a live queue showing the specific order ID and its payment
+  reference, plus the buyer's reason and evidence. Admins approve or
+  reject with an audit entry. Approval snapshots the seller return
+  address; the buyer submits courier/tracking details; the seller
+  confirms receipt; then the admin records the actual refund reference
+  and disbursement method (GCash to the buyer's saved number or cash
+  handoff) and releases the hold. COD refunds are separate outgoing
+  payments because the original payment was collected in cash on delivery.
+  Payout eligibility must exclude held orders. Returned goods are not
+  automatically restocked.
 - **In-memory demo layer** (`lib/mockSession.ts`, `lib/mockCatalog.ts`,
   `lib/mockEarnings.ts`, `lib/mockNotifications.ts`, `lib/demoSeed.ts`):
   backs the landing page and any unauthenticated or not-yet-migrated
@@ -90,9 +104,9 @@
   (`carbonellalex955@gmail.com`) and receives Clerk `publicMetadata.role`
   only after a successful authenticated sign-in. `/admin` checks both
   the allowlisted primary email and admin metadata server-side. GCash
-  settings and payment review functions also check the allowlisted,
-  verified email inside Convex; payout, refund, and seller verification
-  workflows remain unimplemented until specified.
+  settings, payment review, and return request queue functions also
+  check the allowlisted, verified email inside Convex. Payout processing,
+  return request closeout, and seller verification remain unimplemented.
 - Ownership is always checked inside the function, never inferred from
   the caller: `getBuyerOrder` (`order.buyerId === buyerId`),
   `requireSellerOrder` (`order.sellerId === sellerId`),
@@ -108,8 +122,9 @@
    sellers into a single order or a single payment.
 2. **Stock moves only on seller confirm.** `stockQty` decreases and
    `soldCount` increases in `confirmOrder`, and only if the order had
-   been confirmed (`restoreStock` early-returns otherwise). Cancel,
-   reject, and refund approval restore the exact quantities.
+   been confirmed (`restoreStock` early-returns otherwise). Cancel and
+   reject restore exact quantities. A return/refund never restores stock
+   automatically; the seller inspects returned goods first.
 3. **Orders are point-in-time snapshots.** `sellerName`,
    `sellerLocation`, `items[].name`, `items[].price`,
    `items[].unit`, and `items[].imageUrl` are copied at checkout and
@@ -118,21 +133,27 @@
    `assertStatus(order, expected)` and appends to `order.events`.
    Illegal transitions throw and never mutate.
 5. **Payment state is server-authoritative.** COD orders start `unpaid`
-   and become `paid` when the buyer confirms delivery. GCash orders start
+   and become `paid` when the buyer confirms receipt; that same action
+   completes the order. GCash orders start
    `pending` after the buyer submits a reference, exact total, sender
    identity, and receipt; only admin approval may mark them paid or
    unlock seller confirmation. Rejected submissions retain a reason and
    can be resubmitted by the buyer.
 6. **Images never enter the database as bytes.** Cloudinary holds the
    file; Convex holds a `secure_url` string.
-7. **Timestamps are ISO 8601 strings** from `new Date().toISOString()`,
+7. **Return requests block seller payouts.** The order's
+   `refundPayoutHold` is set in the same transaction as the request and
+   stays set throughout approval and return transit, until the request is
+   rejected or the admin records the completed refund. Any payout
+   implementation must exclude orders with this hold.
+8. **Timestamps are ISO 8601 strings** from `new Date().toISOString()`,
    not epoch numbers, in both Convex documents and the app types.
-8. **The cart is emptied only as part of a successful order.** All cart
+9. **The cart is emptied only as part of a successful order.** All cart
    deletions happen after every order has been inserted, and the whole
    mutation is atomic.
-9. **Layers do not leak.** Convex calls and `fetch` live in `hooks/`
+10. **Layers do not leak.** Convex calls and `fetch` live in `hooks/`
    only; JSX lives in `components/` only; page files only compose a hook
    with components.
-10. **No raw paths outside `constants/routes.ts`.** Every `<Link>`,
+11. **No raw paths outside `constants/routes.ts`.** Every `<Link>`,
     `router.push`, and `fetch` target comes from `APP_ROUTES`,
     `API_ROUTES`, or `ASSET_ROUTES`.

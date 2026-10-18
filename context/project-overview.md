@@ -12,10 +12,25 @@ earnings, payout requests, and reviews from a dedicated seller area.
 
 An **admin** operates the platform. The admin manages the system GCash
 account (QR code and number) used for buyer payments, verifies GCash
-payment proofs, approves and pays out seller payout requests, decides
-GCash refunds, and reviews seller verification. Admins are not
+payment proofs, reviews return requests against order IDs and payment
+references, approves and pays out seller payout requests, and reviews
+seller verification. Admins are not
 self-signup: they are promoted manually, and every admin action is
 enforced server-side and recorded in an audit log.
+
+Within 24 hours of delivery, buyers can submit a return/refund request with the
+order ID, a reason, and 1–5 photos or videos as evidence. Submission
+sets the order to `refund-requested` (shown as “Return Requested”) and
+places the seller payout on hold through the return and refund process.
+The admin reviews by order ID and payment reference, then approves or
+rejects with a recorded reason. On approval, the buyer ships goods to the
+seller using a trackable courier; the seller confirms receipt and
+inspection; the admin records the refund reference and releases the hold.
+Evidence files are stored in Cloudinary; the order stores URLs. Returned
+goods are not automatically restocked. The admin records the outgoing
+refund method (GCash to the buyer's saved mobile number or cash handoff),
+the full order amount, and the transfer/receipt reference. COD refunds are
+separate outgoing payments after cash collection at delivery.
 
 The product is Philippine-first: addresses are full PSGC
 region/province/city/barangay cascades, prices are in PHP peso, mobile
@@ -38,7 +53,7 @@ in their live order details.
 |---|---|---|
 | **Buyer** | `/home`, `/shops`, `/cart`, `/checkout`, `/orders` | Browse, order, pay (COD or GCash), confirm receipt, request refunds, review |
 | **Seller** | Seller area (dashboard, products, orders, earnings, settings) | Manage stall and catalogue, fulfil orders, request payouts |
-| **Admin** | `/admin/*` only | Manage GCash QR and number, verify payments, approve payouts, decide refunds, review seller verification |
+| **Admin** | `/admin/*` only | Manage GCash QR and number, verify payments, review return requests by order ID and payment reference, approve payouts, review seller verification |
 
 Roles are mirrored into Convex `users.role` and Clerk `publicMetadata`.
 After sign-in, buyers land on `/home`, sellers on the seller dashboard,

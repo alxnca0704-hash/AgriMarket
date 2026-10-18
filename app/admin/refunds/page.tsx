@@ -1,3 +1,5 @@
+import { AdminRefundsView } from '@/components/admin/AdminRefundsView';
+
 export default function AdminRefundsPage() {
-  return null;
+  return <AdminRefundsView />;
 }

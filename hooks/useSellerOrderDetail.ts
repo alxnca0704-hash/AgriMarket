@@ -23,8 +23,7 @@ export function useSellerOrderDetail(orderId: string) {
   const rejectMutation = useMutation(api.orders.rejectOrder);
   const dispatchMutation = useMutation(api.orders.dispatchOrder);
   const completeMutation = useMutation(api.orders.completeOrder);
-  const approveRefundMutation = useMutation(api.orders.approveRefund);
-  const rejectRefundMutation = useMutation(api.orders.rejectRefund);
+  const confirmReturnReceivedMutation = useMutation(api.orders.confirmReturnReceived);
   const { run, isPending } = usePendingAction();
 
   const isLoading = !skip && raw === undefined;
@@ -68,21 +67,12 @@ export function useSellerOrderDetail(orderId: string) {
     );
   };
 
-  const handleApproveRefund = () => {
+  const handleConfirmReturnReceived = () => {
     if (!order) return Promise.resolve('skipped' as const);
     return run(
-      ORDER_ACTION_KEYS.approveRefund(order.id),
-      () => approveRefundMutation({ orderId: order.id as Id<'orders'> }),
-      { success: 'Refund approved — stock restored', error: 'Could not approve the refund' }
-    );
-  };
-
-  const handleRejectRefund = (reason: string) => {
-    if (!order) return Promise.resolve('skipped' as const);
-    return run(
-      ORDER_ACTION_KEYS.rejectRefund(order.id),
-      () => rejectRefundMutation({ orderId: order.id as Id<'orders'>, reason }),
-      { success: 'Refund rejected', error: 'Could not reject the refund' }
+      ORDER_ACTION_KEYS.confirmReturnReceived(order.id),
+      () => confirmReturnReceivedMutation({ orderId: order.id as Id<'orders'> }),
+      { success: 'Return receipt confirmed', error: 'Could not confirm returned goods' }
     );
   };
 
@@ -100,8 +90,7 @@ export function useSellerOrderDetail(orderId: string) {
     handleReject,
     handleDispatch,
     handleComplete,
-    handleApproveRefund,
-    handleRejectRefund,
+    handleConfirmReturnReceived,
     isActionPending,
   };
 }

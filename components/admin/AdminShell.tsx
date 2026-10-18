@@ -25,7 +25,7 @@ const TABS = [
   { key: 'gcash', label: 'GCash account', href: APP_ROUTES.adminGcash, icon: <SettingOutlined /> },
   { key: 'payments', label: 'Verify payments', href: APP_ROUTES.adminPayments, icon: <CreditCardOutlined /> },
   { key: 'payouts', label: 'Approve payouts', href: APP_ROUTES.adminPayouts, icon: <AccountBookOutlined /> },
-  { key: 'refunds', label: 'Decide refunds', href: APP_ROUTES.adminRefunds, icon: <CheckCircleOutlined /> },
+  { key: 'refunds', label: 'Review refunds', href: APP_ROUTES.adminRefunds, icon: <CheckCircleOutlined /> },
   { key: 'sellerVerification', label: 'Seller verification', href: APP_ROUTES.adminSellerVerification, icon: <SafetyCertificateOutlined /> },
 ] as const;
 
@@ -37,15 +37,19 @@ function resolveActiveKey(pathname: string): string | null {
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { pendingGcashCount } = useAdminShell();
+  const { pendingGcashCount, pendingRefundCount } = useAdminShell();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const navItems: MenuProps['items'] = useMemo(
     () => TABS.map((tab) => ({
       key: tab.key,
-      label: tab.key === 'payments' ? <span className="flex items-center gap-3">{tab.label}<Badge count={pendingGcashCount} size="small" /></span> : tab.label,
+      label: tab.key === 'payments'
+        ? <span className="flex items-center gap-3">{tab.label}<Badge count={pendingGcashCount} size="small" /></span>
+        : tab.key === 'refunds'
+          ? <span className="flex items-center gap-3">{tab.label}<Badge count={pendingRefundCount} size="small" /></span>
+          : tab.label,
       icon: tab.icon,
     })),
-    [pendingGcashCount]
+    [pendingGcashCount, pendingRefundCount]
   );
   const handleNavigate: MenuProps['onClick'] = ({ key }) => {
     const tab = TABS.find((item) => item.key === key);

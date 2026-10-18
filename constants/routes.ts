@@ -43,6 +43,7 @@ export const API_ROUTES = {
   stallImageUpload: '/api/uploads/stall-image',
   productImageUpload: '/api/uploads/product-image',
   gcashQrUpload: '/api/uploads/gcash-qr',
+  refundEvidenceUpload: '/api/uploads/refund-evidence',
 } as const;
 
 export const ASSET_ROUTES = {

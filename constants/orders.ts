@@ -14,7 +14,10 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   delivered: 'Delivered',
   completed: 'Completed',
   cancelled: 'Cancelled',
-  'refund-requested': 'Refund requested',
+  'refund-requested': 'Return Requested',
+  'return-approved': 'Return Approved',
+  'return-in-transit': 'Return In Transit',
+  'return-received': 'Return Received',
   refunded: 'Refunded',
 };
 
@@ -26,7 +29,10 @@ export const ORDER_STATUS_TAG_COLORS: Record<OrderStatus, string> = {
   completed: 'success',
   cancelled: 'default',
   'refund-requested': 'orange',
-  refunded: 'red',
+  'return-approved': 'blue',
+  'return-in-transit': 'processing',
+  'return-received': 'cyan',
+  refunded: 'success',
 };
 
 export interface OrderStatusTab {
@@ -41,7 +47,10 @@ export const ORDER_STATUS_TABS: OrderStatusTab[] = [
   { key: 'delivered', label: 'Delivered' },
   { key: 'completed', label: 'Completed' },
   { key: 'cancelled', label: 'Cancelled' },
-  { key: 'refund-requested', label: 'Refund requested' },
+  { key: 'refund-requested', label: 'Return Requested' },
+  { key: 'return-approved', label: 'Return Approved' },
+  { key: 'return-in-transit', label: 'Return In Transit' },
+  { key: 'return-received', label: 'Return Received' },
   { key: 'refunded', label: 'Refunded' },
 ];
 
@@ -53,6 +62,9 @@ export const ORDER_STATUSES: OrderStatus[] = [
   'completed',
   'cancelled',
   'refund-requested',
+  'return-approved',
+  'return-in-transit',
+  'return-received',
   'refunded',
 ];
 
@@ -61,11 +73,11 @@ export const ORDER_ACTIONS = {
   rejectOrder: 'rejectOrder',
   dispatchOrder: 'dispatchOrder',
   completeOrder: 'completeOrder',
-  approveRefund: 'approveRefund',
-  rejectRefund: 'rejectRefund',
   cancelOrder: 'cancelOrder',
   confirmDelivery: 'confirmDelivery',
   requestRefund: 'requestRefund',
+  submitReturnShipment: 'submitReturnShipment',
+  confirmReturnReceived: 'confirmReturnReceived',
 } as const;
 
 export type OrderAction = (typeof ORDER_ACTIONS)[keyof typeof ORDER_ACTIONS];
@@ -75,9 +87,9 @@ export const ORDER_ACTION_KEYS: Record<OrderAction, (orderId: string) => string>
   rejectOrder: (orderId) => `${ORDER_ACTIONS.rejectOrder}:${orderId}`,
   dispatchOrder: (orderId) => `${ORDER_ACTIONS.dispatchOrder}:${orderId}`,
   completeOrder: (orderId) => `${ORDER_ACTIONS.completeOrder}:${orderId}`,
-  approveRefund: (orderId) => `${ORDER_ACTIONS.approveRefund}:${orderId}`,
-  rejectRefund: (orderId) => `${ORDER_ACTIONS.rejectRefund}:${orderId}`,
   cancelOrder: (orderId) => `${ORDER_ACTIONS.cancelOrder}:${orderId}`,
   confirmDelivery: (orderId) => `${ORDER_ACTIONS.confirmDelivery}:${orderId}`,
   requestRefund: (orderId) => `${ORDER_ACTIONS.requestRefund}:${orderId}`,
+  submitReturnShipment: (orderId) => `${ORDER_ACTIONS.submitReturnShipment}:${orderId}`,
+  confirmReturnReceived: (orderId) => `${ORDER_ACTIONS.confirmReturnReceived}:${orderId}`,
 };

@@ -99,7 +99,7 @@ export function OrdersView() {
                   isActionPending={isActionPending}
                   onConfirmDelivery={() => handleConfirmDelivery(order)}
                   onCancel={(reason) => handleCancel(order, reason)}
-                  onRequestRefund={(reason) => handleRequestRefund(order, reason)}
+                  onRequestRefund={(reason, evidenceUrls) => handleRequestRefund(order, reason, evidenceUrls)}
                 />
               ))}
             </div>

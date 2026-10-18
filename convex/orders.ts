@@ -7,6 +7,7 @@ import { deliveryAddressValidator } from "./shared";
 const BUYER_ORDER_LIMIT = 100;
 const SELLER_ORDER_LIMIT = 200;
 const CART_ITEM_LIMIT = 200;
+const RETURN_REQUEST_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 type OrderStatus =
   | "pending"
@@ -16,6 +17,9 @@ type OrderStatus =
   | "completed"
   | "cancelled"
   | "refund-requested"
+  | "return-approved"
+  | "return-in-transit"
+  | "return-received"
   | "refunded";
 
 async function getCurrentUser(
@@ -215,7 +219,6 @@ export const placeOrders = mutation({
     return orders;
   },
 });
-
 export const resubmitGcashPayment = mutation({
   args: {
     orderId: v.id("orders"),
@@ -359,15 +362,17 @@ export const confirmDelivery = mutation({
     const order = await getBuyerOrder(ctx, user._id, args.orderId);
     assertStatus(order, "to-receive");
 
-    const now = new Date().toISOString();
-    await ctx.db.patch("orders", order._id, {
-      status: "delivered",
-      ...(order.paymentMethod === "cod" ? { paymentStatus: "paid" as const } : {}),
-      deliveredAt: now,
-      events: [
-        ...order.events,
-        { status: "delivered", label: order.paymentMethod === "cod" ? "Delivered · payment received" : "Delivery confirmed", at: now },
-      ],
+      const now = new Date().toISOString();
+      await ctx.db.patch("orders", order._id, {
+        status: "completed",
+        ...(order.paymentMethod === "cod" ? { paymentStatus: "paid" as const } : {}),
+        deliveredAt: now,
+        completedAt: now,
+        events: [
+          ...order.events,
+          { status: "delivered", label: order.paymentMethod === "cod" ? "Delivered · payment received" : "Delivery confirmed", at: now },
+          { status: "completed", label: "Buyer confirmed receipt · order completed", at: now },
+        ],
       updatedAt: now,
     });
     return null;
@@ -482,25 +487,38 @@ export const completeOrder = mutation({
 });
 
 export const requestRefund = mutation({
-  args: { orderId: v.id("orders"), reason: v.string() },
+  args: { orderId: v.id("orders"), reason: v.string(), evidenceUrls: v.array(v.string()) },
   async handler(ctx, args) {
     const user = await requireUser(ctx);
     const order = await getBuyerOrder(ctx, user._id, args.orderId);
-    if (order.status !== "delivered") {
+    if (order.status !== "delivered" && order.status !== "completed") {
       throw new Error("You can only request a refund for delivered orders");
+    }
+    const deliveredAt = Date.parse(order.deliveredAt ?? "");
+    if (!Number.isFinite(deliveredAt) || Date.now() - deliveredAt > RETURN_REQUEST_WINDOW_MS) {
+      throw new Error("Return requests must be submitted within 24 hours of delivery");
     }
     const reason = args.reason.trim();
     if (reason.length < 10) throw new Error("Please provide a reason with at least 10 characters");
     if (reason.length > 500) throw new Error("Reason is too long (max 500 characters)");
+    if (args.evidenceUrls.length < 1 || args.evidenceUrls.length > 5) {
+      throw new Error("Please attach between 1 and 5 photos or videos");
+    }
+    if (args.evidenceUrls.some((url) => !url.startsWith("https://res.cloudinary.com/"))) {
+      throw new Error("Refund evidence must be uploaded before submitting");
+    }
 
     const now = new Date().toISOString();
     const patch: Record<string, unknown> = {
       status: "refund-requested",
       refundReason: reason,
+      refundEvidenceUrls: args.evidenceUrls,
+      refundPayoutHold: true,
+      returnFromStatus: order.status,
       refundRequestedAt: now,
       events: [
         ...order.events,
-        { status: "refund-requested", label: "Refund requested", at: now },
+        { status: "refund-requested", label: "Return requested", at: now },
       ],
       updatedAt: now,
     };
@@ -512,49 +530,49 @@ export const requestRefund = mutation({
   },
 });
 
-export const approveRefund = mutation({
-  args: { orderId: v.id("orders") },
+export const submitReturnShipment = mutation({
+  args: {
+    orderId: v.id("orders"),
+    carrier: v.string(),
+    trackingNumber: v.string(),
+  },
+  returns: v.null(),
   async handler(ctx, args) {
     const user = await requireUser(ctx);
-    const order = await requireSellerOrder(ctx, user._id, args.orderId);
-    assertStatus(order, "refund-requested");
+    const order = await getBuyerOrder(ctx, user._id, args.orderId);
+    assertStatus(order, "return-approved");
+    const carrier = args.carrier.trim();
+    const trackingNumber = args.trackingNumber.trim();
+    if (carrier.length < 2 || carrier.length > 80) throw new Error("Enter a carrier name between 2 and 80 characters");
+    if (trackingNumber.length < 3 || trackingNumber.length > 100) throw new Error("Enter a tracking number between 3 and 100 characters");
 
-    await restoreStock(ctx, order);
     const now = new Date().toISOString();
     await ctx.db.patch("orders", order._id, {
-      status: "refunded",
-      refundConfirmedAt: now,
-      events: [
-        ...order.events,
-        { status: "refunded", label: "Refund approved", at: now },
-      ],
+      status: "return-in-transit",
+      returnCarrier: carrier,
+      returnTrackingNumber: trackingNumber,
+      returnShippedAt: now,
+      events: [...order.events, { status: "return-in-transit", label: "Return shipment sent", at: now }],
       updatedAt: now,
     });
     return null;
   },
 });
 
-export const rejectRefund = mutation({
-  args: { orderId: v.id("orders"), reason: v.optional(v.string()) },
+export const confirmReturnReceived = mutation({
+  args: { orderId: v.id("orders") },
+  returns: v.null(),
   async handler(ctx, args) {
     const user = await requireUser(ctx);
     const order = await requireSellerOrder(ctx, user._id, args.orderId);
-    assertStatus(order, "refund-requested");
-
+    assertStatus(order, "return-in-transit");
     const now = new Date().toISOString();
-    const reason = args.reason?.trim();
-    const patch: Record<string, unknown> = {
-      status: "delivered",
-      refundRejectedAt: now,
-      events: [
-        ...order.events,
-        { status: "refund-rejected", label: "Refund rejected", at: now },
-      ],
+    await ctx.db.patch("orders", order._id, {
+      status: "return-received",
+      returnReceivedAt: now,
+      events: [...order.events, { status: "return-received", label: "Seller received returned goods", at: now }],
       updatedAt: now,
-    };
-    if (reason) patch["refundRejectReason"] = reason;
-    else if (order.refundRejectReason !== undefined) patch["refundRejectReason"] = undefined;
-    await ctx.db.patch("orders", order._id, patch as never);
+    });
     return null;
   },
 });

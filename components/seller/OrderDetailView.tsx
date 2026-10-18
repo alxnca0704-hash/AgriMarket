@@ -38,8 +38,7 @@ export function SellerOrderDetailView({ orderId }: { orderId: string }) {
     handleReject,
     handleDispatch,
     handleComplete,
-    handleApproveRefund,
-    handleRejectRefund,
+    handleConfirmReturnReceived,
     isActionPending,
   } = useSellerOrderDetail(orderId);
 
@@ -110,8 +109,7 @@ export function SellerOrderDetailView({ orderId }: { orderId: string }) {
             onReject={handleReject}
             onDispatch={handleDispatch}
             onComplete={handleComplete}
-            onApproveRefund={handleApproveRefund}
-            onRejectRefund={handleRejectRefund}
+            onConfirmReturnReceived={handleConfirmReturnReceived}
           />
         </div>
 
@@ -122,26 +120,25 @@ export function SellerOrderDetailView({ orderId }: { orderId: string }) {
           </div>
         )}
 
-        {order.refundReason && (
-          <div className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            <strong className="font-semibold">Refund reason: </strong>
-            {order.refundReason}
-            {order.refundRequestedAt && (
-              <span className="text-amber-700"> · {formatOrderTime(order.refundRequestedAt)}</span>
-            )}
+        {order.status === 'refund-requested' && (
+          <div className="mt-4 rounded-xl bg-orange-50 px-4 py-3 text-sm text-orange-800">
+            Return request submitted. The admin has been notified and seller payout is on hold.
           </div>
         )}
-
-        {order.status === 'refund-requested' && !order.refundReason && (
-          <div className="mt-4 rounded-xl bg-orange-50 px-4 py-3 text-sm text-orange-800">
-            Refund requested — awaiting your decision.
-          </div>
+        {order.status === 'return-approved' && (
+          <Alert className="mt-4" type="info" showIcon title="Return approved" description="The buyer has been given the return address and may ship the goods back." />
+        )}
+        {order.status === 'return-in-transit' && (
+          <Alert className="mt-4" type="warning" showIcon title="Return shipment in transit" description={`${order.returnCarrier ?? 'Courier'} · Tracking ${order.returnTrackingNumber ?? 'pending'}. Confirm receipt after the goods arrive and you have inspected them.`} />
+        )}
+        {order.status === 'return-received' && (
+          <Alert className="mt-4" type="success" showIcon title="Return received" description="The admin is processing the refund. Returned stock is not automatically restored." />
         )}
 
         {order.status === 'refunded' && (
-          <div className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800">
+          <div className="mt-4 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-800">
             <strong className="font-semibold">Refunded</strong>
-            {order.refundConfirmedAt ? ` on ${formatOrderTime(order.refundConfirmedAt)}` : ''} — stock restored.
+            {order.refundConfirmedAt ? ` on ${formatOrderTime(order.refundConfirmedAt)}` : ''}{order.refundMethod ? ` · Sent via ${order.refundMethod === 'gcash' ? 'GCash' : 'cash'}` : ''} · Returned goods are not automatically restocked.
           </div>
         )}
 

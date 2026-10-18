@@ -8,6 +8,9 @@ export type OrderStatus =
   | 'completed'
   | 'cancelled'
   | 'refund-requested'
+  | 'return-approved'
+  | 'return-in-transit'
+  | 'return-received'
   | 'refunded';
 
 export type PaymentStatus = 'unpaid' | 'pending' | 'paid' | 'rejected';
@@ -60,8 +63,20 @@ export interface Order {
   cancelledAt?: string;
   cancelReason?: string;
   refundReason?: string;
+  refundEvidenceUrls?: string[];
+  refundPayoutHold?: boolean;
+  returnFromStatus?: 'delivered' | 'completed';
   refundRequestedAt?: string;
+  returnApprovedAt?: string;
+  returnAddress?: string;
+  returnCarrier?: string;
+  returnTrackingNumber?: string;
+  returnShippedAt?: string;
+  returnReceivedAt?: string;
   refundConfirmedAt?: string;
+  refundMethod?: 'gcash' | 'cash';
+  refundReference?: string;
+  refundAmount?: number;
   refundRejectedAt?: string;
   refundRejectReason?: string;
 }

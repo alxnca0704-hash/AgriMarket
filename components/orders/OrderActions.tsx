@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Button, Input, Modal, Typography } from 'antd';
+import { Button, Input, Modal, Typography, Upload } from 'antd';
+import type { UploadFile } from 'antd';
 import { CheckCircleOutlined, CloseCircleOutlined, UndoOutlined } from '@ant-design/icons';
 import { Order } from '@/types/order';
 import { ORDER_ACTIONS, OrderAction } from '@/constants/orders';
+import { useRefundEvidence } from '@/hooks/useRefundEvidence';
 
 interface OrderActionsProps {
   order: Order;
@@ -12,7 +14,7 @@ interface OrderActionsProps {
   isActionPending: (action: OrderAction, orderId: string) => boolean;
   onConfirmDelivery: () => void | Promise<unknown>;
   onCancel: (reason: string) => void | Promise<unknown>;
-  onRequestRefund?: (reason: string) => void | Promise<unknown>;
+  onRequestRefund?: (reason: string, evidenceUrls: string[]) => void | Promise<unknown>;
 }
 
 export function OrderActions({
@@ -27,6 +29,7 @@ export function OrderActions({
   const [reason, setReason] = useState('');
   const [refundOpen, setRefundOpen] = useState(false);
   const [refundReason, setRefundReason] = useState('');
+  const evidence = useRefundEvidence();
 
   const compact = variant === 'card';
 
@@ -46,13 +49,16 @@ export function OrderActions({
 
   const openRefund = () => {
     setRefundReason('');
+    evidence.setFiles([]);
     setRefundOpen(true);
   };
 
   const confirmRefund = async () => {
     const trimmed = refundReason.trim();
     if (trimmed.length < 10) return;
-    const result = await onRequestRefund?.(trimmed);
+    if (evidence.files.length < 1 || evidence.files.length > 5) return;
+    const evidenceUrls = await evidence.upload();
+    const result = await onRequestRefund?.(trimmed, evidenceUrls);
     if (result === 'success') setRefundOpen(false);
   };
 
@@ -86,7 +92,7 @@ export function OrderActions({
         </Button>
       )}
 
-      {order.status === 'delivered' && onRequestRefund && (
+      {(order.status === 'delivered' || order.status === 'completed') && onRequestRefund && (
         <Button
           size={compact ? 'middle' : 'large'}
           onClick={openRefund}
@@ -133,18 +139,18 @@ export function OrderActions({
         onOk={confirmRefund}
         okText="Request refund"
         okButtonProps={{
-          loading: refundPending,
-          disabled: refundPending || refundReason.trim().length < 10,
+          loading: refundPending || evidence.isUploading,
+          disabled: refundPending || evidence.isUploading || refundReason.trim().length < 10 || evidence.files.length < 1 || evidence.files.length > 5,
           className: '!rounded-lg',
         }}
         cancelText="Keep order"
-        cancelButtonProps={{ className: '!rounded-lg', disabled: refundPending }}
-        title="Request a refund?"
+        cancelButtonProps={{ className: '!rounded-lg', disabled: refundPending || evidence.isUploading }}
+        title="Request a return?"
         width="min(92%, 420px)"
         centered
       >
         <p className="text-sm text-stone-500 leading-relaxed mb-3">
-          You received this order from {order.sellerName}. Describe the issue — the seller will review and confirm.
+          Order <span className="font-mono">{order.id}</span> from {order.sellerName}. Describe the issue and attach evidence for review.
         </p>
         <Typography.Text type="secondary" className="text-xs">
           Reason (required, at least 10 characters)
@@ -158,6 +164,25 @@ export function OrderActions({
           onChange={(e) => setRefundReason(e.target.value)}
           className="mt-1.5 !rounded-xl"
         />
+        <Typography.Text type="secondary" className="mt-4 block text-xs">Photos or video (1–5 files, up to 5 MB each)</Typography.Text>
+        <Upload
+          accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm"
+          multiple
+          maxCount={5}
+          beforeUpload={(file) => {
+            const next = [...evidence.files, file].slice(0, 5);
+            evidence.setFiles(next);
+            return false;
+          }}
+          onRemove={(file: UploadFile) => {
+            evidence.setFiles(evidence.files.filter((item) => item.name !== file.name));
+          }}
+          fileList={evidence.files.map((file, index) => ({ uid: `${file.name}-${index}`, name: file.name, status: 'done' as const }))}
+          className="mt-1 block"
+        >
+          <Button className="!rounded-lg" disabled={evidence.files.length >= 5}>Choose evidence</Button>
+        </Upload>
+        {evidence.error && <p className="mt-2 text-sm text-error">{evidence.error}</p>}
       </Modal>
     </div>
   );

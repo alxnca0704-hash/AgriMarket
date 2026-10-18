@@ -31,8 +31,7 @@ export function SellerOrdersView() {
     handleReject,
     handleDispatch,
     handleComplete,
-    handleApproveRefund,
-    handleRejectRefund,
+    handleConfirmReturnReceived,
     isActionPending,
   } = useSellerOrders();
 
@@ -131,8 +130,7 @@ export function SellerOrdersView() {
                   onReject={(reason) => handleReject(order, reason)}
                   onDispatch={() => handleDispatch(order)}
                   onComplete={() => handleComplete(order)}
-                  onApproveRefund={() => handleApproveRefund(order)}
-                  onRejectRefund={(reason) => handleRejectRefund(order, reason)}
+                  onConfirmReturnReceived={() => handleConfirmReturnReceived(order)}
                 />
               ))}
             </div>

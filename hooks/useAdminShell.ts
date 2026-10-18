@@ -5,5 +5,6 @@ import { api } from '@/convex/_generated/api';
 
 export function useAdminShell() {
   const pendingGcashCount = useQuery(api.admin.getPendingGcashCount, {});
-  return { pendingGcashCount: pendingGcashCount ?? 0 };
+  const pendingRefundCount = useQuery(api.admin.getPendingRefundCount, {});
+  return { pendingGcashCount: pendingGcashCount ?? 0, pendingRefundCount: pendingRefundCount ?? 0 };
 }

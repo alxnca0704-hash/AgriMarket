@@ -48,7 +48,8 @@ while maintaining the seller order lifecycle and responsive buyer experience.
 - Checkout: address selection / inline add / inline edit, PSGC cascade
   fetching, per-seller note, confirmation modal, success screen.
 - Orders list with status tabs, order detail with an event timeline and
-  a stepper, cancel, confirm receipt, and refund request.
+  a stepper, cancel, confirm receipt (which completes the order), and
+  refund request.
 - Profile: edit profile, address book with a single default address,
   address form modal.
 
@@ -72,11 +73,23 @@ while maintaining the seller order lifecycle and responsive buyer experience.
   cart atomically.
 - Full status machine with `assertStatus` guards and an append-only
   `events` log: `pending → confirmed → to-receive → delivered →
-  completed`, with `cancelled` off `pending` and the refund branch
-  (`refund-requested` → `refunded` or back to `delivered`) off
-  `delivered`.
-- Stock decremented on seller confirm, restored on cancel, reject, and
-  refund approval.
+  completed`. Buyer confirmation records delivery and completion
+  together; with the return branch `refund-requested` →
+  `return-approved` → `return-in-transit` → `return-received` →
+  `refunded`, or rejection back to the prior delivered/completed state.
+- Stock decremented on seller confirm, restored on cancel/reject. A
+  return does not automatically restock goods.
+- Buyers can request a return within 24 hours of delivery or completion,
+  with the order ID, required reason, and 1–5 Cloudinary photo/video
+  evidence files (5 MB each). Admins review the order ID, payment
+  reference, reason and evidence; approve with the seller return address
+  or reject with a reason. The buyer records courier/tracking details,
+  the seller confirms returned-goods receipt, and the admin records the
+  refund reference before releasing the payout hold. The admin review
+  also shows the buyer's saved phone/GCash number for sending the refund.
+  Refund closeout records the disbursement method, full order amount, and
+  GCash transfer or cash receipt reference. COD is treated as a separate
+  outgoing payment after cash was collected on delivery.
 - COD `paymentStatus` flips to `paid` when the buyer confirms delivery.
 - GCash checkout is in scope: select the method, download the configured
   QR, copy the configured account number, view the expected total, and
@@ -90,13 +103,14 @@ while maintaining the seller order lifecycle and responsive buyer experience.
 - Admin sign-in promotes the verified, allowlisted Clerk account and
   routes to `/admin`, with a server-guarded admin shell and sidebar links
   for GCash account management, payment verification, payout approval,
-  refund decisions, and seller verification. GCash account management is
-  implemented. Payment review is implemented; payout, refund, and seller
-  verification destinations remain placeholders.
+  return review, and seller verification. GCash account management,
+  payment review, and the full audited return workflow through refund
+  closeout are implemented. Payout and seller verification remain
+  unimplemented.
 
 ### Reliability
 
-- All nine order mutations are double-submit safe. `usePendingAction`
+- All seven active order mutations are double-submit safe. `usePendingAction`
   (`hooks/usePendingAction.ts`) keys in-flight calls by
   `ORDER_ACTION_KEYS` (`constants/orders.ts`) and blocks same-tick
   duplicate calls with a synchronous ref, so a rapid double click on
@@ -134,8 +148,10 @@ while maintaining the seller order lifecycle and responsive buyer experience.
 
 ## Next Up
 
-- Implement payout handling, refund decisions, and seller verification
-  after their data and audit requirements are specified.
+- Implement payout handling that excludes orders with an active return
+  hold; define payout records and audit requirements first.
+- Implement seller verification after its data and audit requirements
+  are specified.
 - Move seller earnings and notifications off the mock layer in lib/ onto Convex.
 - Add an actor that moves stall verification status to verified.
 - Replace the demo/mock session layer with Convex-only reads for signed-in users.

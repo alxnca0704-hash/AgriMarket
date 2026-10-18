@@ -16,8 +16,7 @@ export function useSellerOrders() {
   const rejectMutation = useMutation(api.orders.rejectOrder);
   const dispatchMutation = useMutation(api.orders.dispatchOrder);
   const completeMutation = useMutation(api.orders.completeOrder);
-  const approveRefundMutation = useMutation(api.orders.approveRefund);
-  const rejectRefundMutation = useMutation(api.orders.rejectRefund);
+  const confirmReturnReceivedMutation = useMutation(api.orders.confirmReturnReceived);
   const { run, isPending } = usePendingAction();
 
   const [activeTab, setActiveTab] = useState<SellerOrderGroupKey>('all');
@@ -41,6 +40,9 @@ export function useSellerOrders() {
       cancelled: 0,
       'refund-requested': 0,
       refunded: 0,
+      'return-approved': 0,
+      'return-in-transit': 0,
+      'return-received': 0,
     };
     orders.forEach((order) => {
       result[order.status] += 1;
@@ -86,18 +88,11 @@ export function useSellerOrders() {
       { success: 'Order completed', error: 'Could not complete the order' }
     );
 
-  const handleApproveRefund = (order: Order) =>
+  const handleConfirmReturnReceived = (order: Order) =>
     run(
-      ORDER_ACTION_KEYS.approveRefund(order.id),
-      () => approveRefundMutation({ orderId: order.id as Id<'orders'> }),
-      { success: 'Refund approved — stock restored', error: 'Could not approve the refund' }
-    );
-
-  const handleRejectRefund = (order: Order, reason: string) =>
-    run(
-      ORDER_ACTION_KEYS.rejectRefund(order.id),
-      () => rejectRefundMutation({ orderId: order.id as Id<'orders'>, reason }),
-      { success: 'Refund rejected', error: 'Could not reject the refund' }
+      ORDER_ACTION_KEYS.confirmReturnReceived(order.id),
+      () => confirmReturnReceivedMutation({ orderId: order.id as Id<'orders'> }),
+      { success: 'Return receipt confirmed', error: 'Could not confirm returned goods' }
     );
 
   const isActionPending = useCallback(
@@ -117,8 +112,7 @@ export function useSellerOrders() {
     handleReject,
     handleDispatch,
     handleComplete,
-    handleApproveRefund,
-    handleRejectRefund,
+    handleConfirmReturnReceived,
     isActionPending,
   };
 }

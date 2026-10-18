@@ -39,6 +39,9 @@ export function useOrders() {
       cancelled: 0,
       'refund-requested': 0,
       refunded: 0,
+      'return-approved': 0,
+      'return-in-transit': 0,
+      'return-received': 0,
     };
     orders.forEach((order) => {
       result[order.status] += 1;
@@ -62,14 +65,14 @@ export function useOrders() {
     run(
       ORDER_ACTION_KEYS.confirmDelivery(order.id),
       () => confirmDeliveryMutation({ orderId: order.id as Id<'orders'> }),
-      { success: 'Receipt confirmed', error: 'Could not confirm receipt' }
+      { success: 'Receipt confirmed and order completed', error: 'Could not confirm receipt' }
     );
 
-  const handleRequestRefund = (order: Order, reason: string) =>
+  const handleRequestRefund = (order: Order, reason: string, evidenceUrls: string[]) =>
     run(
       ORDER_ACTION_KEYS.requestRefund(order.id),
-      () => requestRefundMutation({ orderId: order.id as Id<'orders'>, reason }),
-      { success: 'Refund requested — seller will review', error: 'Could not request refund' }
+      () => requestRefundMutation({ orderId: order.id as Id<'orders'>, reason, evidenceUrls }),
+      { success: 'Return request sent — the admin has been notified', error: 'Could not request refund' }
     );
 
   const isActionPending = useCallback(

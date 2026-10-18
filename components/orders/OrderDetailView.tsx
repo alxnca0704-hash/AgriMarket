@@ -61,6 +61,11 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
     handleConfirmDelivery,
     handleCancel,
     handleRequestRefund,
+    handleSubmitReturnShipment,
+    returnCarrier,
+    setReturnCarrier,
+    returnTrackingNumber,
+    setReturnTrackingNumber,
     isActionPending,
     paymentReference,
     setPaymentReference,
@@ -149,16 +154,48 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
           </div>
         )}
 
-        {order.status === 'refund-requested' && (
-          <div className="mt-4 rounded-xl bg-orange-50 px-4 py-3 text-sm text-orange-800">
-            Refund requested on {order.refundRequestedAt ? formatOrderTime(order.refundRequestedAt) : ''} — waiting for seller confirmation.
+        {order.refundEvidenceUrls && order.refundEvidenceUrls.length > 0 && (
+          <div className="mt-4 rounded-xl bg-stone-50 px-4 py-3 text-sm text-stone-700">
+            <strong className="font-semibold">Return evidence</strong>
+            <div className="mt-2 flex flex-wrap gap-3">
+              {order.refundEvidenceUrls.map((url, index) => (
+                <a key={url} href={url} target="_blank" rel="noreferrer" className="text-sage underline underline-offset-2">
+                  Open evidence {index + 1}
+                </a>
+              ))}
+            </div>
           </div>
         )}
 
+        {order.status === 'refund-requested' && (
+          <div className="mt-4 rounded-xl bg-orange-50 px-4 py-3 text-sm text-orange-800">
+            Return requested on {order.refundRequestedAt ? formatOrderTime(order.refundRequestedAt) : ''} — the admin will review the order ID and its payment reference. Seller payout is on hold.
+          </div>
+        )}
+
+        {order.status === 'return-approved' && (
+          <div className="mt-4 space-y-3 rounded-xl bg-sage-soft px-4 py-4 text-sm text-stone-700">
+            <p><strong className="font-semibold">Return approved.</strong> Ship the items to the seller using a trackable courier.</p>
+            <p><strong>Return address:</strong> {order.returnAddress || 'Contact admin for the seller return address.'}</p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Input aria-label="Courier" placeholder="Courier (e.g. LBC)" value={returnCarrier} onChange={(event) => setReturnCarrier(event.target.value)} />
+              <Input aria-label="Tracking number" placeholder="Tracking number" value={returnTrackingNumber} onChange={(event) => setReturnTrackingNumber(event.target.value)} />
+            </div>
+            <Button type="primary" loading={isActionPending('submitReturnShipment', order.id)} disabled={!returnCarrier.trim() || !returnTrackingNumber.trim()} onClick={handleSubmitReturnShipment}>I shipped the return</Button>
+          </div>
+        )}
+        {order.status === 'return-in-transit' && (
+          <Alert className="mt-4" type="info" showIcon title="Return shipment in transit" description={`${order.returnCarrier ?? 'Courier'} · Tracking ${order.returnTrackingNumber ?? 'pending'}. The seller must confirm receipt before the admin can issue the refund.`} />
+        )}
+        {order.status === 'return-received' && (
+          <Alert className="mt-4" type="success" showIcon title="Return received by seller" description="The admin will now process the refund. Your payout hold remains in place until the refund is recorded." />
+        )}
+
+
         {order.status === 'refunded' && (
-          <div className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800">
+          <div className="mt-4 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-800">
             <strong className="font-semibold">Refunded</strong>
-            {order.refundConfirmedAt ? ` on ${formatOrderTime(order.refundConfirmedAt)}` : ''} — stock has been restored.
+            {order.refundConfirmedAt ? ` on ${formatOrderTime(order.refundConfirmedAt)}` : ''}{order.refundMethod ? ` · Sent via ${order.refundMethod === 'gcash' ? 'GCash' : 'cash'}` : ''}{order.refundReference ? ` · Reference ${order.refundReference}` : ''} · Returned goods are not automatically restocked.
           </div>
         )}
 
