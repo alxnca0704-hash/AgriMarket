@@ -44,7 +44,7 @@ export function GcashSettingsForm() {
         )}
       </header>
 
-      {gcash.error && <Alert type="error" showIcon message={gcash.error} className="max-w-3xl" />}
+      {gcash.error && <Alert type="error" showIcon title={gcash.error} className="max-w-3xl" />}
 
       <section className="grid grid-cols-1 items-start gap-5 lg:grid-cols-12 lg:gap-6">
         <div className="space-y-6 rounded-2xl bg-white p-5 sm:p-7 lg:col-span-5 lg:p-8">

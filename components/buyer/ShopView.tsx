@@ -66,7 +66,7 @@ export function ShopView({ stallId }: ShopViewProps) {
   if (error) {
     return (
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-5 sm:pt-8 pb-16 space-y-4">
-        <Alert type="error" message={error} showIcon />
+        <Alert type="error" title={error} showIcon />
         <Button onClick={handleBackToHome} className="!rounded-xl">
           Back to home
         </Button>
@@ -94,7 +94,7 @@ export function ShopView({ stallId }: ShopViewProps) {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-5 sm:pt-8 pb-16 space-y-6">
-      {reviewsError && <Alert type="warning" message={reviewsError} showIcon />}
+      {reviewsError && <Alert type="warning" title={reviewsError} showIcon />}
 
       <div>
         <button

@@ -252,7 +252,7 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
               </div>
             )}
             {order.payment.method === 'gcash' && order.payment.rejectionReason && (
-              <Alert className="mt-3" type="error" showIcon message="Payment proof rejected" description={order.payment.rejectionReason} />
+              <Alert className="mt-3" type="error" showIcon title="Payment proof rejected" description={order.payment.rejectionReason} />
             )}
           </section>
 

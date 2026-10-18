@@ -226,7 +226,7 @@ export function ReviewsView() {
         </h1>
       </div>
 
-      {error && <Alert type="error" message={error} showIcon />}
+      {error && <Alert type="error" title={error} showIcon />}
 
       {/* Overall summary */}
       <div className="rounded-2xl bg-white shadow-sm p-5 sm:p-6">

@@ -8,7 +8,7 @@ export default function AdminPaymentsError({ reset }: { error: Error & { digest?
       <Alert
         type="error"
         showIcon
-        message="Could not load payment submissions"
+        title="Could not load payment submissions"
         description={<Button className="mt-3" onClick={reset}>Retry</Button>}
       />
     </div>

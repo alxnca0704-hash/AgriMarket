@@ -21,7 +21,7 @@ export function AdminPaymentsView() {
         <p className="text-sm text-stone-500">New submissions appear here automatically. Match the expected amount and reference in your GCash transaction history.</p>
       </header>
 
-      {payments.error && <Alert type="error" showIcon message={payments.error} />}
+      {payments.error && <Alert type="error" showIcon title={payments.error} />}
       {payments.payments?.length === 0 ? (
         <div className="rounded-2xl bg-white p-8"><Empty description="No GCash payments are awaiting verification." /></div>
       ) : (

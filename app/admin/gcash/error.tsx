@@ -8,7 +8,7 @@ export default function GcashError({ retry }: { error: Error & { digest?: string
       <Alert
         type="error"
         showIcon
-        message="Could not load GCash settings"
+        title="Could not load GCash settings"
         description="Try loading the account settings again."
         action={<Button onClick={retry}>Retry</Button>}
       />

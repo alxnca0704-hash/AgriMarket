@@ -48,7 +48,7 @@ export function PaymentMethodCard({
       ) : (
         <div className="space-y-4 rounded-xl bg-stone-50 p-4">
           {gcashSettings === undefined ? <Skeleton active paragraph={{ rows: 2 }} /> : gcashSettings === null ? (
-            <Alert type="warning" showIcon message="GCash payments are not configured yet." />
+            <Alert type="warning" showIcon title="GCash payments are not configured yet." />
           ) : (
             <>
               <div className="flex flex-col items-start gap-3 sm:flex-row">
