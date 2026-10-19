@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Checkbox, Image, InputNumber, App } from 'antd';
-import { DeleteOutlined, TruckOutlined } from '@ant-design/icons';
+import { DeleteOutlined, MinusOutlined, PlusOutlined, TruckOutlined } from '@ant-design/icons';
 import { Seller } from '@/types/product';
 import { formatPrice } from '@/lib/format';
 
@@ -86,15 +86,42 @@ export function CartSellerGroup({
                 <p className="text-xs text-stone-400">
                   {formatPrice(line.price)}/{line.unit}
                 </p>
-                <div className="flex items-center gap-2">
-                  <InputNumber
-                    size="small"
-                    min={1}
-                    max={line.stockQty}
-                    value={line.qty}
-                    onChange={(value) => onQtyChange(line.productId, value ?? 1)}
-                    aria-label={`Quantity for ${line.name}`}
-                  />
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Mobile: touch-friendly stepper */}
+                  <div className="flex sm:hidden items-center gap-1 rounded-xl bg-stone-100 p-1">
+                    <button
+                      type="button"
+                      disabled={line.qty <= 1}
+                      onClick={() => onQtyChange(line.productId, line.qty - 1)}
+                      aria-label={`Decrease quantity for ${line.name}`}
+                      className="w-11 h-11 rounded-lg bg-white text-stone-600 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed hover:bg-stone-50 active:bg-stone-200 transition-colors cursor-pointer shadow-sm"
+                    >
+                      <MinusOutlined />
+                    </button>
+                    <span className="min-w-8 text-center text-sm font-semibold text-stone-900">
+                      {line.qty}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={maxReached}
+                      onClick={() => onQtyChange(line.productId, line.qty + 1)}
+                      aria-label={`Increase quantity for ${line.name}`}
+                      className="w-11 h-11 rounded-lg bg-white text-stone-600 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed hover:bg-stone-50 active:bg-stone-200 transition-colors cursor-pointer shadow-sm"
+                    >
+                      <PlusOutlined />
+                    </button>
+                  </div>
+                  {/* Desktop: compact numeric input */}
+                  <div className="hidden sm:block">
+                    <InputNumber
+                      size="small"
+                      min={1}
+                      max={line.stockQty}
+                      value={line.qty}
+                      onChange={(value) => onQtyChange(line.productId, value ?? 1)}
+                      aria-label={`Quantity for ${line.name}`}
+                    />
+                  </div>
                   {maxReached && (
                     <span className="text-xs text-amber-600">Max stock</span>
                   )}

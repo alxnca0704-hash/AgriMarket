@@ -9,8 +9,10 @@ full Cash-on-Delivery order lifecycle are built and wired to Convex.
 
 ## Current Goal
 
-Cart checkout selection: buyers can toggle which cart items they want to
-check out, and totals count only the selected items. Completed.
+Cart quantity selector on mobile: the compact `InputNumber` in the
+cart/checkout line items was replaced on small screens with a
+touch-friendly stepper (44px − / + buttons around the quantity value);
+desktop keeps the numeric input. Completed.
 
 ## Completed
 
@@ -54,6 +56,9 @@ check out, and totals count only the selected items. Completed.
   showing the full cart count; new items default to selected.
 - Checkout: address selection / inline add / inline edit, PSGC cascade
   fetching, per-seller note, confirmation modal, success screen.
+- Cart line quantity on mobile uses a touch-friendly stepper
+  (44px − / + buttons, disabled at 1 and max stock) instead of the
+  compact `InputNumber`; larger screens keep the numeric input.
 - Orders list with status tabs, order detail with an event timeline and
   a stepper, cancel, confirm receipt (which completes the order), and
   refund request.
