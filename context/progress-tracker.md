@@ -9,8 +9,8 @@ full Cash-on-Delivery order lifecycle are built and wired to Convex.
 
 ## Current Goal
 
-Redesign the messages experience with dedicated, separated Inbox and Chat Room views,
-interactive quick replies, order context integration, search, filter tabs, and responsive UI. Completed.
+Cart checkout selection: buyers can toggle which cart items they want to
+check out, and totals count only the selected items. Completed.
 
 ## Completed
 
@@ -45,6 +45,13 @@ interactive quick replies, order context integration, search, filter tabs, and r
   (`lib/search.ts`).
 - Server-backed cart grouped by seller, with per-seller delivery fee
   and a cart badge in the shell.
+- Cart item selection for checkout: per-item and per-seller checkboxes
+  plus a select-all toggle. Cart subtotal, delivery fee (only for
+  sellers with selected items), and total count selected items only.
+  Checkout lists only selected items, and `orders.placeOrders` accepts
+  the selected product IDs, orders just those, and removes only those
+  from the cart (unselected items stay for later). The nav badge keeps
+  showing the full cart count; new items default to selected.
 - Checkout: address selection / inline add / inline edit, PSGC cascade
   fetching, per-seller note, confirmation modal, success screen.
 - Orders list with status tabs, order detail with an event timeline and

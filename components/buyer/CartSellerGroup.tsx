@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Image, InputNumber, App } from 'antd';
+import { Checkbox, Image, InputNumber, App } from 'antd';
 import { DeleteOutlined, TruckOutlined } from '@ant-design/icons';
 import { Seller } from '@/types/product';
 import { formatPrice } from '@/lib/format';
@@ -14,12 +14,15 @@ export interface CartLineItem {
   imageUrl: string;
   stockQty: number;
   qty: number;
+  selected: boolean;
 }
 
 interface CartSellerGroupProps {
   seller: Seller;
   lines: CartLineItem[];
   subtotal: number;
+  onToggle: (productId: string, selected: boolean) => void;
+  onToggleGroup: (selected: boolean) => void;
   onQtyChange: (productId: string, qty: number) => void;
   onRemove: (productId: string) => void;
 }
@@ -28,15 +31,24 @@ export function CartSellerGroup({
   seller,
   lines,
   subtotal,
+  onToggle,
+  onToggleGroup,
   onQtyChange,
   onRemove,
 }: CartSellerGroupProps) {
   const { message } = App.useApp();
 
+  const allSelected = lines.length > 0 && lines.every((line) => line.selected);
+
   return (
     <div className="rounded-2xl bg-white shadow-sm overflow-hidden">
       <div className="px-4 sm:px-5 py-4 flex items-center justify-between gap-2 border-b border-stone-100">
         <div className="flex items-center gap-3 min-w-0">
+          <Checkbox
+            checked={allSelected}
+            onChange={(e) => onToggleGroup(e.target.checked)}
+            aria-label={`Select all items from ${seller.name}`}
+          />
           <span className="w-9 h-9 rounded-xl bg-sage-soft text-sage flex items-center justify-center shrink-0">
             <TruckOutlined />
           </span>
@@ -57,6 +69,12 @@ export function CartSellerGroup({
           const maxReached = line.qty >= line.stockQty;
           return (
             <li key={line.productId} className="px-4 sm:px-5 py-4 flex items-center gap-3.5">
+              <Checkbox
+                checked={line.selected}
+                onChange={(e) => onToggle(line.productId, e.target.checked)}
+                aria-label={`Select ${line.name} for checkout`}
+                className="shrink-0"
+              />
               <Image
                 src={line.imageUrl}
                 alt={line.name}

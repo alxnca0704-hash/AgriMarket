@@ -72,6 +72,7 @@ export function useCart() {
               imageUrl: product?.imageUrl ?? '',
               stockQty: product?.stockQty ?? 1,
               qty: item.qty,
+              selected: cart.isProductSelected(item.productId),
             } satisfies CartLineItem;
           });
         return {
@@ -80,7 +81,22 @@ export function useCart() {
           subtotal: lines.reduce((sum, line) => sum + line.price * line.qty, 0),
         };
       });
-  }, [cart.items, sellerById, productById]);
+  }, [cart.items, cart.isProductSelected, sellerById, productById]);
+
+  const selectedGroups: CartSellerGroupInfo[] = useMemo(
+    () =>
+      groups
+        .map((group) => {
+          const lines = group.lines.filter((line) => line.selected);
+          return {
+            seller: group.seller,
+            lines,
+            subtotal: lines.reduce((sum, line) => sum + line.price * line.qty, 0),
+          };
+        })
+        .filter((group) => group.lines.length > 0),
+    [groups]
+  );
 
   const user = useSyncExternalStore(
     subscribeSessionUser,
@@ -93,10 +109,16 @@ export function useCart() {
     error,
     user,
     groups,
+    selectedGroups,
     itemCount: cart.itemCount,
+    selectedItemCount: cart.selectedItemCount,
     subtotal: cart.subtotal,
     deliveryFee: cart.deliveryFee,
     total: cart.total,
+    allSelected: cart.allSelected,
+    handleToggleItem: cart.toggleProduct,
+    handleToggleGroup: cart.setGroupSelected,
+    handleToggleAll: cart.setAllSelected,
     handleQtyChange: cart.updateQty,
     handleRemove: cart.removeItem,
     handleClear: cart.clearCart,

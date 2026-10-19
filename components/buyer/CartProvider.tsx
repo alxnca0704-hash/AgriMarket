@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useMemo, useRef } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { App } from 'antd';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
@@ -13,9 +13,16 @@ interface CartContextValue {
   items: CartItem[];
   isLoading: boolean;
   itemCount: number;
+  selectedItemCount: number;
   subtotal: number;
   deliveryFee: number;
   total: number;
+  selectedProductIds: string[];
+  allSelected: boolean;
+  isProductSelected: (productId: string) => boolean;
+  toggleProduct: (productId: string) => void;
+  setGroupSelected: (sellerId: string, selected: boolean) => void;
+  setAllSelected: (selected: boolean) => void;
   addItem: (productId: string, qty?: number) => Promise<void>;
   updateQty: (productId: string, qty: number) => void;
   removeItem: (productId: string) => void;
@@ -103,6 +110,58 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     return next;
   }, [remoteItems, productById]);
 
+  // Selection defaults to every cart item; deselected product IDs are tracked
+  // so newly added items are selected automatically. Stale IDs for removed
+  // items are ignored because selection is always derived from current items.
+  const [deselectedIds, setDeselectedIds] = useState<ReadonlySet<string>>(
+    () => new Set<string>()
+  );
+
+  const selectedItems = useMemo(
+    () => items.filter((i) => !deselectedIds.has(i.productId)),
+    [items, deselectedIds]
+  );
+
+  const isProductSelected = useCallback(
+    (productId: string) => !deselectedIds.has(productId),
+    [deselectedIds]
+  );
+
+  const toggleProduct = useCallback((productId: string) => {
+    setDeselectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(productId)) next.delete(productId);
+      else next.add(productId);
+      return next;
+    });
+  }, []);
+
+  const setGroupSelected = useCallback(
+    (sellerId: string, selected: boolean) => {
+      setDeselectedIds((prev) => {
+        const next = new Set(prev);
+        for (const item of items) {
+          if (item.sellerId !== sellerId) continue;
+          if (selected) next.delete(item.productId);
+          else next.add(item.productId);
+        }
+        return next;
+      });
+    },
+    [items]
+  );
+
+  const setAllSelected = useCallback(
+    (selected: boolean) => {
+      if (selected) {
+        setDeselectedIds(new Set<string>());
+        return;
+      }
+      setDeselectedIds(new Set(items.map((i) => i.productId)));
+    },
+    [items]
+  );
+
   const addItem = async (productId: string, qty = 1) => {
     try {
       await addItemMutation({ productId: productId as Id<'products'>, qty });
@@ -131,14 +190,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const itemCount = items.reduce((sum, i) => sum + i.qty, 0);
 
-  const subtotal = items.reduce((sum, i) => {
+  const selectedItemCount = selectedItems.reduce((sum, i) => sum + i.qty, 0);
+
+  const subtotal = selectedItems.reduce((sum, i) => {
     const product = productById.get(i.productId);
     return sum + (product ? product.price * i.qty : 0);
   }, 0);
 
   const sellerIds = useMemo(
-    () => Array.from(new Set(items.map((i) => i.sellerId))),
-    [items]
+    () => Array.from(new Set(selectedItems.map((i) => i.sellerId))),
+    [selectedItems]
   );
 
   const deliveryFee = sellerIds.reduce((sum, id) => {
@@ -146,15 +207,29 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     return sum + (seller ? seller.deliveryFeePeso : 0);
   }, 0);
 
+  const selectedProductIds = useMemo(
+    () => selectedItems.map((i) => i.productId),
+    [selectedItems]
+  );
+
+  const allSelected = items.length > 0 && selectedItems.length === items.length;
+
   return (
     <CartContext.Provider
       value={{
         items,
         isLoading: remoteItems === undefined,
         itemCount,
+        selectedItemCount,
         subtotal,
         deliveryFee,
         total: subtotal + deliveryFee,
+        selectedProductIds,
+        allSelected,
+        isProductSelected,
+        toggleProduct,
+        setGroupSelected,
+        setAllSelected,
         addItem,
         updateQty,
         removeItem,

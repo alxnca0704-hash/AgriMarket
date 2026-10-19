@@ -90,6 +90,7 @@ export const placeOrders = mutation({
   args: {
     address: deliveryAddressValidator,
     notes: v.record(v.string(), v.string()),
+    productIds: v.array(v.id("products")),
     paymentMethod: v.union(v.literal("cod"), v.literal("gcash")),
     paymentReference: v.optional(v.string()),
     paymentNote: v.optional(v.string()),
@@ -114,11 +115,17 @@ export const placeOrders = mutation({
       }
     }
 
-    const cartItems = await ctx.db
+    const allCartItems = await ctx.db
       .query("cartItems")
       .withIndex("by_userId", (q) => q.eq("userId", user._id))
       .take(CART_ITEM_LIMIT);
-    if (cartItems.length === 0) throw new Error("Your cart is empty");
+    const selectedIds = new Set<string>(args.productIds);
+    const cartItems = allCartItems.filter((item) =>
+      selectedIds.has(item.productId)
+    );
+    if (cartItems.length === 0) {
+      throw new Error("Select at least one item to check out");
+    }
 
     const itemsByStall = new Map<Id<"stalls">, Doc<"cartItems">[]>();
     for (const item of cartItems) {

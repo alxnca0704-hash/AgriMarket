@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Alert, Button, Empty } from 'antd';
+import { Alert, Button, Checkbox, Empty } from 'antd';
 import { useCart } from '@/hooks/useCart';
 import { CartSellerGroup } from '@/components/buyer/CartSellerGroup';
 import { PriceSummary } from '@/components/buyer/PriceSummary';
@@ -76,9 +76,14 @@ export function CartView() {
     error,
     groups,
     itemCount,
+    selectedItemCount,
     subtotal,
     deliveryFee,
     total,
+    allSelected,
+    handleToggleItem,
+    handleToggleGroup,
+    handleToggleAll,
     handleQtyChange,
     handleRemove,
   } = useCart();
@@ -122,12 +127,21 @@ export function CartView() {
     <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-5 sm:pt-10 pb-10 space-y-6 sm:space-y-7">
       {error && <Alert type="error" title={error} showIcon />}
 
-      <h1 className="text-2xl sm:text-[28px] font-semibold tracking-tight text-stone-900">
-        Cart{' '}
-        <span className="text-stone-400 font-normal text-lg sm:text-xl">
-          ({itemCount} {itemCount === 1 ? 'item' : 'items'})
-        </span>
-      </h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl sm:text-[28px] font-semibold tracking-tight text-stone-900">
+          Cart{' '}
+          <span className="text-stone-400 font-normal text-lg sm:text-xl">
+            ({itemCount} {itemCount === 1 ? 'item' : 'items'})
+          </span>
+        </h1>
+        <Checkbox
+          checked={allSelected}
+          onChange={(e) => handleToggleAll(e.target.checked)}
+          className="shrink-0"
+        >
+          <span className="text-sm text-stone-600">Select all</span>
+        </Checkbox>
+      </div>
 
       <div className="space-y-4 sm:space-y-5">
         {groups.map((group) => (
@@ -136,6 +150,8 @@ export function CartView() {
             seller={group.seller}
             lines={group.lines}
             subtotal={group.subtotal}
+            onToggle={handleToggleItem}
+            onToggleGroup={(selected) => handleToggleGroup(group.seller.id, selected)}
             onQtyChange={handleQtyChange}
             onRemove={handleRemove}
           />
@@ -146,12 +162,21 @@ export function CartView() {
         subtotal={subtotal}
         deliveryFee={deliveryFee}
         total={total}
-        itemCount={itemCount}
-        note="Delivery fee is charged once per farm and shown up front. Full breakdown appears at checkout."
+        itemCount={selectedItemCount}
+        note="Totals include only the items you've selected for checkout. Delivery fee is charged once per selected farm."
       />
 
-      <Button type="primary" size="large" block onClick={handleCheckout} className="!h-12 !rounded-xl">
-        Proceed to checkout · {formatPrice(total)}
+      <Button
+        type="primary"
+        size="large"
+        block
+        disabled={selectedItemCount === 0}
+        onClick={handleCheckout}
+        className="!h-12 !rounded-xl"
+      >
+        {selectedItemCount === 0
+          ? 'Select items to check out'
+          : `Proceed to checkout · ${formatPrice(total)}`}
       </Button>
     </div>
   );

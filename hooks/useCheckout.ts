@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { App } from 'antd';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
+import { Id } from '@/convex/_generated/dataModel';
 import { toDeliveryAddress, toOrder } from '@/lib/convexSync';
 import { useCart } from '@/hooks/useCart';
 import { useConvexUserSync } from '@/hooks/useConvexUserSync';
@@ -71,7 +72,8 @@ function makeFallbackAddress(user: AuthenticatedUser): DeliveryAddress {
 
 export function useCheckout() {
   const cart = useCartContext();
-  const { user, groups } = useCart();
+  const { user, selectedGroups } = useCart();
+  const groups = selectedGroups;
   const { message } = App.useApp();
   const placeOrdersMutation = useMutation(api.orders.placeOrders);
   const gcashSettings = useQuery(api.orders.getPublicGcashSettings, {});
@@ -489,6 +491,7 @@ export function useCheckout() {
       const created = await placeOrdersMutation({
         address: { ...selectedAddress, label: selectedAddress.label ?? 'Home' },
         notes: trimmedNotes,
+        productIds: cart.selectedProductIds.map((id) => id as Id<'products'>),
         paymentMethod,
         ...(paymentMethod === 'gcash' ? {
           paymentReference: paymentReference.trim(),
@@ -518,7 +521,7 @@ export function useCheckout() {
     subtotal: cart.subtotal,
     deliveryFee: cart.deliveryFee,
     total: cart.total,
-    itemCount: cart.itemCount,
+    itemCount: cart.selectedItemCount,
     addresses,
     selectedIndex,
     defaultIndex,
