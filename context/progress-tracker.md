@@ -9,10 +9,9 @@ full Cash-on-Delivery order lifecycle are built and wired to Convex.
 
 ## Current Goal
 
-Mobile back navigation: product detail and shop detail pages showed two
-back buttons on small screens — one in the buyer shell header and one in
-the page body. The shell header back arrow is now hidden on those routes
-so only the in-page back control remains. Completed.
+Buyer home carousel: added a homepage carousel for the buyer side with
+three slides — fruits & vegetables, system features, and about the
+system. Completed.
 
 ## Completed
 
@@ -70,6 +69,12 @@ so only the in-page back control remains. Completed.
 - Product and shop detail pages no longer show a duplicate back arrow in
   the mobile buyer shell header; the in-page back control is the single
   mobile back affordance on those routes.
+- Buyer home now opens with a responsive carousel (`HomeCarousel`) above
+  the search bar. Three slides cover fruits & vegetables, system
+  features, and about the system, each with imagery, copy, and a CTA into
+  the shops directory. Slide content lives in `constants/homeSlides.ts`;
+  the carousel autoplays, supports drag, and uses custom dot controls.
+  The home skeleton reserves a matching carousel placeholder.
 
 ### Seller surface
 

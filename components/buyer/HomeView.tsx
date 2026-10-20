@@ -4,6 +4,7 @@ import React from 'react';
 import { Alert, Button, Empty, Input, Skeleton } from 'antd';
 import { EnvironmentOutlined, FilterOutlined, ShoppingOutlined } from '@ant-design/icons';
 import { useHome } from '@/hooks/useHome';
+import { HomeCarousel } from '@/components/buyer/HomeCarousel';
 import { ProductGrid } from '@/components/buyer/ProductGrid';
 import { SortFilterBar } from '@/components/buyer/SortFilterBar';
 import { BrowseSidebar } from '@/components/buyer/BrowseSidebar';
@@ -14,6 +15,9 @@ function HomeSkeleton() {
     <div className="max-w-6xl mx-auto px-4 sm:px-6 space-y-6 pt-5 sm:pt-10">
       <Skeleton active paragraph={{ rows: 1 }} />
       <Skeleton.Input active block />
+      <div className="rounded-2xl bg-white shadow-sm p-6 sm:p-10">
+        <Skeleton active paragraph={{ rows: 2 }} />
+      </div>
       <div className="space-y-3">
         <Skeleton.Input active className="!w-44" />
         <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
@@ -86,6 +90,8 @@ export function HomeView() {
             <span className="truncate">Delivering to {deliveryAddress}</span>
           </p>
         </div>
+
+        <HomeCarousel />
 
         <Input.Search
           size="large"
