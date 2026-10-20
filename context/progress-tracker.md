@@ -9,10 +9,10 @@ full Cash-on-Delivery order lifecycle are built and wired to Convex.
 
 ## Current Goal
 
-Cart quantity selector on mobile: the compact `InputNumber` in the
-cart/checkout line items was replaced on small screens with a
-touch-friendly stepper (44px − / + buttons around the quantity value);
-desktop keeps the numeric input. Completed.
+Mobile back navigation: product detail and shop detail pages showed two
+back buttons on small screens — one in the buyer shell header and one in
+the page body. The shell header back arrow is now hidden on those routes
+so only the in-page back control remains. Completed.
 
 ## Completed
 
@@ -67,6 +67,9 @@ desktop keeps the numeric input. Completed.
 - Buyer order list and details redesigned with four grouped filters,
   no summary dashboard, product summaries, muted status badges, visible
   progress, and clearer payment, delivery, and return sections.
+- Product and shop detail pages no longer show a duplicate back arrow in
+  the mobile buyer shell header; the in-page back control is the single
+  mobile back affordance on those routes.
 
 ### Seller surface
 

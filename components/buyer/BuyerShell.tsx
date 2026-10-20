@@ -76,7 +76,11 @@ export function BuyerShell({ children }: { children: React.ReactNode }) {
                   ? 'profile'
                   : null;
 
-  const showBack = !TAB_ROOTS.includes(pathname as (typeof TAB_ROOTS)[number]);
+  const hasInlineBack =
+    pathname.startsWith(APP_ROUTES.productDetail('')) ||
+    pathname.startsWith(APP_ROUTES.shop(''));
+  const showBack =
+    !TAB_ROOTS.includes(pathname as (typeof TAB_ROOTS)[number]) && !hasInlineBack;
 
   const navItems: MenuProps['items'] = useMemo(
     () =>
