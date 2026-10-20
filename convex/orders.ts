@@ -4,11 +4,11 @@ import { Doc, Id } from "./_generated/dataModel";
 import { MutationCtx, QueryCtx } from "./_generated/server";
 import { deliveryAddressValidator } from "./shared";
 import { createNotification } from "./notifications";
+import { RETURN_REQUEST_WINDOW_MS, RETURN_WINDOW_CLOSED_MESSAGE } from "../constants/refunds";
 
 const BUYER_ORDER_LIMIT = 100;
 const SELLER_ORDER_LIMIT = 200;
 const CART_ITEM_LIMIT = 200;
-const RETURN_REQUEST_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 type OrderStatus =
   | "pending"
@@ -584,7 +584,7 @@ export const requestRefund = mutation({
     }
     const deliveredAt = Date.parse(order.deliveredAt ?? "");
     if (!Number.isFinite(deliveredAt) || Date.now() - deliveredAt > RETURN_REQUEST_WINDOW_MS) {
-      throw new Error("Return requests must be submitted within 24 hours of delivery");
+      throw new Error(RETURN_WINDOW_CLOSED_MESSAGE);
     }
     const reason = args.reason.trim();
     if (reason.length < 10) throw new Error("Please provide a reason with at least 10 characters");

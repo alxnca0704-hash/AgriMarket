@@ -9,10 +9,10 @@ full Cash-on-Delivery order lifecycle are built and wired to Convex.
 
 ## Current Goal
 
-Buyer home mobile responsiveness: category selection on small screens is
-now a horizontally scrollable, touch-friendly chip row, and the mobile
-filter bar stacks categories above a full-width sort + filters row so it
-no longer cramps or wraps at 375px. Completed.
+Refund window handling: the buyer's "Request refund" action is now
+disabled with a clear "Return window closed" label once the 24-hour
+return window has passed, instead of only failing after submission.
+Completed.
 
 ## Completed
 
@@ -162,6 +162,13 @@ no longer cramps or wraps at 375px. Completed.
 - Buyer must confirm in a second step before marking an order received. The
   prompt explains that confirmation completes the order and stays open if the
   mutation fails.
+- Return-request eligibility is now enforced in the UI as well as the server.
+  A shared `RETURN_REQUEST_WINDOW_MS` and `RETURN_WINDOW_CLOSED_MESSAGE`
+  live in `constants/refunds.ts` and are reused by `convex/orders.ts` and
+  `OrderActions`. Once 24 hours have elapsed since `deliveredAt`, the buyer
+  sees a disabled "Return window closed" button instead of a working
+  "Request refund" button, so a closed window no longer surfaces only as a
+  mutation error.
 - All seven active order mutations are double-submit safe. `usePendingAction`
   (`hooks/usePendingAction.ts`) keys in-flight calls by
   `ORDER_ACTION_KEYS` (`constants/orders.ts`) and blocks same-tick

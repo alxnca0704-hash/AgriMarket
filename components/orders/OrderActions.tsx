@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button, Input, Modal, Typography, Upload } from 'antd';
 import type { UploadFile } from 'antd';
 import { CheckCircleOutlined, CloseCircleOutlined, UndoOutlined } from '@ant-design/icons';
 import { Order } from '@/types/order';
 import { ORDER_ACTIONS, OrderAction } from '@/constants/orders';
+import { RETURN_REQUEST_WINDOW_MS, RETURN_WINDOW_CLOSED_MESSAGE } from '@/constants/refunds';
 import { useRefundEvidence } from '@/hooks/useRefundEvidence';
 
 interface OrderActionsProps {
@@ -30,7 +31,18 @@ export function OrderActions({
   const [reason, setReason] = useState('');
   const [refundOpen, setRefundOpen] = useState(false);
   const [refundReason, setRefundReason] = useState('');
+  const [refundWindowOpen, setRefundWindowOpen] = useState<boolean | null>(null);
   const evidence = useRefundEvidence();
+
+  const showRefund = order.status === 'delivered' || order.status === 'completed';
+
+  useEffect(() => {
+    const deliveredAt = order.deliveredAt ? Date.parse(order.deliveredAt) : NaN;
+    const open =
+      Number.isFinite(deliveredAt) && Date.now() - deliveredAt <= RETURN_REQUEST_WINDOW_MS;
+    const timer = setTimeout(() => setRefundWindowOpen(open), 0);
+    return () => clearTimeout(timer);
+  }, [order.deliveredAt]);
 
   const compact = variant === 'card';
 
@@ -115,16 +127,28 @@ export function OrderActions({
         </Button>
       )}
 
-      {(order.status === 'delivered' || order.status === 'completed') && onRequestRefund && (
-        <Button
-          size={compact ? 'middle' : 'large'}
-          onClick={openRefund}
-          disabled={refundPending}
-          icon={<UndoOutlined />}
-          className="!rounded-xl"
-        >
-          Request refund
-        </Button>
+      {showRefund && onRequestRefund && refundWindowOpen !== null && (
+        refundWindowOpen ? (
+          <Button
+            size={compact ? 'middle' : 'large'}
+            onClick={openRefund}
+            disabled={refundPending}
+            icon={<UndoOutlined />}
+            className="!rounded-xl"
+          >
+            Request refund
+          </Button>
+        ) : (
+          <Button
+            size={compact ? 'middle' : 'large'}
+            disabled
+            icon={<UndoOutlined />}
+            className="!rounded-xl"
+            title={RETURN_WINDOW_CLOSED_MESSAGE}
+          >
+            Return window closed
+          </Button>
+        )
       )}
 
       <Modal
