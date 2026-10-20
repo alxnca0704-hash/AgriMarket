@@ -9,9 +9,10 @@ full Cash-on-Delivery order lifecycle are built and wired to Convex.
 
 ## Current Goal
 
-Buyer home carousel: added a homepage carousel for the buyer side with
-three slides — fruits & vegetables, system features, and about the
-system. Completed.
+Buyer home mobile responsiveness: category selection on small screens is
+now a horizontally scrollable, touch-friendly chip row, and the mobile
+filter bar stacks categories above a full-width sort + filters row so it
+no longer cramps or wraps at 375px. Completed.
 
 ## Completed
 
@@ -75,6 +76,12 @@ system. Completed.
   the shops directory. Slide content lives in `constants/homeSlides.ts`;
   the carousel autoplays, supports drag, and uses custom dot controls.
   The home skeleton reserves a matching carousel placeholder.
+- Buyer home is mobile-first: on screens below `lg` the category
+  selection is a horizontally scrollable chip row (edge-to-edge, hidden
+  scrollbar, same pill style as the desktop sidebar) instead of a
+  cramped dropdown, and `SortFilterBar` stacks it above a full-width
+  sort select plus filters button. The now-unused `CategorySelect`
+  dropdown component was removed.
 
 ### Seller surface
 

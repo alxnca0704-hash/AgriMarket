@@ -5,7 +5,7 @@ import { Badge, Button, Select } from 'antd';
 import { FilterOutlined } from '@ant-design/icons';
 import { SORT_OPTIONS, SortOption } from '@/constants/sortOptions';
 import { ProductCategory } from '@/constants/categories';
-import { CategorySelect } from '@/components/buyer/CategorySelect';
+import { CategoryChips } from '@/components/buyer/CategoryChips';
 
 interface SortFilterBarProps {
   sort: SortOption;
@@ -25,28 +25,29 @@ export function SortFilterBar({
   onOpenFilters,
 }: SortFilterBarProps) {
   return (
-    <div className="sticky top-14 lg:top-0 z-20 bg-stone-50/95 backdrop-blur py-3">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center justify-end gap-2.5">
-          <CategorySelect active={category} onChange={onCategoryChange} />
+    <div className="sticky top-14 z-20 bg-stone-50/95 backdrop-blur py-2.5 space-y-2.5">
+      <CategoryChips active={category} onChange={onCategoryChange} scrollable />
+      <div className="flex items-center gap-2.5">
+        <div className="flex-1 min-w-0">
           <Select
             size="middle"
             value={sort}
             onChange={onSortChange}
             options={SORT_OPTIONS.map((o) => ({ label: o.label, value: o.key }))}
             popupMatchSelectWidth={false}
-            className="min-w-[130px] sm:min-w-[180px]"
+            className="w-full"
           />
-          <Badge count={filterCount} color="#2D6A4F" overflowCount={99} offset={[4, -3]}>
-            <Button
-              icon={<FilterOutlined />}
-              onClick={onOpenFilters}
-              className="!bg-white !text-stone-600"
-            >
-              <span className="hidden sm:inline">Filters</span>
-            </Button>
-          </Badge>
         </div>
+        <Badge count={filterCount} color="#2D6A4F" overflowCount={99} offset={[4, -3]}>
+          <Button
+            icon={<FilterOutlined />}
+            onClick={onOpenFilters}
+            aria-label="Open filters"
+            className="!bg-white !text-stone-600"
+          >
+            <span className="hidden sm:inline">Filters</span>
+          </Button>
+        </Badge>
       </div>
     </div>
   );
