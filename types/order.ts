@@ -15,6 +15,15 @@ export type OrderStatus =
 
 export type PaymentStatus = 'unpaid' | 'pending' | 'paid' | 'rejected';
 export type PaymentMethod = 'cod' | 'gcash';
+export interface PaymentAttempt {
+  type: 'submitted' | 'approved' | 'rejected' | 'resubmitted';
+  actorId: string;
+  actorRole: 'buyer' | 'admin';
+  referenceNumber: string;
+  expectedAmount: number;
+  reason?: string;
+  at: string;
+}
 
 export interface OrderLineItem {
   productId: string;
@@ -50,6 +59,8 @@ export interface Order {
     note?: string;
     submittedAt?: string;
     rejectionReason?: string;
+    reviewedAt?: string;
+    attempts: PaymentAttempt[];
   };
   address: DeliveryAddress;
   note?: string;

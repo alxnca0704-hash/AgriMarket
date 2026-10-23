@@ -181,6 +181,8 @@ export function toOrder(order: OrderDoc): Order {
         ...(order.paymentNote ? { note: order.paymentNote } : {}),
         ...(order.paymentSubmittedAt ? { submittedAt: order.paymentSubmittedAt } : {}),
         ...(order.paymentRejectionReason ? { rejectionReason: order.paymentRejectionReason } : {}),
+        ...(order.reviewedAt ? { reviewedAt: order.reviewedAt } : {}),
+        attempts: order.paymentEvents ?? [],
       },
     address: {
       label: toAddressLabel(order.address.label),

@@ -1,0 +1,62 @@
+import type { SaleStatus } from '@/constants/sales';
+import type { CommissionReceivableStatus } from '@/constants/commissions';
+import type { Id } from '@/convex/_generated/dataModel';
+
+export interface SalesQueryArgs extends Record<string, unknown> {
+  search: string;
+  paymentMethod: 'all' | 'gcash' | 'cod';
+  saleStatus: 'all' | 'counted' | 'refund-requested' | 'refunded';
+  from: string | null;
+  to: string | null;
+  stallId: Id<'stalls'> | null;
+  page: number;
+  pageSize: number;
+  now: number;
+}
+
+export interface SaleRecord {
+  orderId: string;
+  completedAt: string;
+  buyerName: string;
+  stallName: string;
+  itemSummary: string;
+  itemsSubtotal: number;
+  deliveryFee: number;
+  orderTotal: number;
+  paymentMethod: 'gcash' | 'cod';
+  gcashReference: string | null;
+  saleStatus: SaleStatus;
+  stallId: string;
+  commissionAmount: number | null;
+  commissionStatus: CommissionReceivableStatus | 'n/a';
+  invoiceNumber: string | null;
+}
+
+export interface SalesSummary {
+  totalSales: number;
+  gcashSales: number;
+  codSales: number;
+  orderCount: number;
+  today: number;
+  thisWeek: number;
+  thisMonth: number;
+  commissionAccrued: number;
+  commissionCollected: number;
+}
+
+export interface StallSalesSummary {
+  stallId: string;
+  stallName: string;
+  orders: number;
+  gcashTotal: number;
+  codTotal: number;
+  total: number;
+  refundedTotal: number;
+}
+
+export interface SalesQueryResult {
+  records: SaleRecord[];
+  total: number;
+  summary: SalesSummary;
+  stalls: StallSalesSummary[];
+}

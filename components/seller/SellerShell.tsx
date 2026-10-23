@@ -35,6 +35,7 @@ const TABS = [
   { key: 'messages', label: 'Messages', href: APP_ROUTES.sellerMessages, icon: <MessageOutlined /> },
   { key: 'stall', label: 'My stall', href: APP_ROUTES.sellerStall, icon: <ShopOutlined /> },
   { key: 'earnings', label: 'Earnings', href: APP_ROUTES.sellerEarnings, icon: <AccountBookOutlined /> },
+  { key: 'sales', label: 'Sales', href: APP_ROUTES.sellerSales, icon: <DollarOutlined /> },
   { key: 'commissions', label: 'Commissions', href: APP_ROUTES.sellerCommissions, icon: <DollarOutlined /> },
   { key: 'reviews', label: 'Reviews', href: APP_ROUTES.sellerReviews, icon: <StarOutlined /> },
   { key: 'notifications', label: 'Notifications', href: APP_ROUTES.sellerNotifications, icon: <BellOutlined /> },
@@ -54,6 +55,7 @@ function resolveActiveKey(pathname: string): string | null {
   if (pathname.startsWith(APP_ROUTES.sellerMessages)) return 'messages';
   if (pathname === APP_ROUTES.sellerStall) return 'stall';
   if (pathname === APP_ROUTES.sellerEarnings) return 'earnings';
+  if (pathname === APP_ROUTES.sellerSales) return 'sales';
   if (pathname === APP_ROUTES.sellerCommissions) return 'commissions';
   if (pathname === APP_ROUTES.sellerReviews) return 'reviews';
   if (pathname === APP_ROUTES.sellerNotifications) return 'notifications';

@@ -87,6 +87,21 @@ export default defineSchema({
     paymentSenderNumber: v.optional(v.string()),
     paymentNote: v.optional(v.string()),
     paymentSubmittedAt: v.optional(v.string()),
+    submittedAt: v.optional(v.string()),
+    reviewedBy: v.optional(v.string()),
+    reviewedAt: v.optional(v.string()),
+    decision: v.optional(v.union(v.literal("approved"), v.literal("rejected"))),
+    rejectionReason: v.optional(v.string()),
+    attemptNumber: v.optional(v.number()),
+    paymentEvents: v.optional(v.array(v.object({
+      type: v.union(v.literal("submitted"), v.literal("approved"), v.literal("rejected"), v.literal("resubmitted")),
+      actorId: v.string(),
+      actorRole: v.union(v.literal("buyer"), v.literal("admin")),
+      referenceNumber: v.string(),
+      expectedAmount: v.number(),
+      reason: v.optional(v.string()),
+      at: v.string(),
+    }))),
     paymentRejectionReason: v.optional(v.string()),
     paymentReviewEvents: v.optional(v.array(v.object({
       status: v.union(v.literal("pending"), v.literal("paid"), v.literal("rejected")),
@@ -129,9 +144,14 @@ export default defineSchema({
     .index("by_buyerId", ["buyerId"])
     .index("by_sellerId", ["sellerId"])
     .index("by_stallId", ["stallId"])
-    .index("by_paymentReference", ["paymentReference"])
+    .index("by_referenceNumber", ["paymentReference"])
     .index("by_paymentNote", ["paymentNote"])
+    .index("by_submittedAt", ["submittedAt"])
+    .index("by_paymentStatus", ["paymentStatus"])
     .index("by_paymentMethod_and_paymentStatus", ["paymentMethod", "paymentStatus"])
+    .index("by_completedAt", ["completedAt"])
+    .index("by_stallId_and_completedAt", ["stallId", "completedAt"])
+    .index("by_paymentMethod_and_completedAt", ["paymentMethod", "completedAt"])
     .index("by_status", ["status"]),
 
   reviews: defineTable({
@@ -232,7 +252,7 @@ export default defineSchema({
     orderId: v.id("orders"), stallId: v.id("stalls"), sellerId: v.id("users"), amount: v.number(),
     status: v.union(v.literal("accrued"), v.literal("invoiced"), v.literal("waived")),
     invoiceId: v.optional(v.id("commissionInvoices")), createdAt: v.string(),
-  }).index("by_stallId_and_status", ["stallId", "status"]).index("by_orderId", ["orderId"]),
+  }).index("by_stallId_and_status", ["stallId", "status"]).index("by_stallId_and_createdAt", ["stallId", "createdAt"]).index("by_createdAt", ["createdAt"]).index("by_orderId", ["orderId"]),
 
   commissionInvoices: defineTable({
     stallId: v.id("stalls"), sellerId: v.id("users"), periodStart: v.string(), periodEnd: v.string(), amount: v.number(), paidAmount: v.number(),
@@ -259,7 +279,8 @@ export default defineSchema({
       v.literal("payout_rejected"),
       v.literal("deposit_approved"),
       v.literal("deposit_rejected")
-      ,v.literal("commission_payment_approved"), v.literal("commission_payment_rejected")
+      ,v.literal("commission_payment_approved"), v.literal("commission_payment_rejected"),
+      v.literal("gcash_payment_approved"), v.literal("gcash_payment_rejected")
     ),
     orderId: v.optional(v.id("orders")),
     payoutRequestId: v.optional(v.id("payoutRequests")),

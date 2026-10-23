@@ -53,20 +53,32 @@
   keyed by user), `orders` (immutable line-item snapshot plus a mutable
   status/event log), `reviews` (rating, comment, seller reply),
   `conversations` (buyer/seller threads), and `messages` (text messages).
+- **Sales records**: seller and admin sales views are read-only projections
+  of completed `orders`. They use the order's immutable item and seller
+  snapshots plus `completedAt`, payment fields, and refund status; they do
+  not store a second sales ledger. Completed-time indexes support stall,
+  payment-method, and date-range reads. Refunded orders remain visible and
+  are excluded from sales totals.
+- **Commission receivables**: admin and seller views are read-only projections
+  of `commissionAccruals`, `commissionInvoices`, and `commissionPayments`.
+  Approved invoice payments are allocated to the oldest non-waived accruals;
+  the same query computes admin and seller balances. No receivable copy is
+  stored. Accrual reads use stall and creation-time indexes.
 - **Clerk** (identity): user id, session, and `publicMetadata.role`.
   `users.tokenIdentifier` and `users.clerkId` are the join keys.
 - **Cloudinary**: all product and stall images, uploaded through
   `app/api/uploads/*`, transformed to `width: 1200, quality: auto`.
   Convex stores only the resulting `secure_url`.
-- **Admin GCash configuration**: the singleton `gcashSettings` document
-  stores the QR Cloudinary URL and mobile number. `adminAuditLog` records
-  each change with the verified allowlisted admin email and before/after
-  values. GCash orders store a unique checkout payment note, reference,
-  submission status, and review events. The expected amount is derived from
-  stored order totals and checked manually in GCash; buyers submit no amount,
-  sender details, or receipt. The checkout's seller orders update atomically; only
-  admin approval marks payment paid. COD remains unpaid until delivery
-  confirmation.
+- **Admin GCash configuration and checkout payment reviews**: the singleton
+  `gcashSettings` document stores the QR Cloudinary URL and mobile number.
+  Checkout payment records remain the linked seller orders sharing a unique
+  payment note. They store the submitted reference and append-only payment
+  events, with optional legacy-safe submission/reviewer/decision/attempt fields.
+  Buyers submit a reference number only; expected totals come from the order
+  snapshots. Admin approval verifies the reference and total, marks linked
+  orders paid atomically, and writes an audit record. Rejected attempts retain
+  their reason and can be resubmitted with a new reference. COD remains unpaid
+  until delivery confirmation.
 - **Seller stall deposits**: the `stallDeposits` ledger records each
   unique GCash reference and append-only review events. Approved totals
   are stored on stalls and gate public visibility, checkout, and payout
@@ -162,11 +174,11 @@
    Illegal transitions throw and never mutate.
 5. **Payment state is server-authoritative.** COD orders start `unpaid`
    and become `paid` when the buyer confirms receipt; that same action
-   completes the order. GCash orders start
-   `pending` after the buyer submits a reference, exact total, sender
-   identity, and receipt; only admin approval may mark them paid or
-   unlock seller confirmation. Rejected submissions retain a reason and
-   can be resubmitted by the buyer.
+   completes the order. GCash orders start `pending` after the buyer submits
+   a reference number only; expected totals are derived from order records.
+   Only verified admin approval may mark them paid or unlock seller
+   confirmation. Decisions append an audit event; rejected submissions retain
+   a reason and can be resubmitted by the buyer.
 6. **Images never enter the database as bytes.** Cloudinary holds the
    file; Convex holds a `secure_url` string.
 7. **Return requests block seller payouts.** The order's

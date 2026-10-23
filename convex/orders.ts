@@ -100,7 +100,7 @@ export const placeOrders = mutation({
   },
   async handler(ctx, args) {
     const user = await requireUser(ctx);
-    const paymentReference = args.paymentReference?.trim();
+    const paymentReference = args.paymentReference?.trim().replace(/\s+/g, " ").toUpperCase();
     const paymentNote = args.paymentNote?.trim();
     if (args.paymentMethod === "gcash") {
       if (!paymentReference || paymentReference.length < 4 || paymentReference.length > 40 || !paymentNote || !/^AG-[A-Z0-9]{12}$/.test(paymentNote)) {
@@ -110,10 +110,10 @@ export const placeOrders = mutation({
         .withIndex("by_paymentNote", (q) => q.eq("paymentNote", paymentNote))
         .first();
       if (existingNote) throw new Error("Payment note collision. Please refresh checkout and try again.");
-      const existingReference = await ctx.db.query("orders")
-        .withIndex("by_paymentReference", (q) => q.eq("paymentReference", paymentReference))
-        .first();
-      if (existingReference) {
+      const referenceGroups = await Promise.all((['pending', 'paid', 'rejected'] as const).map((status) => ctx.db.query("orders")
+        .withIndex("by_paymentMethod_and_paymentStatus", (q) => q.eq("paymentMethod", "gcash").eq("paymentStatus", status)).take(1000)));
+      const duplicateReference = referenceGroups.flat().some((order) => order.paymentReference?.trim().replace(/\s+/g, " ").toUpperCase() === paymentReference);
+      if (duplicateReference) {
         throw new Error("This GCash reference number has already been submitted.");
       }
     }
@@ -228,10 +228,14 @@ export const placeOrders = mutation({
         if (order) storedOrders.push(order);
       }
       const now = new Date().toISOString();
+      const expectedAmount = storedOrders.reduce((sum, order) => sum + order.total, 0);
       for (const order of storedOrders) {
         await ctx.db.patch("orders", order._id, {
           paymentNote,
           paymentSubmittedAt: now,
+          submittedAt: now,
+          attemptNumber: 1,
+          paymentEvents: [{ type: "submitted", actorId: String(order.buyerId), actorRole: "buyer" as const, referenceNumber: order.paymentReference ?? "", expectedAmount, at: now }],
           paymentReviewEvents: [{ status: "pending", label: "Payment submitted", at: now }],
         });
       }
@@ -260,7 +264,7 @@ export const resubmitGcashPayment = mutation({
     if (order.paymentMethod !== "gcash" || order.paymentStatus !== "rejected" || !order.paymentNote) {
       throw new Error("This GCash payment cannot be resubmitted.");
     }
-    const paymentReference = args.paymentReference.trim();
+    const paymentReference = args.paymentReference.trim().replace(/\s+/g, " ").toUpperCase();
     if (!paymentReference) {
       throw new Error("Enter a new GCash reference number.");
     }
@@ -276,18 +280,25 @@ export const resubmitGcashPayment = mutation({
     if (siblings.some((sibling) => sibling.buyerId !== user._id || sibling.paymentStatus !== "rejected" || sibling.status === "cancelled")) {
       throw new Error("The checkout payment group is not eligible for resubmission.");
     }
-    const existingReference = await ctx.db.query("orders")
-      .withIndex("by_paymentReference", (q) => q.eq("paymentReference", paymentReference))
-      .first();
-    if (existingReference) {
+    const referenceGroups = await Promise.all((['pending', 'paid', 'rejected'] as const).map((status) => ctx.db.query("orders")
+      .withIndex("by_paymentMethod_and_paymentStatus", (q) => q.eq("paymentMethod", "gcash").eq("paymentStatus", status)).take(1000)));
+    const duplicateReference = referenceGroups.flat().some((candidate) => candidate.paymentReference?.trim().replace(/\s+/g, " ").toUpperCase() === paymentReference);
+    if (duplicateReference) {
       throw new Error("This GCash reference number has already been submitted.");
     }
     const now = new Date().toISOString();
+    const expectedAmount = siblings.reduce((sum, sibling) => sum + sibling.total, 0);
     for (const sibling of siblings) {
       await ctx.db.patch("orders", sibling._id, {
         paymentStatus: "pending",
         paymentReference,
         paymentSubmittedAt: now,
+        submittedAt: now,
+        attemptNumber: (sibling.attemptNumber ?? 1) + 1,
+        paymentEvents: [
+          ...(sibling.paymentEvents ?? [{ type: "submitted" as const, actorId: String(user._id), actorRole: "buyer" as const, referenceNumber: sibling.paymentReference ?? "", expectedAmount, at: sibling.submittedAt ?? sibling.paymentSubmittedAt ?? sibling.placedAt }]),
+          { type: "resubmitted" as const, actorId: String(user._id), actorRole: "buyer" as const, referenceNumber: paymentReference, expectedAmount, at: now },
+        ],
         paymentRejectionReason: undefined,
         paymentReviewEvents: [
           ...(sibling.paymentReviewEvents ?? []),

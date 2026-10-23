@@ -9,7 +9,9 @@ export const APP_ROUTES = {
   adminRefunds: '/admin/refunds',
   adminDeposits: '/admin/deposits',
   adminCommissions: '/admin/commissions',
+  adminReceivables: '/admin/receivables',
   adminSellerVerification: '/admin/seller-verification',
+  adminSales: '/admin/sales',
   signUpWithRole: (role: string) => `/signup?role=${encodeURIComponent(role)}`,
   signUpOnboarding: (role: string, step = 1) =>
     `/signup?role=${encodeURIComponent(role)}&step=${step}`,
@@ -36,6 +38,7 @@ export const APP_ROUTES = {
   sellerMessageThread: (id: string) => `/seller/messages?conversation=${encodeURIComponent(id)}`,
   sellerStall: '/seller/stall',
   sellerEarnings: '/seller/earnings',
+  sellerSales: '/seller/sales',
   sellerCommissions: '/seller/commissions',
   sellerReviews: '/seller/reviews',
   sellerNotifications: '/seller/notifications',

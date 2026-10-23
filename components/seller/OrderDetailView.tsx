@@ -201,10 +201,10 @@ export function SellerOrderDetailView({ orderId }: { orderId: string }) {
             </div>
             <div className="rounded-xl bg-stone-50/80 p-4 text-sm">
               {order.payment.status === 'paid' ? (
-                <p className="text-stone-700"><strong className="font-semibold text-stone-900">Paid</strong> — {order.payment.method === 'gcash' ? 'GCash payment verified.' : 'cash received by the courier.'}</p>
+                <p className="text-stone-700"><strong className="font-semibold text-stone-900">Paid</strong> — {order.payment.method === 'gcash' ? `GCash payment verified${order.payment.reviewedAt ? ` on ${formatOrderTime(order.payment.reviewedAt)}` : '.'}` : 'cash received by the courier.'}</p>
               ) : order.payment.method === 'gcash' ? (
                 <div className="space-y-2 text-stone-700">
-                  <p><strong className="font-semibold text-stone-900">{order.payment.status === 'pending' ? 'Awaiting verification' : order.payment.status === 'rejected' ? 'Payment proof rejected' : 'Unpaid'}</strong> · Reference {order.payment.reference ?? 'not provided'}</p>
+                  <p><strong className="font-semibold text-stone-900">{order.payment.status === 'pending' ? 'Awaiting verification' : order.payment.status === 'rejected' ? 'Payment proof rejected' : 'Unpaid'}</strong></p>
                 </div>
               ) : (
                 <p className="text-stone-700">

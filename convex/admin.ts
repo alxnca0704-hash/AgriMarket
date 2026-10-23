@@ -5,6 +5,7 @@ import { mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { createNotification } from "./notifications";
 import { makeFunctionReference } from "convex/server";
+import { RETURN_REQUEST_WINDOW_MS } from "../constants/refunds";
 
 const waiveRefundedOrderRef = makeFunctionReference<"mutation", { orderId: Id<"orders"> }, null>("commissions:waiveRefundedOrder");
 
@@ -402,15 +403,92 @@ export const listPendingGcashPayments = query({
   },
 });
 
+export const listAdminGcashPayments = query({
+  args: {
+    status: v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected"), v.literal("all")),
+    search: v.string(),
+    from: v.optional(v.string()),
+    to: v.optional(v.string()),
+    page: v.number(),
+    pageSize: v.number(),
+  },
+  async handler(ctx, args) {
+    await requireAdminEmail(ctx);
+    const statuses = args.status === "all" ? ["pending", "paid", "rejected"] as const : [args.status === "approved" ? "paid" : args.status] as const;
+    const ordersByStatus = await Promise.all(statuses.map((status) => ctx.db.query("orders")
+      .withIndex("by_paymentMethod_and_paymentStatus", (q) => q.eq("paymentMethod", "gcash").eq("paymentStatus", status))
+      .order("desc").take(1000)));
+    const groups = new Map<string, typeof ordersByStatus[number]>();
+    for (const order of ordersByStatus.flat()) {
+      if (!order.paymentNote) continue;
+      const group = groups.get(order.paymentNote) ?? [];
+      group.push(order);
+      groups.set(order.paymentNote, group);
+    }
+    const needle = args.search.trim().toLowerCase();
+    const records = [];
+    for (const [paymentNote, group] of groups) {
+      const first = group[0];
+      const buyer = await ctx.db.get("users", first.buyerId);
+      const submittedAt = first.submittedAt ?? first.paymentSubmittedAt ?? first.placedAt;
+      if ((args.from && submittedAt < args.from) || (args.to && submittedAt > args.to)) continue;
+      if (needle && ![first.paymentReference ?? "", paymentNote, buyer?.fullName ?? "", ...group.map((order) => order.sellerName)].some((value) => value.toLowerCase().includes(needle))) continue;
+      const events = group.flatMap((order) => order.paymentEvents ?? []).filter((event, index, all) => all.findIndex((candidate) => candidate.at === event.at && candidate.type === event.type && candidate.referenceNumber === event.referenceNumber) === index).sort((a, b) => a.at.localeCompare(b.at));
+      const reference = first.paymentReference;
+      const duplicateCandidates = reference ? await ctx.db.query("orders").withIndex("by_paymentStatus", (q) => q.eq("paymentStatus", "paid")).take(1000) : [];
+      const normalizedReference = reference?.trim().replace(/\s+/g, " ").toUpperCase() ?? "";
+      const duplicates = duplicateCandidates.filter((order) => order.paymentMethod === "gcash" && order.paymentReference?.trim().replace(/\s+/g, " ").toUpperCase() === normalizedReference);
+      records.push({
+        paymentNote, paymentReference: first.paymentReference ?? "", submittedAt, buyerName: buyer?.fullName ?? "Buyer",
+        expectedAmount: group.reduce((sum, order) => sum + order.total, 0), status: first.paymentStatus,
+        attemptNumber: first.attemptNumber ?? 1, reviewedBy: first.reviewedBy ?? "", reviewedAt: first.reviewedAt ?? "",
+        rejectionReason: first.rejectionReason ?? first.paymentRejectionReason ?? "",
+        sellerNames: group.map((order) => order.sellerName), orderIds: group.map((order) => String(order._id)),
+        orders: group.map((order) => ({ orderId: String(order._id), stallName: order.sellerName, subtotal: order.subtotal, deliveryFee: order.deliveryFee, total: order.total, status: order.status, paymentStatus: order.paymentStatus, payoutStatus: order.payoutRequestId ? "reserved" : order.refundPayoutHold ? "on hold" : order.status === "completed" && order.paymentStatus === "paid" && Date.now() - Date.parse(order.deliveredAt ?? "") >= RETURN_REQUEST_WINDOW_MS ? "eligible" : "not eligible" })),
+        events, needsRefund: group.some((order) => order.status === "cancelled" && order.paymentStatus === "paid"),
+        duplicateApproved: duplicates.some((order) => !group.some((item) => item._id === order._id) && order.paymentStatus === "paid"),
+      });
+    }
+    records.sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    const week = new Date(now.getTime() - 7 * 86400000).toISOString();
+    const month = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const summaryRows = await Promise.all((['pending', 'paid', 'rejected'] as const).map((status) => ctx.db.query("orders")
+      .withIndex("by_paymentMethod_and_paymentStatus", (q) => q.eq("paymentMethod", "gcash").eq("paymentStatus", status)).take(1000)));
+    const summaryGroups = new Map<string, typeof summaryRows[number]>();
+    for (const order of summaryRows.flat()) {
+      if (!order.paymentNote) continue;
+      const group = summaryGroups.get(order.paymentNote) ?? [];
+      group.push(order);
+      summaryGroups.set(order.paymentNote, group);
+    }
+    const allGroups = [...summaryGroups.values()];
+    const approved = allGroups.filter((group) => group[0].paymentStatus === "paid");
+    const totals = (since: string) => approved.filter((group) => (group[0].reviewedAt ?? "") >= since).reduce((sum, group) => sum + group.reduce((total, order) => total + order.total, 0), 0);
+    return {
+      total: records.length,
+      records: records.slice((args.page - 1) * args.pageSize, args.page * args.pageSize),
+      pendingCount: allGroups.filter((group) => group[0].paymentStatus === "pending").length,
+      pendingAmount: allGroups.filter((group) => group[0].paymentStatus === "pending").reduce((sum, group) => sum + group.reduce((total, order) => total + order.total, 0), 0),
+      approvedToday: totals(today), approvedThisWeek: totals(week), approvedThisMonth: totals(month),
+      rejectedCount: allGroups.filter((group) => group[0].paymentStatus === "rejected").length,
+    };
+  },
+});
+
 export const reviewGcashPayment = mutation({
   args: {
     paymentNote: v.string(),
     decision: v.union(v.literal("paid"), v.literal("rejected")),
     reason: v.optional(v.string()),
+    duplicateOverrideReason: v.optional(v.string()),
   },
   returns: v.null(),
   async handler(ctx, args) {
     const actorEmail = await requireAdminEmail(ctx);
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authorized");
     const paymentNote = args.paymentNote.trim();
     const orders = await ctx.db.query("orders")
       .withIndex("by_paymentNote", (q) => q.eq("paymentNote", paymentNote))
@@ -423,14 +501,32 @@ export const reviewGcashPayment = mutation({
     if (pending.some((order) => !order.paymentReference)) {
       throw new Error("Payment reference number is missing.");
     }
+    const normalizedReference = (pending[0].paymentReference ?? "").trim().replace(/\s+/g, " ").toUpperCase();
+    const duplicates = (await ctx.db.query("orders")
+      .withIndex("by_paymentStatus", (q) => q.eq("paymentStatus", "paid"))
+      .take(1000)).filter((order) => order.paymentMethod === "gcash" && order.paymentReference?.trim().replace(/\s+/g, " ").toUpperCase() === normalizedReference);
+    const duplicateApproved = duplicates.some((order) => !pending.some((item) => item._id === order._id) && order.paymentStatus === "paid");
+    const overrideReason = args.duplicateOverrideReason?.trim();
+    if (args.decision === "paid" && duplicateApproved && (!overrideReason || overrideReason.length < 5 || overrideReason.length > 500)) {
+      throw new Error("This reference was approved on a different payment. Add a written override reason to continue.");
+    }
     const reason = args.reason?.trim();
     if (args.decision === "rejected" && (!reason || reason.length < 5 || reason.length > 500)) {
       throw new Error("Enter a rejection reason between 5 and 500 characters.");
     }
     const now = new Date().toISOString();
+    const expectedAmount = pending.reduce((sum, order) => sum + order.total, 0);
     for (const order of pending) {
       await ctx.db.patch("orders", order._id, {
         paymentStatus: args.decision,
+        reviewedBy: actorEmail,
+        reviewedAt: now,
+        decision: args.decision === "paid" ? "approved" : "rejected",
+        ...(args.decision === "rejected" ? { rejectionReason: reason } : { rejectionReason: undefined }),
+        paymentEvents: [
+          ...(order.paymentEvents ?? [{ type: "submitted" as const, actorId: String(order.buyerId), actorRole: "buyer" as const, referenceNumber: order.paymentReference ?? "", expectedAmount, at: order.submittedAt ?? order.paymentSubmittedAt ?? order.placedAt }]),
+          { type: args.decision === "paid" ? "approved" as const : "rejected" as const, actorId: identity.subject, actorRole: "admin" as const, referenceNumber: order.paymentReference ?? "", expectedAmount, ...(reason ? { reason } : {}), at: now },
+        ],
         ...(args.decision === "rejected" ? { paymentRejectionReason: reason } : { paymentRejectionReason: undefined }),
         paymentReviewEvents: [
           ...(order.paymentReviewEvents ?? []),
@@ -443,6 +539,15 @@ export const reviewGcashPayment = mutation({
           },
         ],
         updatedAt: now,
+      });
+      await ctx.db.insert("adminAuditLog", {
+        actorEmail,
+        action: args.decision === "paid" ? "gcash_payment_approved" : "gcash_payment_rejected",
+        orderId: order._id,
+        paymentReference: normalizedReference,
+        ...(args.decision === "rejected" ? { reason } : {}),
+        ...(duplicateApproved && overrideReason ? { reason: overrideReason } : {}),
+        createdAt: now,
       });
       if (args.decision === "paid") {
         await createNotification(ctx, {

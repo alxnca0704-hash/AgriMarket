@@ -9,7 +9,7 @@ full Cash-on-Delivery order lifecycle are built and wired to Convex.
 
 ## Current Goal
 
-Weekly COD commission invoicing is implemented. Build and lint pass. Deployment and authenticated GCash/admin end-to-end walkthrough remain as release follow-up.
+Platform and seller commission receivables are derived from existing accruals, invoices, and payments, with oldest-first partial payment allocation. Sales records now include COD commission status and totals. Build and lint pass. An authenticated commission lifecycle walkthrough remains release follow-up.
 
 ## Completed
 
@@ -95,6 +95,8 @@ Weekly COD commission invoicing is implemented. Build and lint pass. Deployment 
   fulfilment progress display.
 - Stall profile editing, earnings view, reviews view with reply,
   notifications view, settings.
+- `/seller/sales` shows completed COD and GCash orders from immutable
+  order snapshots, filtered server-side with paginated rows and CSV export.
 
 ### Orders, stock, and payments (COD)
 
@@ -126,8 +128,18 @@ Weekly COD commission invoicing is implemented. Build and lint pass. Deployment 
   submit the unique payment note and transaction reference number only.
 - Live admin payment notifications, approval, rejection with a reason,
   seller fulfilment unlock, and buyer resubmission are implemented.
-- Buyer and seller order details show the GCash reference and payment
-  review state. Buyer resubmission requires a new reference number only.
+- Checkout payment records retain submission, resubmission, approval, and
+  rejection events with actor, reference, expected total, timestamp, and
+  reason. Review decisions record reviewer and time; admin approval confirms
+  GCash history verification, blocks previously approved duplicate references
+  unless a written override is supplied, and appends an admin audit log.
+- `/admin/payments` has Pending, Approved, Rejected, and All tabs, live
+  pending count, server pagination, search and date filters, summary amounts,
+  a detail drawer with order/payout breakdown and timeline, and filtered CSV
+  export. Paid cancelled orders show a Needs refund flag.
+- Buyer order details show payment attempts and rejection reasons; seller
+  order details show GCash approval date without displaying the buyer's
+  reference. Buyer resubmission still requires a new reference number only.
 - Reviews with 1–5 stars, an optional product reference, and a single
   seller reply.
 - Admin sign-in promotes the verified, allowlisted Clerk account and
@@ -136,6 +148,10 @@ Weekly COD commission invoicing is implemented. Build and lint pass. Deployment 
   return review, and seller verification. GCash account management,
   payment review, and the full audited return workflow through refund
   closeout are implemented. Seller verification remains unimplemented.
+- `/admin/sales` shows platform totals and per-stall totals, with verified
+  admin authorization in the Convex query, stall drill-down, filters,
+  pagination, and CSV export. Refunded orders remain visible and are
+  excluded from totals on both seller and admin views.
 - Seller earnings now use paid Convex orders and distinguish GCash from COD.
   The earnings page shows separate GCash and COD sales; COD cash is handed
   directly to the seller on delivery, so COD orders never enter the payout
@@ -234,13 +250,16 @@ Weekly COD commission invoicing is implemented. Build and lint pass. Deployment 
 
 - Added commission accrual, invoice, and payment ledgers with indexes; completed COD deliveries create an idempotent commission accrual.
 - Added weekly invoice issuance, reminders, seller notifications, payment submission, verified-admin review, and seller/admin page surfaces.
+- Added `/admin/receivables` and a per-accrual receivables panel to seller commissions. Both use the same server query; admin authorization checks the verified allowlisted email. Status and totals are derived from source accruals, invoices, and approved payments, including oldest-accrual-first handling of partial payments. Waived accruals remain listed and do not count as owed.
+- Receivable filters, indexed date/stall reads, server pagination, stall summaries and drill-down, linked invoice/payment details, and filtered CSV export are available to admin. Seller summaries include unbilled, invoiced, overdue, paid, and waived amounts.
+- Seller and admin sales pages now show commission amount, status, invoice number, and filtered-range commission accrued/collected totals for COD orders; GCash rows show n/a.
 - `npm run build` and `npm run lint` pass. Authenticated deployment walkthrough remains.
 - Scenario walkthrough reviewed in code: COD accrues once on completion; GCash skips accrual; the PHP 20 threshold leaves smaller balances accrued; full and partial approvals update balances; rejection permits resubmission; dueAt drives overdue UI even before cron; cron sends two-day and overdue notices; refunds waive accruals and adjust invoiced balances.
 
 ## Open Questions
 
-- How canceled GCash orders with a submitted transfer should be
-  reconciled still needs a defined refund process.
+- The refund process for cancelled GCash orders with an approved payment is
+  still undefined; the admin queue flags these as Needs refund for follow-up.
 - Whether and when the seller deposit is refunded, and what it can be
   deducted for, is undecided.
 - Deposit overpayments are blocked by the remaining-balance cap.

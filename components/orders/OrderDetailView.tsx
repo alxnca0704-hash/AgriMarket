@@ -294,6 +294,18 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
             {order.payment.method === 'gcash' && order.payment.rejectionReason && (
               <Alert className="mt-3" type="error" showIcon title="Payment proof rejected" description={order.payment.rejectionReason} />
             )}
+            {order.payment.method === 'gcash' && order.payment.attempts.length > 0 && (
+              <div className="mt-4 space-y-2">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-stone-500">Payment attempts</h3>
+                {order.payment.attempts.map((attempt, index) => (
+                  <div key={`${attempt.at}-${index}`} className="rounded-xl bg-stone-50 p-3 text-xs text-stone-600">
+                    <p>{attempt.type} · {formatOrderTime(attempt.at)}</p>
+                    <p>Reference <span className="font-mono">{attempt.referenceNumber}</span></p>
+                    {attempt.reason && <p className="mt-1">Reason: {attempt.reason}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
 
           {order.payment.method === 'gcash' && order.payment.status === 'rejected' && (

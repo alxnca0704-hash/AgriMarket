@@ -5,6 +5,8 @@ import { APP_ROUTES } from "../constants/routes";
 import { internalMutation, mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { createNotification } from "./notifications";
+import { resolveReceivableLedger, receivablePeriodStarts } from "./receivableHelpers";
+import type { Id } from "./_generated/dataModel";
 
 async function seller(ctx: QueryCtx | MutationCtx) {
   const identity = await ctx.auth.getUserIdentity();
@@ -189,4 +191,89 @@ export const waiveRefundedOrder = internalMutation({ args: { orderId: v.id("orde
   await ctx.db.patch("commissionInvoices", invoice._id, { amount: newAmount, paidAmount, status, events: [...invoice.events, { type: "accrual_waived", label: "Refunded order commission waived", at: now, amount: accrual.amount }] });
   await createNotification(ctx, { userId: accrual.sellerId, role: "seller", refId: invoice._id, type: "commission_waived", title: "Commission waived", body: `₱${accrual.amount.toFixed(2)} commission was removed from your invoice after the order refund.` });
   return null;
+} });
+
+const receivableStatusValidator = v.union(v.literal("accrued"), v.literal("invoiced"), v.literal("overdue"), v.literal("paid"), v.literal("waived"));
+const receivableArgsValidator = {
+  search: v.string(), status: v.union(v.literal("all"), receivableStatusValidator), from: v.union(v.string(), v.null()), to: v.union(v.string(), v.null()),
+  stallId: v.union(v.id("stalls"), v.null()), page: v.number(), pageSize: v.number(), now: v.number(),
+};
+const receivableRecordValidator = v.object({
+  accrualId: v.id("commissionAccruals"), orderId: v.id("orders"), saleDate: v.string(), itemsSummary: v.string(), itemsSubtotal: v.number(),
+  commission: v.number(), amountPaid: v.number(), amountOwed: v.number(), invoiceId: v.union(v.id("commissionInvoices"), v.null()),
+  invoiceNumber: v.union(v.string(), v.null()), invoiceDueAt: v.union(v.number(), v.null()), status: receivableStatusValidator,
+  paymentReference: v.union(v.string(), v.null()), paymentId: v.union(v.id("commissionPayments"), v.null()), paymentAmount: v.union(v.number(), v.null()), paidAt: v.union(v.string(), v.null()),
+  invoiceAmount: v.union(v.number(), v.null()), invoicePaidAmount: v.union(v.number(), v.null()),
+  stallId: v.id("stalls"), stallName: v.string(),
+});
+const receivableSummaryValidator = v.object({ totalOwed: v.number(), unbilled: v.number(), invoiced: v.number(), overdue: v.number(), paid: v.number(), waived: v.number(), collectedToday: v.number(), collectedThisWeek: v.number(), collectedThisMonth: v.number() });
+const stallReceivableSummaryValidator = v.object({ stallId: v.id("stalls"), stallName: v.string(), unbilled: v.number(), invoiced: v.number(), overdue: v.number(), collected: v.number(), totalOwed: v.number(), oldestOverdueAt: v.union(v.string(), v.null()) });
+const receivablesResultValidator = v.object({ records: v.array(receivableRecordValidator), total: v.number(), summary: receivableSummaryValidator, stalls: v.array(stallReceivableSummaryValidator) });
+
+const emptyReceivables = { records: [], total: 0, summary: { totalOwed: 0, unbilled: 0, invoiced: 0, overdue: 0, paid: 0, waived: 0, collectedToday: 0, collectedThisWeek: 0, collectedThisMonth: 0 }, stalls: [] };
+
+async function getReceivableRecords(
+  ctx: QueryCtx,
+  args: { search: string; status: "all" | "accrued" | "invoiced" | "overdue" | "paid" | "waived"; from: string | null; to: string | null; stallId: Id<"stalls"> | null; page: number; pageSize: number; now: number },
+  ownedStallId: Id<"stalls"> | null,
+) {
+  const stallId = ownedStallId ?? args.stallId;
+  let queryRange;
+  if (stallId) queryRange = ctx.db.query("commissionAccruals").withIndex("by_stallId_and_createdAt", q => q.eq("stallId", stallId).gte("createdAt", args.from ?? "").lte("createdAt", args.to ?? "\uffff"));
+  else queryRange = ctx.db.query("commissionAccruals").withIndex("by_createdAt", q => q.gte("createdAt", args.from ?? "").lte("createdAt", args.to ?? "\uffff"));
+  const accruals = await queryRange.order("desc").collect();
+  const ledger = await resolveReceivableLedger(ctx, accruals, args.now);
+  const search = args.search.trim().toLowerCase();
+  const hydrated = await Promise.all(accruals.map(async accrual => {
+    const [order, stall] = await Promise.all([ctx.db.get("orders", accrual.orderId), ctx.db.get("stalls", accrual.stallId)]);
+    if (!order) return null;
+    const allocation = ledger.allocations.get(accrual._id);
+    if (!allocation) return null;
+    const invoice = accrual.invoiceId ? ledger.invoices.get(accrual.invoiceId) ?? null : null;
+    const saleDate = order.completedAt ?? accrual.createdAt;
+    if (args.from && saleDate < args.from || args.to && saleDate > args.to) return null;
+    const matchesSearch = !search || String(order._id).toLowerCase().includes(search) || String(order._id).slice(-6).toLowerCase().includes(search) || String(invoice?._id ?? "").toLowerCase().includes(search);
+    if (!matchesSearch || args.status !== "all" && allocation.status !== args.status) return null;
+    return {
+      accrualId: accrual._id, orderId: order._id, saleDate, itemsSummary: order.items.map(item => `${item.name} × ${item.qty}`).join(", "),
+      itemsSubtotal: order.subtotal, commission: accrual.amount, amountPaid: allocation.amountPaid, amountOwed: allocation.amountOwed,
+      invoiceId: invoice?._id ?? null, invoiceNumber: invoice ? String(invoice._id) : null, invoiceDueAt: invoice?.dueAt ?? null,
+      status: allocation.status, paymentReference: allocation.paymentReference, paymentId: allocation.paymentId, paymentAmount: allocation.paymentAmount, paidAt: allocation.paidAt,
+      invoiceAmount: invoice?.amount ?? null, invoicePaidAmount: invoice?.paidAmount ?? null,
+      stallId: accrual.stallId, stallName: stall?.stallName ?? "Unknown stall",
+    };
+  }));
+  const visible = hydrated.filter((row): row is NonNullable<typeof row> => row !== null);
+  const sum = (status: "accrued" | "invoiced" | "overdue" | "paid" | "waived") => roundMoney(visible.filter(row => row.status === status).reduce((total, row) => total + (status === "paid" ? row.commission : status === "waived" ? row.commission : row.amountOwed), 0));
+  const starts = receivablePeriodStarts(args.now);
+  const visibleInvoiceIds = new Set(visible.flatMap(row => row.invoiceId ? [row.invoiceId] : []));
+  const collectionTotal = (start: string) => roundMoney(ledger.approvedPayments.filter(payment => visibleInvoiceIds.has(payment.invoiceId) && (payment.reviewedAt ?? "") >= start).reduce((total, payment) => total + (payment.approvedAmount ?? 0), 0));
+  const summary = { unbilled: sum("accrued"), invoiced: sum("invoiced"), overdue: sum("overdue"), paid: roundMoney(visible.reduce((total, row) => total + row.amountPaid, 0)), waived: sum("waived"), totalOwed: roundMoney(sum("accrued") + sum("invoiced") + sum("overdue")), collectedToday: collectionTotal(starts.today), collectedThisWeek: collectionTotal(starts.thisWeek), collectedThisMonth: collectionTotal(starts.thisMonth) };
+  const stallsMap = new Map<string, { stallId: Id<"stalls">; stallName: string; unbilled: number; invoiced: number; overdue: number; collected: number; totalOwed: number; oldestOverdueAt: string | null }>();
+  for (const row of visible) {
+    const item = stallsMap.get(row.stallId) ?? { stallId: row.stallId, stallName: row.stallName, unbilled: 0, invoiced: 0, overdue: 0, collected: 0, totalOwed: 0, oldestOverdueAt: null };
+    item.collected += row.amountPaid;
+    if (row.status === "accrued") item.unbilled += row.amountOwed;
+    if (row.status === "invoiced") item.invoiced += row.amountOwed;
+    if (row.status === "overdue") { const dueDate = row.invoiceDueAt === null ? row.saleDate : new Date(row.invoiceDueAt).toISOString(); item.overdue += row.amountOwed; item.oldestOverdueAt = item.oldestOverdueAt === null || dueDate < item.oldestOverdueAt ? dueDate : item.oldestOverdueAt; }
+    item.totalOwed += row.amountOwed;
+    stallsMap.set(row.stallId, item);
+  }
+  const sorted = visible.sort((a, b) => b.saleDate.localeCompare(a.saleDate) || String(b.accrualId).localeCompare(String(a.accrualId)));
+  const page = Math.max(1, Math.floor(args.page));
+  const pageSize = Math.min(100, Math.max(1, Math.floor(args.pageSize)));
+  return { records: sorted.slice((page - 1) * pageSize, page * pageSize), total: sorted.length, summary, stalls: [...stallsMap.values()].map(item => ({ ...item, unbilled: roundMoney(item.unbilled), invoiced: roundMoney(item.invoiced), overdue: roundMoney(item.overdue), collected: roundMoney(item.collected), totalOwed: roundMoney(item.totalOwed) })).sort((a, b) => a.stallName.localeCompare(b.stallName)) };
+}
+
+export const getSellerReceivables = query({ args: receivableArgsValidator, returns: receivablesResultValidator, async handler(ctx, args) {
+  const user = await seller(ctx);
+  if (!user) return emptyReceivables;
+  const stall = await ctx.db.query("stalls").withIndex("by_ownerId", q => q.eq("ownerId", user._id)).first();
+  if (!stall) return emptyReceivables;
+  return getReceivableRecords(ctx, args, stall._id);
+} });
+
+export const getAdminReceivables = query({ args: receivableArgsValidator, returns: receivablesResultValidator, async handler(ctx, args) {
+  await admin(ctx);
+  return getReceivableRecords(ctx, args, null);
 } });
