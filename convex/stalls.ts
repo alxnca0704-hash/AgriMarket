@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { Doc } from "./_generated/dataModel";
 import { QueryCtx, MutationCtx } from "./_generated/server";
 import { stallInputValidator } from "./shared";
+import { DEPOSIT_GRACE_PERIOD_MS } from "../constants/deposits";
 
 async function getCurrentUser(
   ctx: QueryCtx | MutationCtx
@@ -56,6 +57,9 @@ export const createStall = mutation({
       },
       rating: 0,
       ratingCount: 0,
+      depositStatus: "unpaid",
+      depositPaidAmount: 0,
+      depositDeadline: Date.now() + DEPOSIT_GRACE_PERIOD_MS,
       updatedAt: now,
     });
 

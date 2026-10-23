@@ -18,6 +18,13 @@ seller verification. Admins are not
 self-signup: they are promoted manually, and every admin action is
 enforced server-side and recorded in an audit log.
 
+Sellers submit a ₱2,000 GCash stall deposit during signup or within seven
+days from their stall page. Partial payments are allowed; the stall and
+products stay hidden and orders/payout requests stay blocked until admins
+approve the full amount. Admins compare each unique reference with GCash,
+approve the actual received amount, or reject with a reason. Expired unpaid
+stalls are suspended and reactivate when the approved total reaches ₱2,000.
+
 Sellers select specific orders from eligible earnings and request payout by
 submitting their GCash account name and number. Completed, paid orders become eligible after the
 24-hour return window; orders with an open return hold remain excluded until
@@ -27,7 +34,7 @@ reason or record the GCash transfer reference to close the payout. The app
 records the transaction but does not move money. Multiple payout requests
 may remain pending when they reserve different orders.
 
-Buyers and sellers can exchange text messages in one shared conversation per
+Completed COD orders accrue a 0.5% commission on items subtotal, excluding delivery. Accruals are invoiced weekly when the stall total reaches ?20; smaller balances roll forward. Sellers pay invoices through the configured GCash account, and the allowlisted admin manually reviews each payment. Commission remains separate from seller sales and payout totals.`n`nBuyers and sellers can exchange text messages in one shared conversation per
 buyer/seller pair. Buyers can start a conversation from the shops directory or
 their order details; either participant can open it from order details. Both
 roles return to conversations from a Messages tab in their app shell. Opening
@@ -76,3 +83,4 @@ in their live order details.
 Roles are mirrored into Convex `users.role` and Clerk `publicMetadata`.
 After sign-in, buyers land on `/home`, sellers on the seller dashboard,
 and admins on `/admin`.
+

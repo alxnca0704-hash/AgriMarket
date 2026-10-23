@@ -4,11 +4,14 @@ import { Doc, Id } from "./_generated/dataModel";
 import { MutationCtx, QueryCtx } from "./_generated/server";
 import { deliveryAddressValidator } from "./shared";
 import { createNotification } from "./notifications";
+import { makeFunctionReference } from "convex/server";
+import { SELLER_DEPOSIT_AMOUNT } from "../constants/deposits";
 import { RETURN_REQUEST_WINDOW_MS, RETURN_WINDOW_CLOSED_MESSAGE } from "../constants/refunds";
 
 const BUYER_ORDER_LIMIT = 100;
 const SELLER_ORDER_LIMIT = 200;
 const CART_ITEM_LIMIT = 200;
+const accrueCodDeliveryRef = makeFunctionReference<"mutation", { orderId: Id<"orders"> }, null>("commissions:accrueCodDelivery");
 
 type OrderStatus =
   | "pending"
@@ -141,6 +144,9 @@ export const placeOrders = mutation({
       const stall = await ctx.db.get("stalls", stallId);
       if (stall === null) {
         throw new Error("A seller in your cart is no longer available");
+      }
+      if ((stall.depositPaidAmount ?? 0) < SELLER_DEPOSIT_AMOUNT) {
+        throw new Error("A stall in your cart is not accepting orders until its deposit is fully approved.");
       }
 
       const lineItems: Doc<"orders">["items"] = [];
@@ -431,6 +437,7 @@ export const confirmDelivery = mutation({
       title: "Order completed",
       body: `You confirmed delivery for order #${order._id.slice(-6).toUpperCase()}. Thank you!`,
     });
+    if (order.paymentMethod === "cod") await ctx.runMutation(accrueCodDeliveryRef, { orderId: order._id });
     return null;
   },
 });

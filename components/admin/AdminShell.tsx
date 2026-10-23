@@ -11,9 +11,11 @@ import {
   CheckCircleOutlined,
   CloseOutlined,
   CreditCardOutlined,
+  DollarOutlined,
   MenuOutlined,
   SafetyCertificateOutlined,
   SettingOutlined,
+  WalletOutlined,
 } from '@ant-design/icons';
 import { BrandMark } from '@/components/BrandMark';
 import { APP_ROUTES } from '@/constants/routes';
@@ -26,6 +28,8 @@ const TABS = [
   { key: 'payments', label: 'Verify payments', href: APP_ROUTES.adminPayments, icon: <CreditCardOutlined /> },
   { key: 'payouts', label: 'Approve payouts', href: APP_ROUTES.adminPayouts, icon: <AccountBookOutlined /> },
   { key: 'refunds', label: 'Review refunds', href: APP_ROUTES.adminRefunds, icon: <CheckCircleOutlined /> },
+  { key: 'deposits', label: 'Deposits', href: APP_ROUTES.adminDeposits, icon: <WalletOutlined /> },
+  { key: 'commissions', label: 'Commissions', href: APP_ROUTES.adminCommissions, icon: <DollarOutlined /> },
   { key: 'sellerVerification', label: 'Seller verification', href: APP_ROUTES.adminSellerVerification, icon: <SafetyCertificateOutlined /> },
 ] as const;
 
@@ -37,19 +41,23 @@ function resolveActiveKey(pathname: string): string | null {
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { pendingGcashCount, pendingRefundCount } = useAdminShell();
+  const { pendingGcashCount, pendingRefundCount, pendingDepositCount, pendingCommissionCount } = useAdminShell();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const navItems: MenuProps['items'] = useMemo(
     () => TABS.map((tab) => ({
       key: tab.key,
       label: tab.key === 'payments'
         ? <span className="flex items-center gap-3">{tab.label}<Badge count={pendingGcashCount} size="small" /></span>
-        : tab.key === 'refunds'
+        : tab.key === 'deposits'
+          ? <span className="flex items-center gap-3">{tab.label}<Badge count={pendingDepositCount} size="small" /></span>
+          : tab.key === 'commissions'
+            ? <span className="flex items-center gap-3">{tab.label}<Badge count={pendingCommissionCount} size="small" /></span>
+          : tab.key === 'refunds'
           ? <span className="flex items-center gap-3">{tab.label}<Badge count={pendingRefundCount} size="small" /></span>
           : tab.label,
       icon: tab.icon,
     })),
-    [pendingGcashCount, pendingRefundCount]
+    [pendingGcashCount, pendingRefundCount, pendingDepositCount, pendingCommissionCount]
   );
   const handleNavigate: MenuProps['onClick'] = ({ key }) => {
     const tab = TABS.find((item) => item.key === key);

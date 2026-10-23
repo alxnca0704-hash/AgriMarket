@@ -4,6 +4,9 @@ import { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { createNotification } from "./notifications";
+import { makeFunctionReference } from "convex/server";
+
+const waiveRefundedOrderRef = makeFunctionReference<"mutation", { orderId: Id<"orders"> }, null>("commissions:waiveRefundedOrder");
 
 const settingsValidator = v.union(
   v.null(),
@@ -256,6 +259,7 @@ export const completeReturnRefund = mutation({
       refundAmount: order.total,
       createdAt: now,
     });
+    await ctx.runMutation(waiveRefundedOrderRef, { orderId: order._id });
     await createNotification(ctx, {
       userId: order.buyerId,
       role: "buyer",

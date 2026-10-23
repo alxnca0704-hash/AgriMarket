@@ -4,6 +4,8 @@ import { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { orderStatusValidator } from "./shared";
+import { SELLER_DEPOSIT_AMOUNT } from "../constants/deposits";
+import { BLOCK_PAYOUT_WHEN_OVERDUE } from "../constants/commissions";
 
 const payoutValidator = v.object({
   _id: v.id("payoutRequests"),
@@ -88,6 +90,8 @@ export const getSellerPayouts = query({
       .withIndex("by_sellerId", (q) => q.eq("sellerId", user._id))
       .order("desc")
       .take(100);
+    const stall = await ctx.db.query("stalls").withIndex("by_ownerId", (q) => q.eq("ownerId", user._id)).first();
+    const depositPaid = (stall?.depositPaidAmount ?? 0) >= SELLER_DEPOSIT_AMOUNT;
     const payoutStatuses = new Map(requests.map((request) => [request._id, request.status]));
     const earningsOrders = orders.filter((order) => order.paymentMethod === "gcash" && order.paymentStatus === "paid" && order.status !== "cancelled" && order.status !== "refunded");
     const sellerOrders = earningsOrders.map((order) => {
@@ -96,7 +100,7 @@ export const getSellerPayouts = query({
         payoutStatus = "held";
       } else if (order.payoutRequestId) {
         payoutStatus = payoutStatuses.get(order.payoutRequestId) === "paid" ? "paid-out" : "requested";
-      } else if (isPayoutEligible(order, now)) {
+      } else if (depositPaid && isPayoutEligible(order, now)) {
         payoutStatus = "ready";
       } else if (order.status === "completed" && order.deliveredAt) {
         payoutStatus = "return-window";
@@ -144,6 +148,12 @@ export const requestPayout = mutation({
       .withIndex("by_ownerId", (q) => q.eq("ownerId", user._id))
       .first();
     if (!stall) throw new Error("Create a stall before requesting a payout.");
+    if (BLOCK_PAYOUT_WHEN_OVERDUE) {
+      const invoices = await ctx.db.query("commissionInvoices").withIndex("by_stallId", q => q.eq("stallId", stall._id)).take(200);
+      if (invoices.some(invoice => invoice.amount > invoice.paidAmount && invoice.dueAt <= Date.now())) throw new Error("Payout requests are unavailable while a commission invoice is overdue.");
+    }
+    if ((stall.depositPaidAmount ?? 0) < SELLER_DEPOSIT_AMOUNT) throw new Error("Payout requests are available after your stall deposit is fully approved.");
+    if (stall.depositDeadline !== undefined && Date.now() > stall.depositDeadline && (stall.depositPaidAmount ?? 0) < SELLER_DEPOSIT_AMOUNT) throw new Error("Your stall is suspended. Complete the deposit to continue.");
     const gcashName = args.gcashName.trim();
     const gcashNumber = args.gcashNumber.trim();
     const normalizedNumber = gcashNumber.replace(/[\s-]/g, "");

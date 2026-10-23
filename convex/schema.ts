@@ -25,7 +25,8 @@ export default defineSchema({
     updatedAt: v.string(),
   })
     .index("by_token_identifier", ["tokenIdentifier"])
-    .index("by_clerk_id", ["clerkId"]),
+    .index("by_clerk_id", ["clerkId"])
+    .index("by_email", ["email"]),
 
   addresses: defineTable({
     userId: v.id("users"),
@@ -44,6 +45,9 @@ export default defineSchema({
     verification: stallVerificationValidator,
     rating: v.number(),
     ratingCount: v.number(),
+    depositStatus: v.optional(v.union(v.literal("unpaid"), v.literal("partial"), v.literal("paid"))),
+    depositPaidAmount: v.optional(v.number()),
+    depositDeadline: v.optional(v.number()),
     updatedAt: v.string(),
   }).index("by_ownerId", ["ownerId"]),
 
@@ -207,6 +211,43 @@ export default defineSchema({
     .index("by_sellerId", ["sellerId"])
     .index("by_status", ["status"]),
 
+  stallDeposits: defineTable({
+    stallId: v.id("stalls"),
+    sellerId: v.id("users"),
+    amount: v.number(),
+    referenceNumber: v.string(),
+    status: v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected")),
+    approvedAmount: v.optional(v.number()),
+    rejectionReason: v.optional(v.string()),
+    reviewedBy: v.optional(v.string()),
+    reviewedAt: v.optional(v.string()),
+    events: v.array(v.object({ status: v.string(), label: v.string(), at: v.string(), actor: v.optional(v.string()), reason: v.optional(v.string()), amount: v.optional(v.number()) })),
+    createdAt: v.string(),
+  })
+    .index("by_stallId", ["stallId"])
+    .index("by_status", ["status"])
+    .index("by_referenceNumber", ["referenceNumber"]),
+
+  commissionAccruals: defineTable({
+    orderId: v.id("orders"), stallId: v.id("stalls"), sellerId: v.id("users"), amount: v.number(),
+    status: v.union(v.literal("accrued"), v.literal("invoiced"), v.literal("waived")),
+    invoiceId: v.optional(v.id("commissionInvoices")), createdAt: v.string(),
+  }).index("by_stallId_and_status", ["stallId", "status"]).index("by_orderId", ["orderId"]),
+
+  commissionInvoices: defineTable({
+    stallId: v.id("stalls"), sellerId: v.id("users"), periodStart: v.string(), periodEnd: v.string(), amount: v.number(), paidAmount: v.number(),
+    status: v.union(v.literal("issued"), v.literal("pending-review"), v.literal("partial"), v.literal("paid"), v.literal("overdue")),
+    dueAt: v.number(), accrualIds: v.array(v.id("commissionAccruals")),
+    events: v.array(v.object({ type: v.string(), label: v.string(), at: v.string(), actor: v.optional(v.string()), amount: v.optional(v.number()), reason: v.optional(v.string()) })),
+    createdAt: v.string(),
+  }).index("by_stallId", ["stallId"]).index("by_status", ["status"]).index("by_dueAt", ["dueAt"]),
+
+  commissionPayments: defineTable({
+    invoiceId: v.id("commissionInvoices"), stallId: v.id("stalls"), amount: v.number(), referenceNumber: v.string(),
+    status: v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected")), approvedAmount: v.optional(v.number()),
+    rejectionReason: v.optional(v.string()), reviewedBy: v.optional(v.string()), reviewedAt: v.optional(v.string()), createdAt: v.string(),
+  }).index("by_invoiceId", ["invoiceId"]).index("by_status", ["status"]).index("by_referenceNumber", ["referenceNumber"]),
+
   adminAuditLog: defineTable({
     actorEmail: v.string(),
     action: v.union(
@@ -215,7 +256,10 @@ export default defineSchema({
       v.literal("return_rejected"),
       v.literal("return_refunded"),
       v.literal("payout_paid"),
-      v.literal("payout_rejected")
+      v.literal("payout_rejected"),
+      v.literal("deposit_approved"),
+      v.literal("deposit_rejected")
+      ,v.literal("commission_payment_approved"), v.literal("commission_payment_rejected")
     ),
     orderId: v.optional(v.id("orders")),
     payoutRequestId: v.optional(v.id("payoutRequests")),
@@ -225,6 +269,8 @@ export default defineSchema({
     refundMethod: v.optional(v.union(v.literal("gcash"), v.literal("cash"))),
     refundAmount: v.optional(v.number()),
     payoutAmount: v.optional(v.number()),
+    depositId: v.optional(v.id("stallDeposits")),
+    commissionPaymentId: v.optional(v.id("commissionPayments")),
     reason: v.optional(v.string()),
     previousNumber: v.optional(v.string()),
     nextNumber: v.optional(v.string()),
@@ -235,7 +281,7 @@ export default defineSchema({
 
   notifications: defineTable({
     userId: v.id("users"),
-    role: v.optional(v.union(v.literal("buyer"), v.literal("seller"))),
+    role: v.optional(v.union(v.literal("buyer"), v.literal("seller"), v.literal("admin"))),
     orderId: v.optional(v.id("orders")),
     refId: v.optional(v.string()),
     type: v.string(),

@@ -10,6 +10,7 @@ import { StallFormFields } from '@/components/seller/StallFormFields';
 import { FARM_TYPE_LABELS } from '@/constants/stall';
 import { APP_ROUTES } from '@/constants/routes';
 import { formatPrice } from '@/lib/format';
+import { DepositCard } from '@/components/seller/DepositCard';
 
 function StallSkeleton() {
   return (
@@ -116,6 +117,8 @@ export function StallView() {
       </div>
 
       {error && <Alert type="error" title={error} showIcon />}
+
+      <DepositCard />
 
       <div className="rounded-2xl bg-white shadow-sm overflow-hidden">
         <div className="p-5 sm:p-6 flex flex-col sm:flex-row gap-5">

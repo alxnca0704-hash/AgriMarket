@@ -20,7 +20,7 @@ export type NotificationType =
 export interface AppNotification {
   id: string;
   userId: string;
-  role?: 'buyer' | 'seller';
+  role?: 'buyer' | 'seller' | 'admin';
   orderId?: string;
   type: NotificationType;
   title: string;

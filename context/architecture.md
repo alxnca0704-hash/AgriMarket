@@ -67,6 +67,13 @@
   sender details, or receipt. The checkout's seller orders update atomically; only
   admin approval marks payment paid. COD remains unpaid until delivery
   confirmation.
+- **Seller stall deposits**: the `stallDeposits` ledger records each
+  unique GCash reference and append-only review events. Approved totals
+  are stored on stalls and gate public visibility, checkout, and payout
+  requests at ₱2,000. Stall deadlines are numeric timestamps for the
+  scheduled seven-day suspension worker; fields remain optional during
+  rollout and are backfilled by that worker.
+- **COD commissions**: `commissionAccruals` stores one row per completed COD order (0.5% of item subtotal, delivery excluded); GCash orders do not accrue. `commissionInvoices` bundles accrued rows weekly, and `commissionPayments` tracks unique GCash references and manual review. Commission is separate from sales and payout eligibility. Refunded orders waive an accrual; invoiced amounts and append-only invoice events are adjusted. Every admin payment decision rechecks the verified allowlisted email and writes both the admin audit log and invoice event.
 - **Admin return review**: within 24 hours of delivery, a buyer can
   submit a 10–500 character reason plus 1–5 Cloudinary photo/video URLs.
   The server enforces the cutoff using `deliveredAt`. The order records
@@ -183,3 +190,5 @@
 12. **Messages are participant scoped.** Only a conversation's buyer and
     seller can read or send its messages. Buyers start shop conversations;
     either order participant can open the pair's existing conversation.
+
+

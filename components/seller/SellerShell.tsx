@@ -10,6 +10,7 @@ import {
   ArrowLeftOutlined,
   BellOutlined,
   CloseOutlined,
+  DollarOutlined,
   HomeOutlined,
   MenuOutlined,
   MessageOutlined,
@@ -22,6 +23,8 @@ import { APP_ROUTES } from '@/constants/routes';
 import { BrandMark } from '@/components/BrandMark';
 import { useSellerShell } from '@/hooks/useSellerShell';
 import { useUnreadMessages } from '@/hooks/useUnreadMessages';
+import { useSellerDeposit } from '@/hooks/useSellerDeposit';
+import { SELLER_DEPOSIT_AMOUNT } from '@/constants/deposits';
 
 const { Sider, Content } = Layout;
 
@@ -32,6 +35,7 @@ const TABS = [
   { key: 'messages', label: 'Messages', href: APP_ROUTES.sellerMessages, icon: <MessageOutlined /> },
   { key: 'stall', label: 'My stall', href: APP_ROUTES.sellerStall, icon: <ShopOutlined /> },
   { key: 'earnings', label: 'Earnings', href: APP_ROUTES.sellerEarnings, icon: <AccountBookOutlined /> },
+  { key: 'commissions', label: 'Commissions', href: APP_ROUTES.sellerCommissions, icon: <DollarOutlined /> },
   { key: 'reviews', label: 'Reviews', href: APP_ROUTES.sellerReviews, icon: <StarOutlined /> },
   { key: 'notifications', label: 'Notifications', href: APP_ROUTES.sellerNotifications, icon: <BellOutlined /> },
   { key: 'settings', label: 'Settings', href: APP_ROUTES.sellerSettings, icon: <SettingOutlined /> },
@@ -50,6 +54,7 @@ function resolveActiveKey(pathname: string): string | null {
   if (pathname.startsWith(APP_ROUTES.sellerMessages)) return 'messages';
   if (pathname === APP_ROUTES.sellerStall) return 'stall';
   if (pathname === APP_ROUTES.sellerEarnings) return 'earnings';
+  if (pathname === APP_ROUTES.sellerCommissions) return 'commissions';
   if (pathname === APP_ROUTES.sellerReviews) return 'reviews';
   if (pathname === APP_ROUTES.sellerNotifications) return 'notifications';
   if (pathname === APP_ROUTES.sellerSettings) return 'settings';
@@ -59,8 +64,9 @@ function resolveActiveKey(pathname: string): string | null {
 export function SellerShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, stall, unreadCount } = useSellerShell();
+  const { user, stall, unreadCount, unpaidCommissionCount } = useSellerShell();
   const unreadMessageCount = useUnreadMessages();
+  const deposit = useSellerDeposit();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const TAB_ROOTS = TABS.map((tab) => tab.href);
@@ -84,11 +90,13 @@ export function SellerShell({ children }: { children: React.ReactNode }) {
               <span>{tab.label}</span>
               <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-[#2D6A4F] px-1 text-[10px] font-semibold leading-none text-white">{unreadMessageCount > 99 ? '99+' : unreadMessageCount}</span>
             </span>
+          ) : tab.key === 'commissions' && unpaidCommissionCount > 0 ? (
+            <span className="inline-flex items-center gap-1.5"><span>{tab.label}</span><span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-[#2D6A4F] px-1 text-[10px] font-semibold leading-none text-white">{unpaidCommissionCount > 99 ? '99+' : unpaidCommissionCount}</span></span>
           ) : (
             tab.label
           ),
       })),
-    [unreadCount, unreadMessageCount]
+    [unreadCount, unreadMessageCount, unpaidCommissionCount]
   );
 
   const handleNavigate: MenuProps['onClick'] = ({ key }) => {
@@ -197,7 +205,7 @@ export function SellerShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <Content>
-          <main>{children}</main>
+          <main>{deposit.data && deposit.data.stall.depositPaidAmount < SELLER_DEPOSIT_AMOUNT && <div className="mx-auto max-w-6xl px-4 pt-4 sm:px-6"><div className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">Your stall deposit is incomplete. {deposit.data.stall.suspended ? 'Your stall is suspended.' : 'Complete it within 7 days to stay visible to buyers.'} <Link href={APP_ROUTES.sellerStall} className="ml-1 font-semibold text-amber-900">Review deposit</Link></div></div>}{children}</main>
         </Content>
       </Layout>
 

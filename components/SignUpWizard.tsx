@@ -6,6 +6,7 @@ import { SignUpAuthStep } from '@/components/SignUpAuthStep';
 import { SignUpProfileStep } from '@/components/SignUpProfileStep';
 import { SignUpStallStep } from '@/components/SignUpStallStep';
 import { SignUpReviewStep } from '@/components/SignUpReviewStep';
+import { SignUpDepositStep } from '@/components/SignUpDepositStep';
 import { useSignUp } from '@/hooks/useSignUp';
 import { APP_ROUTES } from '@/constants/routes';
 import { BrandMark } from '@/components/BrandMark';
@@ -20,6 +21,7 @@ const SELLER_STEP_ITEMS = [
   { title: 'Account' },
   { title: 'Role & Profile' },
   { title: 'Stall' },
+  { title: 'Deposit' },
   { title: 'Review' },
 ];
 
@@ -58,10 +60,16 @@ export function SignUpWizard() {
     handleBack,
     handleJumpToStep,
     handleSubmit,
+    depositAmount,
+    setDepositAmount,
+    depositReference,
+    setDepositReference,
+    depositSkipped,
+    toggleDepositSkipped,
   } = useSignUp();
 
   const stepItems = isSeller ? SELLER_STEP_ITEMS : BUYER_STEP_ITEMS;
-  const isReviewStep = isSeller ? currentStep === 3 : currentStep === 2;
+  const isReviewStep = isSeller ? currentStep === 4 : currentStep === 2;
 
   return (
     <main className="min-h-screen flex flex-col justify-between bg-stone-50 p-4 sm:p-8">
@@ -144,6 +152,8 @@ export function SignUpWizard() {
                     location={stallLocation}
                   />
                 )}
+
+                {currentStep === 3 && isSeller && <SignUpDepositStep amount={depositAmount} reference={depositReference} skipped={depositSkipped} onAmount={setDepositAmount} onReference={setDepositReference} onSkip={toggleDepositSkipped} />}
 
                 {isReviewStep && (
                   <SignUpReviewStep

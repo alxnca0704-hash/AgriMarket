@@ -5,8 +5,10 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useSignUp as useClerkSignUp } from '@clerk/nextjs';
 import { useUser } from '@clerk/nextjs';
 import { useMutation } from 'convex/react';
+import { makeFunctionReference } from 'convex/server';
 import { api } from '@/convex/_generated/api';
 import { APP_ROUTES, API_ROUTES } from '@/constants/routes';
+import { SELLER_DEPOSIT_AMOUNT } from '@/constants/deposits';
 import { ROLES, UserRole } from '@/constants/roles';
 import { SignUpFormData } from '@/types/auth';
 import { updateSessionUser, setActiveView } from '@/lib/mockSession';
@@ -32,6 +34,7 @@ const INITIAL_FORM_DATA: SignUpFormData = {
   },
   stall: makeEmptyStallDraft(),
 };
+const submitSellerDeposit = makeFunctionReference<'mutation', { amount: number; referenceNumber: string }, string>('deposits:submit');
 
 export function useSignUp() {
   const router = useRouter();
@@ -40,6 +43,7 @@ export function useSignUp() {
   const { isLoaded, isSignedIn, user } = useUser();
   const completeOnboarding = useMutation(api.users.completeOnboarding);
   const createStallConvex = useMutation(api.stalls.createStall);
+  const submitDeposit = useMutation(submitSellerDeposit);
   const didPrefill = useRef(false);
 
   const initialRoleParam = searchParams.get('role');
@@ -74,6 +78,9 @@ export function useSignUp() {
   const [pendingEmail, setPendingEmail] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [depositAmount, setDepositAmount] = useState<number | null>(null);
+  const [depositReference, setDepositReference] = useState('');
+  const [depositSkipped, setDepositSkipped] = useState(false);
 
   useEffect(() => {
     if (resendCooldown <= 0) return;
@@ -323,6 +330,13 @@ export function useSignUp() {
       if (validateStallStep()) {
         setStep(3);
       }
+    } else if (currentStep === 3 && isSeller) {
+      if (!depositSkipped && (depositAmount === null || depositAmount <= 0 || depositAmount > SELLER_DEPOSIT_AMOUNT || !depositReference.trim())) {
+        setSubmitError('Enter a valid deposit amount and GCash reference, or skip for now.');
+        return;
+      }
+      setSubmitError(null);
+      setStep(4);
     }
   };
 
@@ -387,6 +401,7 @@ export function useSignUp() {
       if (profile.role === ROLES.SELLER) {
         const { profile: stall, mutationInput } = buildStallPayload(formData.stall);
         await createStallConvex({ stall: mutationInput });
+        if (!depositSkipped && depositAmount !== null) await submitDeposit({ amount: depositAmount, referenceNumber: depositReference.trim() });
         createStall(stall);
         setActiveView('seller');
         router.push(APP_ROUTES.sellerDashboard);
@@ -436,5 +451,11 @@ export function useSignUp() {
     handleBack,
     handleJumpToStep,
     handleSubmit,
+    depositAmount,
+    setDepositAmount,
+    depositReference,
+    setDepositReference,
+    depositSkipped,
+    toggleDepositSkipped: () => setDepositSkipped(value => !value),
   };
 }

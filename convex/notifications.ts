@@ -33,8 +33,9 @@ export async function createNotification(
   ctx: MutationCtx,
   args: {
     userId: Id<"users">;
-    role: "buyer" | "seller";
+    role: "buyer" | "seller" | "admin";
     orderId?: Id<"orders">;
+    refId?: string;
     type: string;
     title: string;
     body: string;
@@ -45,6 +46,7 @@ export async function createNotification(
     userId: args.userId,
     role: args.role,
     orderId: args.orderId,
+    refId: args.refId,
     type: args.type,
     title: args.title,
     body: args.body,
@@ -59,7 +61,7 @@ export async function createNotification(
 export const listMyNotifications = query({
   args: {
     limit: v.optional(v.number()),
-    role: v.optional(v.union(v.literal("buyer"), v.literal("seller"))),
+    role: v.optional(v.union(v.literal("buyer"), v.literal("seller"), v.literal("admin"))),
   },
   async handler(ctx, args) {
     const user = await getCurrentUser(ctx);
@@ -84,7 +86,7 @@ export const listMyNotifications = query({
  */
 export const getUnreadNotificationCount = query({
   args: {
-    role: v.optional(v.union(v.literal("buyer"), v.literal("seller"))),
+    role: v.optional(v.union(v.literal("buyer"), v.literal("seller"), v.literal("admin"))),
   },
   async handler(ctx, args) {
     const user = await getCurrentUser(ctx);
