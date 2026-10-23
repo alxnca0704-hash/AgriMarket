@@ -7,11 +7,28 @@ import { createNotification } from "./notifications";
 import { makeFunctionReference } from "convex/server";
 import { SELLER_DEPOSIT_AMOUNT } from "../constants/deposits";
 import { RETURN_REQUEST_WINDOW_MS, RETURN_WINDOW_CLOSED_MESSAGE } from "../constants/refunds";
+import { COMMISSION_RATE } from "../constants/commissions";
 
 const BUYER_ORDER_LIMIT = 100;
 const SELLER_ORDER_LIMIT = 200;
 const CART_ITEM_LIMIT = 200;
 const accrueCodDeliveryRef = makeFunctionReference<"mutation", { orderId: Id<"orders"> }, null>("commissions:accrueCodDelivery");
+
+async function snapshotGcashCommission(ctx: MutationCtx, order: Doc<"orders">, completedAt: string) {
+  if (order.paymentMethod !== "gcash") return {};
+  const amount = order.commissionAmount ?? Math.round(order.subtotal * COMMISSION_RATE * 100) / 100;
+  const rate = order.commissionRate ?? COMMISSION_RATE;
+  const net = order.netPayoutAmount ?? Math.round((order.subtotal + order.deliveryFee - amount) * 100) / 100;
+  const existing = await ctx.db.query("platformCommissions").withIndex("by_orderId", q => q.eq("orderId", order._id)).unique();
+  if (!existing) {
+    await ctx.db.insert("platformCommissions", {
+      orderId: order._id, stallId: order.stallId, sellerId: order.sellerId,
+      itemsSubtotal: order.subtotal, rate, amount, status: "pending", createdAt: completedAt,
+      events: [{ type: "accrued", label: "GCash order commission accrued", at: completedAt }],
+    });
+  }
+  return { commissionRate: rate, commissionAmount: amount, netPayoutAmount: net };
+}
 
 type OrderStatus =
   | "pending"
@@ -420,11 +437,13 @@ export const confirmDelivery = mutation({
     assertStatus(order, "to-receive");
 
       const now = new Date().toISOString();
+      const commissionSnapshot = await snapshotGcashCommission(ctx, order, now);
       await ctx.db.patch("orders", order._id, {
         status: "completed",
         ...(order.paymentMethod === "cod" ? { paymentStatus: "paid" as const } : {}),
         deliveredAt: now,
         completedAt: now,
+        ...commissionSnapshot,
         events: [
           ...order.events,
           { status: "delivered", label: order.paymentMethod === "cod" ? "Delivered · payment received" : "Delivery confirmed", at: now },
@@ -572,6 +591,7 @@ export const completeOrder = mutation({
 
     const now = new Date().toISOString();
     await ctx.db.patch("orders", order._id, {
+        ...(await snapshotGcashCommission(ctx, order, now)),
       status: "completed",
       completedAt: now,
       events: [

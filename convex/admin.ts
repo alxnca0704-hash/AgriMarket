@@ -6,6 +6,7 @@ import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { createNotification } from "./notifications";
 import { makeFunctionReference } from "convex/server";
 import { RETURN_REQUEST_WINDOW_MS } from "../constants/refunds";
+import { COMMISSION_RATE } from "../constants/commissions";
 
 const waiveRefundedOrderRef = makeFunctionReference<"mutation", { orderId: Id<"orders"> }, null>("commissions:waiveRefundedOrder");
 
@@ -250,6 +251,28 @@ export const completeReturnRefund = mutation({
       }],
       updatedAt: now,
     });
+    if (order.paymentMethod === "gcash") {
+      const commission = await ctx.db.query("platformCommissions").withIndex("by_orderId", q => q.eq("orderId", order._id)).unique();
+      if (commission?.status === "pending") await ctx.db.patch("platformCommissions", commission._id, {
+        status: "reversed", reversedAt: now,
+        events: [...commission.events, { type: "reversed", label: "Commission reversed with order refund", at: now, actor: actorEmail }],
+      });
+      if (!commission) {
+        const amount = order.commissionAmount ?? Math.round(order.subtotal * COMMISSION_RATE * 100) / 100;
+        const rate = order.commissionRate ?? COMMISSION_RATE;
+        const net = order.netPayoutAmount ?? Math.round((order.subtotal + order.deliveryFee - amount) * 100) / 100;
+        const completedAt = order.completedAt ?? order.deliveredAt ?? now;
+        await ctx.db.patch("orders", order._id, { commissionRate: rate, commissionAmount: amount, netPayoutAmount: net });
+        await ctx.db.insert("platformCommissions", {
+          orderId: order._id, stallId: order.stallId, sellerId: order.sellerId,
+          itemsSubtotal: order.subtotal, rate, amount, status: "reversed", createdAt: completedAt, reversedAt: now,
+          events: [
+            { type: "accrued", label: "Legacy GCash commission backfilled", at: completedAt },
+            { type: "reversed", label: "Commission reversed with order refund", at: now, actor: actorEmail },
+          ],
+        });
+      }
+    }
     await ctx.db.insert("adminAuditLog", {
       actorEmail,
       action: "return_refunded",

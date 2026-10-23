@@ -1,12 +1,13 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { App } from 'antd';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { EarningsPeriod, getEarningsSummary } from '@/lib/earnings';
 import { toOrder } from '@/lib/convexSync';
+import { COMMISSION_RATE, GCASH_PAYOUT_ACTION_KEYS } from '@/constants/commissions';
+import { usePendingAction } from '@/hooks/usePendingAction';
 
 export const EARNINGS_PERIOD_OPTIONS: Array<{ key: EarningsPeriod; label: string }> = [
   { key: 'daily', label: 'Daily' },
@@ -15,16 +16,21 @@ export const EARNINGS_PERIOD_OPTIONS: Array<{ key: EarningsPeriod; label: string
 ];
 
 export function useSellerEarnings() {
-  const { message } = App.useApp();
+  const pendingAction = usePendingAction();
   const rawOrders = useQuery(api.orders.listSellerOrders);
   const payoutData = useQuery(api.payouts.getSellerPayouts, {});
   const requestMutation = useMutation(api.payouts.requestPayout);
+  const backfillMutation = useMutation(api.payouts.backfillSellerGcashCommissions);
   const [period, setPeriod] = useState<EarningsPeriod>('weekly');
   const [payoutOpen, setPayoutOpen] = useState(false);
   const [gcashName, setGcashName] = useState('');
   const [gcashNumber, setGcashNumber] = useState('');
   const [isRequesting, setIsRequesting] = useState(false);
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    void backfillMutation({});
+  }, [backfillMutation]);
 
   const sellerOrders = useMemo(
     () => (Array.isArray(rawOrders) ? rawOrders.map(toOrder) : []),
@@ -37,20 +43,19 @@ export function useSellerEarnings() {
   const selectedPayoutAmount = payoutData && 'orders' in payoutData
     ? payoutData.orders.filter((order) => selectedPayoutOrderIds.includes(order.orderId)).reduce((total, order) => total + order.amount, 0)
     : 0;
+  const selectedBreakdown = payoutData && 'orders' in payoutData
+    ? payoutData.orders.filter((order) => selectedPayoutOrderIds.includes(order.orderId)).reduce((total, order) => ({ items: total.items + order.itemsSubtotal, delivery: total.delivery + order.deliveryFee, commission: total.commission + order.commissionAmount, net: total.net + order.netPayoutAmount }), { items: 0, delivery: 0, commission: 0, net: 0 })
+    : { items: 0, delivery: 0, commission: 0, net: 0 };
 
   const requestPayout = async () => {
-    if (isRequesting) return;
+    if (isRequesting || pendingAction.isPending(GCASH_PAYOUT_ACTION_KEYS.request)) return;
     setIsRequesting(true);
-    try {
-      await requestMutation({ gcashName, gcashNumber, orderIds: selectedPayoutOrderIds as Id<'orders'>[] });
-      message.success('Payout request sent for admin review.');
+    const outcome = await pendingAction.run(GCASH_PAYOUT_ACTION_KEYS.request, () => requestMutation({ gcashName, gcashNumber, orderIds: selectedPayoutOrderIds as Id<'orders'>[] }), { success: 'Payout request sent for admin review.', error: 'Could not request payout.' });
+    if (outcome === 'success') {
       setPayoutOpen(false);
       setSelectedOrderIds([]);
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : 'Could not request payout.');
-    } finally {
-      setIsRequesting(false);
     }
+    setIsRequesting(false);
   };
 
   return {
@@ -62,6 +67,8 @@ export function useSellerEarnings() {
     payoutData,
     selectedOrderIds: selectedPayoutOrderIds,
     selectedPayoutAmount,
+    selectedBreakdown,
+    commissionRate: COMMISSION_RATE,
     togglePayoutOrder: (orderId: string) => setSelectedOrderIds((previous) => previous.includes(orderId)
       ? previous.filter((id) => id !== orderId)
       : previous.length < 100 ? [...previous, orderId] : previous),
@@ -77,5 +84,6 @@ export function useSellerEarnings() {
     setGcashNumber,
     requestPayout,
     isRequesting,
+    isRequestPending: pendingAction.isPending(GCASH_PAYOUT_ACTION_KEYS.request),
   };
 }

@@ -119,6 +119,9 @@ export default defineSchema({
     toReceiveAt: v.optional(v.string()),
     deliveredAt: v.optional(v.string()),
     completedAt: v.optional(v.string()),
+    commissionRate: v.optional(v.number()),
+    commissionAmount: v.optional(v.number()),
+    netPayoutAmount: v.optional(v.number()),
     cancelledAt: v.optional(v.string()),
     cancelReason: v.optional(v.string()),
     refundReason: v.optional(v.string()),
@@ -217,6 +220,11 @@ export default defineSchema({
       placedAt: v.string(),
       deliveredAt: v.string(),
       paymentMethod: v.union(v.literal("cod"), v.literal("gcash")),
+      itemsSubtotal: v.optional(v.number()),
+      deliveryFee: v.optional(v.number()),
+      commissionAmount: v.optional(v.number()),
+      netPayoutAmount: v.optional(v.number()),
+      completedAt: v.optional(v.string()),
     }))),
     amount: v.number(),
     gcashName: v.string(),
@@ -230,6 +238,25 @@ export default defineSchema({
   })
     .index("by_sellerId", ["sellerId"])
     .index("by_status", ["status"]),
+
+  platformCommissions: defineTable({
+    orderId: v.id("orders"),
+    stallId: v.id("stalls"),
+    sellerId: v.id("users"),
+    payoutRequestId: v.optional(v.id("payoutRequests")),
+    itemsSubtotal: v.number(),
+    rate: v.number(),
+    amount: v.number(),
+    status: v.union(v.literal("pending"), v.literal("collected"), v.literal("reversed")),
+    createdAt: v.string(),
+    collectedAt: v.optional(v.string()),
+    reversedAt: v.optional(v.string()),
+    events: v.array(v.object({ type: v.string(), label: v.string(), at: v.string(), actor: v.optional(v.string()), payoutRequestId: v.optional(v.id("payoutRequests")), transferReference: v.optional(v.string()) })),
+  })
+    .index("by_orderId", ["orderId"])
+    .index("by_stallId_and_status", ["stallId", "status"])
+    .index("by_status_and_collectedAt", ["status", "collectedAt"])
+    .index("by_payoutRequestId", ["payoutRequestId"]),
 
   stallDeposits: defineTable({
     stallId: v.id("stalls"),
@@ -250,6 +277,7 @@ export default defineSchema({
 
   commissionAccruals: defineTable({
     orderId: v.id("orders"), stallId: v.id("stalls"), sellerId: v.id("users"), amount: v.number(),
+    rate: v.optional(v.number()),
     status: v.union(v.literal("accrued"), v.literal("invoiced"), v.literal("waived")),
     invoiceId: v.optional(v.id("commissionInvoices")), createdAt: v.string(),
   }).index("by_stallId_and_status", ["stallId", "status"]).index("by_stallId_and_createdAt", ["stallId", "createdAt"]).index("by_createdAt", ["createdAt"]).index("by_orderId", ["orderId"]),

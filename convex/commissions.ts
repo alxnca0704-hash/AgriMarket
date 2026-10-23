@@ -173,10 +173,10 @@ export const accrueCodDelivery = internalMutation({ args: { orderId: v.id("order
   const order = await ctx.db.get("orders", args.orderId); if (!order || order.paymentMethod !== "cod" || order.status !== "completed") return null;
   const existing = await ctx.db.query("commissionAccruals").withIndex("by_orderId", q => q.eq("orderId", order._id)).unique(); if (existing) return null;
   const amount = roundMoney(order.subtotal * COMMISSION_RATE); if (amount <= 0) return null;
-  const accrualId = await ctx.db.insert("commissionAccruals", { orderId: order._id, stallId: order.stallId, sellerId: order.sellerId, amount, status: "accrued", createdAt: new Date().toISOString() });
+  const accrualId = await ctx.db.insert("commissionAccruals", { orderId: order._id, stallId: order.stallId, sellerId: order.sellerId, amount, rate: COMMISSION_RATE, status: "accrued", createdAt: new Date().toISOString() });
   const accruals = await ctx.db.query("commissionAccruals").withIndex("by_stallId_and_status", q => q.eq("stallId", order.stallId).eq("status", "accrued")).take(500);
   const total = roundMoney(accruals.reduce((sum, item) => sum + item.amount, 0));
-  await createNotification(ctx, { userId: order.sellerId, role: "seller", orderId: order._id, refId: accrualId, type: "commission_accrued", title: "COD commission added", body: `Delivery complete. ₱${amount.toFixed(2)} commission added to this week's invoice. Total unbilled: ₱${total.toFixed(2)}.` });
+  await createNotification(ctx, { userId: order.sellerId, role: "seller", orderId: order._id, refId: accrualId, type: "commission_accrued", title: "COD commission added", body: `Delivery complete. ₱${amount.toLocaleString("en-PH", { maximumFractionDigits: 2 })} commission added to this week's invoice. Total unbilled: ₱${total.toFixed(2)}.` });
   return null;
 } });
 

@@ -6,6 +6,7 @@ import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { orderStatusValidator } from "./shared";
 import { SELLER_DEPOSIT_AMOUNT } from "../constants/deposits";
 import { BLOCK_PAYOUT_WHEN_OVERDUE } from "../constants/commissions";
+import { COMMISSION_RATE } from "../constants/commissions";
 
 const payoutValidator = v.object({
   _id: v.id("payoutRequests"),
@@ -18,6 +19,10 @@ const payoutValidator = v.object({
   reviewedAt: v.union(v.string(), v.null()),
   transferReference: v.union(v.string(), v.null()),
   rejectionReason: v.union(v.string(), v.null()),
+  itemsSubtotal: v.number(),
+  deliveryFee: v.number(),
+  commissionAmount: v.number(),
+  netPayoutAmount: v.number(),
 });
 
 const sellerOrderValidator = v.object({
@@ -28,6 +33,11 @@ const sellerOrderValidator = v.object({
   paymentMethod: v.union(v.literal("cod"), v.literal("gcash")),
   orderStatus: orderStatusValidator,
   payoutStatus: v.union(v.literal("ready"), v.literal("held"), v.literal("return-window"), v.literal("awaiting-completion"), v.literal("requested"), v.literal("paid-out")),
+  itemsSubtotal: v.number(),
+  deliveryFee: v.number(),
+  commissionAmount: v.number(),
+  netPayoutAmount: v.number(),
+  completedAt: v.union(v.string(), v.null()),
 });
 
 const payoutOrderSnapshotValidator = v.object({
@@ -36,7 +46,17 @@ const payoutOrderSnapshotValidator = v.object({
   placedAt: v.string(),
   deliveredAt: v.string(),
   paymentMethod: v.union(v.literal("cod"), v.literal("gcash")),
+  itemsSubtotal: v.optional(v.number()),
+  deliveryFee: v.optional(v.number()),
+  commissionAmount: v.optional(v.number()),
+  netPayoutAmount: v.optional(v.number()),
+  completedAt: v.optional(v.string()),
 });
+
+function commissionValues(order: { subtotal: number; deliveryFee: number; commissionRate?: number; commissionAmount?: number; netPayoutAmount?: number }) {
+  const commissionAmount = order.commissionAmount ?? Math.round(order.subtotal * COMMISSION_RATE * 100) / 100;
+  return { itemsSubtotal: order.subtotal, deliveryFee: order.deliveryFee, commissionAmount, netPayoutAmount: order.netPayoutAmount ?? Math.round((order.subtotal + order.deliveryFee - commissionAmount) * 100) / 100, rate: order.commissionRate ?? COMMISSION_RATE };
+}
 
 async function currentUser(ctx: QueryCtx | MutationCtx) {
   const identity = await ctx.auth.getUserIdentity();
@@ -109,7 +129,12 @@ export const getSellerPayouts = query({
       }
       return {
         orderId: order._id,
-        amount: order.total,
+        amount: order.netPayoutAmount ?? commissionValues(order).netPayoutAmount,
+        itemsSubtotal: order.subtotal,
+        deliveryFee: order.deliveryFee,
+        commissionAmount: order.commissionAmount ?? commissionValues(order).commissionAmount,
+        netPayoutAmount: order.netPayoutAmount ?? commissionValues(order).netPayoutAmount,
+        completedAt: order.completedAt ?? null,
         placedAt: order.placedAt,
         deliveredAt: order.deliveredAt ?? null,
         paymentMethod: order.paymentMethod,
@@ -133,8 +158,35 @@ export const getSellerPayouts = query({
         reviewedAt: request.reviewedAt ?? null,
         transferReference: request.transferReference ?? null,
         rejectionReason: request.rejectionReason ?? null,
+        itemsSubtotal: (request.orderSnapshots ?? []).reduce((sum, item) => sum + (item.itemsSubtotal ?? item.amount), 0),
+        deliveryFee: (request.orderSnapshots ?? []).reduce((sum, item) => sum + (item.deliveryFee ?? 0), 0),
+        commissionAmount: (request.orderSnapshots ?? []).reduce((sum, item) => sum + (item.commissionAmount ?? 0), 0),
+        netPayoutAmount: request.amount,
       })),
     };
+  },
+});
+
+export const backfillSellerGcashCommissions = mutation({
+  args: {},
+  returns: v.null(),
+  async handler(ctx) {
+    const user = await currentUser(ctx);
+    if (!user || user.role !== "seller") throw new Error("Seller account required.");
+    const orders = await ctx.db.query("orders").withIndex("by_sellerId", q => q.eq("sellerId", user._id)).take(500);
+    for (const order of orders) {
+      if (order.paymentMethod !== "gcash" || order.status !== "completed") continue;
+      const values = commissionValues(order);
+      if (order.commissionRate === undefined || order.commissionAmount === undefined || order.netPayoutAmount === undefined) {
+        await ctx.db.patch("orders", order._id, { commissionRate: values.rate, commissionAmount: values.commissionAmount, netPayoutAmount: values.netPayoutAmount });
+      }
+      const existing = await ctx.db.query("platformCommissions").withIndex("by_orderId", q => q.eq("orderId", order._id)).unique();
+      if (!existing) {
+        const at = order.completedAt ?? order.deliveredAt ?? order.placedAt;
+        await ctx.db.insert("platformCommissions", { orderId: order._id, stallId: order.stallId, sellerId: order.sellerId, itemsSubtotal: order.subtotal, rate: values.rate, amount: values.commissionAmount, status: "pending", createdAt: at, events: [{ type: "accrued", label: "Legacy GCash commission backfilled", at }] });
+      }
+    }
+    return null;
   },
 });
 
@@ -169,19 +221,23 @@ export const requestPayout = mutation({
       throw new Error("One or more selected orders are no longer eligible for payout.");
     }
     const selectedOrders = selected.filter((order) => order !== undefined);
-    const amount = selectedOrders.reduce((total, order) => total + order.total, 0);
     const now = new Date().toISOString();
+    const snapshots = selectedOrders.map((order) => {
+      const values = commissionValues(order);
+      return { orderId: order._id, amount: values.netPayoutAmount, placedAt: order.placedAt, deliveredAt: order.deliveredAt!, paymentMethod: order.paymentMethod, itemsSubtotal: values.itemsSubtotal, deliveryFee: values.deliveryFee, commissionAmount: values.commissionAmount, netPayoutAmount: values.netPayoutAmount, completedAt: order.completedAt ?? order.deliveredAt! };
+    });
+    const amount = snapshots.reduce((total, item) => total + item.netPayoutAmount, 0);
+    for (const order of selectedOrders) {
+      const values = commissionValues(order);
+      await ctx.db.patch("orders", order._id, { commissionRate: values.rate, commissionAmount: values.commissionAmount, netPayoutAmount: values.netPayoutAmount });
+      const existing = await ctx.db.query("platformCommissions").withIndex("by_orderId", q => q.eq("orderId", order._id)).unique();
+      if (!existing) await ctx.db.insert("platformCommissions", { orderId: order._id, stallId: order.stallId, sellerId: order.sellerId, itemsSubtotal: order.subtotal, rate: values.rate, amount: values.commissionAmount, status: "pending", createdAt: order.completedAt ?? order.deliveredAt!, events: [{ type: "accrued", label: "Legacy GCash commission backfilled", at: now }] });
+    }
     const requestId = await ctx.db.insert("payoutRequests", {
       sellerId: user._id,
       stallId: stall._id,
       orderIds: selectedOrders.map((order) => order._id),
-      orderSnapshots: selectedOrders.map((order) => ({
-        orderId: order._id,
-        amount: order.total,
-        placedAt: order.placedAt,
-        deliveredAt: order.deliveredAt!,
-        paymentMethod: order.paymentMethod,
-      })),
+      orderSnapshots: snapshots,
       amount,
       gcashName,
       gcashNumber,
@@ -210,6 +266,13 @@ const adminPayoutValidator = v.object({
   idType: v.string(),
   idNumber: v.string(),
   allOrdersGcash: v.boolean(),
+  itemsSubtotal: v.number(),
+  deliveryFee: v.number(),
+  commissionAmount: v.number(),
+  netPayoutAmount: v.number(),
+  completedAt: v.string(),
+  transferReference: v.union(v.string(), v.null()),
+  reviewedAt: v.union(v.string(), v.null()),
 });
 
 export const listPendingPayouts = query({
@@ -238,7 +301,14 @@ export const listPendingPayouts = query({
         gcashName: request.gcashName,
         gcashNumber: request.gcashNumber,
         orderIds: request.orderIds,
-        orderSnapshots: request.orderSnapshots ?? [],
+        orderSnapshots: (request.orderSnapshots ?? []).map(snapshot => ({ ...snapshot, itemsSubtotal: snapshot.itemsSubtotal ?? snapshot.amount, deliveryFee: snapshot.deliveryFee ?? 0, commissionAmount: snapshot.commissionAmount ?? 0, netPayoutAmount: snapshot.netPayoutAmount ?? snapshot.amount, completedAt: snapshot.completedAt ?? snapshot.deliveredAt })),
+        itemsSubtotal: (request.orderSnapshots ?? []).reduce((sum, item) => sum + (item.itemsSubtotal ?? item.amount), 0),
+        deliveryFee: (request.orderSnapshots ?? []).reduce((sum, item) => sum + (item.deliveryFee ?? 0), 0),
+        commissionAmount: (request.orderSnapshots ?? []).reduce((sum, item) => sum + (item.commissionAmount ?? 0), 0),
+        netPayoutAmount: request.amount,
+        completedAt: request.requestedAt,
+        transferReference: request.transferReference ?? null,
+        reviewedAt: request.reviewedAt ?? null,
         requestedAt: request.requestedAt,
         stallName: stall.stallName,
         stallPhotoUrl: stall.photoUrl,
@@ -271,10 +341,14 @@ export const recordPayoutSent = mutation({
       if (!order || order.sellerId !== request.sellerId || order.payoutRequestId !== request._id || !isPayoutEligible({ ...order, payoutRequestId: undefined }, Date.now())) {
         throw new Error("An order in this payout is no longer eligible. Close its return request before paying out.");
       }
-      verifiedTotal += order.total;
+      verifiedTotal += order.netPayoutAmount ?? commissionValues(order).netPayoutAmount;
     }
     if (verifiedTotal !== request.amount) throw new Error("The payout amount no longer matches its selected orders. Reject and review the request again.");
     const now = new Date().toISOString();
+    for (const orderId of request.orderIds) {
+      const ledger = await ctx.db.query("platformCommissions").withIndex("by_orderId", q => q.eq("orderId", orderId)).unique();
+      if (ledger && ledger.status === "pending") await ctx.db.patch("platformCommissions", ledger._id, { status: "collected", payoutRequestId: request._id, collectedAt: now, events: [...ledger.events, { type: "collected", label: "Commission collected with seller payout", at: now, actor: actorEmail, payoutRequestId: request._id, transferReference: reference }] });
+    }
     await ctx.db.patch("payoutRequests", request._id, { status: "paid", reviewedAt: now, reviewedBy: actorEmail, transferReference: reference });
     await ctx.db.insert("adminAuditLog", { actorEmail, action: "payout_paid", payoutRequestId: request._id, payoutReference: reference, payoutAmount: request.amount, createdAt: now });
     return null;

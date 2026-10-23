@@ -85,7 +85,7 @@
   requests at ₱2,000. Stall deadlines are numeric timestamps for the
   scheduled seven-day suspension worker; fields remain optional during
   rollout and are backfilled by that worker.
-- **COD commissions**: `commissionAccruals` stores one row per completed COD order (0.5% of item subtotal, delivery excluded); GCash orders do not accrue. `commissionInvoices` bundles accrued rows weekly, and `commissionPayments` tracks unique GCash references and manual review. Commission is separate from sales and payout eligibility. Refunded orders waive an accrual; invoiced amounts and append-only invoice events are adjusted. Every admin payment decision rechecks the verified allowlisted email and writes both the admin audit log and invoice event.
+- **COD commissions**: `commissionAccruals` stores one row per completed COD order using the shared `COMMISSION_RATE` (5% of item subtotal, delivery excluded); its optional rate snapshot and amount preserve values set when the accrual is created. Existing accrual amounts are never recalculated. GCash uses the same rate in the separate payout commission ledger. `commissionInvoices` bundles accrued rows weekly when the stall total reaches ₱50, and `commissionPayments` tracks unique GCash references and manual review. Commission is separate from sales and payout eligibility. Refunded orders waive an accrual; invoiced amounts and append-only invoice events are adjusted. Every admin payment decision rechecks the verified allowlisted email and writes both the admin audit log and invoice event.
 - **Admin return review**: within 24 hours of delivery, a buyer can
   submit a 10–500 character reason plus 1–5 Cloudinary photo/video URLs.
   The server enforces the cutoff using `deliveredAt`. The order records
@@ -109,8 +109,14 @@
   seller payout requests. COD is a direct buyer-to-seller cash handoff on
   delivery, so it is recorded as a sale and never enters the payout queue.
   Payout requests snapshot the seller's GCash name and number, the
-  seller-selected eligible order IDs with order dates and amounts, and the
-  request total. Multiple requests may be pending
+  seller-selected eligible order IDs with item subtotal, delivery fee,
+  commission, net payout, and completion time per order. The server computes
+  the request total from net payout snapshots. At completion, each GCash order
+  snapshots its commission rate, amount, and net payout. `platformCommissions`
+  records the idempotent per-order commission, with append-only events for
+  accrual, collection with transfer reference, or reversal before payout.
+  Legacy completed GCash orders are backfilled once using the current rate.
+  Multiple requests may be pending
   at once when they contain different orders; each order is reserved by one
   request at most. Eligibility begins 24 hours after
   delivery (the buyer return window), requires `completed` and paid status,
@@ -202,5 +208,10 @@
 12. **Messages are participant scoped.** Only a conversation's buyer and
     seller can read or send its messages. Buyers start shop conversations;
     either order participant can open the pair's existing conversation.
+13. **Commission amounts are fixed when accrued.** Completed GCash orders
+    receive commission fields and a platform commission row; completed COD
+    orders create a COD accrual using the same `COMMISSION_RATE`. Existing
+    accruals and order snapshots are never recalculated. Payout totals use the
+    snapshotted net payout, never a client-supplied total or a later rate.
 
 

@@ -9,9 +9,18 @@ full Cash-on-Delivery order lifecycle are built and wired to Convex.
 
 ## Current Goal
 
-Platform and seller commission receivables are derived from existing accruals, invoices, and payments, with oldest-first partial payment allocation. Sales records now include COD commission status and totals. Build and lint pass. An authenticated commission lifecycle walkthrough remains release follow-up.
+Implement seller verification after its data and audit requirements are specified.
 
 ## Completed
+
+### GCash payout commission (implemented)
+
+- Completed GCash orders snapshot their 5% items-subtotal commission and net payout; COD orders remain unchanged.
+- Added the idempotent `platformCommissions` ledger with pending, collected, and reversed statuses and append-only events. Legacy completed orders backfill once when sellers open earnings; a legacy order refunded during an active return is backfilled as reversed at refund closeout.
+- Payout requests snapshot per-order items subtotal, delivery fee, commission, net payout, and completion time. The server calculates request totals from those snapshots.
+- Seller earnings and payout history show the full breakdown, transfer reference, and decision date. Admin payout review shows request and per-order breakdowns.
+- Admin payout reads and decisions recheck the verified allowlisted email. Payout actions use keyed `usePendingAction` guards.
+- COD commissions now use the shared 5% rate and ₱50 invoice minimum; deposit and offset behavior is unchanged. `npm run build` and `npm run lint` pass; authenticated walkthrough remains release follow-up.
 
 ### Foundation
 
@@ -248,13 +257,13 @@ Platform and seller commission receivables are derived from existing accruals, i
 
 ### COD commissions (implemented)
 
-- Added commission accrual, invoice, and payment ledgers with indexes; completed COD deliveries create an idempotent commission accrual.
-- Added weekly invoice issuance, reminders, seller notifications, payment submission, verified-admin review, and seller/admin page surfaces.
+- Added commission accrual, invoice, and payment ledgers with indexes; completed COD deliveries create an idempotent commission accrual at the shared 5% `COMMISSION_RATE`, rounded to two decimals per order. Legacy accrual amounts are not recalculated; new accruals store an optional rate snapshot.
+- Added weekly invoice issuance at the ₱50 minimum, reminders, seller notifications, payment submission, verified-admin review, and seller/admin page surfaces.
 - Added `/admin/receivables` and a per-accrual receivables panel to seller commissions. Both use the same server query; admin authorization checks the verified allowlisted email. Status and totals are derived from source accruals, invoices, and approved payments, including oldest-accrual-first handling of partial payments. Waived accruals remain listed and do not count as owed.
 - Receivable filters, indexed date/stall reads, server pagination, stall summaries and drill-down, linked invoice/payment details, and filtered CSV export are available to admin. Seller summaries include unbilled, invoiced, overdue, paid, and waived amounts.
 - Seller and admin sales pages now show commission amount, status, invoice number, and filtered-range commission accrued/collected totals for COD orders; GCash rows show n/a.
 - `npm run build` and `npm run lint` pass. Authenticated deployment walkthrough remains.
-- Scenario walkthrough reviewed in code: COD accrues once on completion; GCash skips accrual; the PHP 20 threshold leaves smaller balances accrued; full and partial approvals update balances; rejection permits resubmission; dueAt drives overdue UI even before cron; cron sends two-day and overdue notices; refunds waive accruals and adjust invoiced balances.
+- Scenario verification: a ₱1,000 COD order accrues ₱50; ₱1,000, ₱2,400, and ₱600 orders accrue ₱50, ₱120, and ₱30, respectively, then qualify together for one ₱200 invoice. Existing accruals retain their stored amount and are skipped by the idempotent accrual path. GCash still skips COD receivable accrual.
 
 ## Open Questions
 
@@ -266,7 +275,6 @@ Platform and seller commission receivables are derived from existing accruals, i
 - Deducting overdue commission from a security deposit is out of scope.
 - Whether commission applies to the delivery fee is out of scope; current behavior excludes it and uses items subtotal only.
 - Blocking overdue sellers from accepting new COD orders is out of scope.
-- Commission on GCash orders is out of scope; a future policy may deduct it from payouts.
 
 ## Session Notes
 

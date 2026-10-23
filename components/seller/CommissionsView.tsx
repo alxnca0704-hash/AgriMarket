@@ -6,6 +6,7 @@ import { useSellerCommissions } from '@/hooks/useSellerCommissions';
 import { formatPrice, formatOrderTime } from '@/lib/format';
 import type { CommissionInvoice } from '@/types/commission';
 import { CommissionReceivablesPanel } from '@/components/commissions/CommissionReceivablesPanel';
+import { COMMISSION_RATE } from '@/constants/commissions';
 
 export function CommissionsView() {
   const state = useSellerCommissions();
@@ -14,7 +15,7 @@ export function CommissionsView() {
   const data = state.data;
   if (!data) return <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6"><Empty description="Create a stall to view commissions." /></div>;
   return <div className="mx-auto max-w-5xl space-y-6 px-4 pb-16 pt-6 sm:px-6">
-    <header><p className="text-xs font-medium uppercase tracking-wide text-stone-400">Seller finance</p><h1 className="text-2xl font-semibold text-stone-900 sm:text-3xl">Commissions</h1><p className="mt-1 text-sm text-stone-500">COD commissions are billed weekly at 0.5% of order items, excluding delivery.</p></header>
+    <header><p className="text-xs font-medium uppercase tracking-wide text-stone-400">Seller finance</p><h1 className="text-2xl font-semibold text-stone-900 sm:text-3xl">Commissions</h1><p className="mt-1 text-sm text-stone-500">COD commissions are billed weekly at {(COMMISSION_RATE * 100).toLocaleString()}% of order items, excluding delivery.</p></header>
     <CommissionReceivablesPanel isAdmin={false} />
     <section className="space-y-4">{data.invoices.length === 0 ? <div className="rounded-2xl bg-white p-8"><Empty description="No commission invoices yet." /></div> : data.invoices.map((invoice: CommissionInvoice) => <article key={invoice._id} className="space-y-4 rounded-2xl bg-white p-4 shadow-sm sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex flex-wrap items-center gap-2"><h2 className="text-base font-semibold text-stone-900">{new Date(invoice.periodStart).toLocaleDateString('en-PH')} – {new Date(invoice.periodEnd).toLocaleDateString('en-PH')}</h2><Tag color={invoice.status === 'paid' ? 'success' : invoice.status === 'overdue' ? 'error' : invoice.status === 'pending-review' ? 'processing' : 'default'}>{invoice.status}</Tag></div><p className="mt-1 text-xs text-stone-500">Due {new Date(invoice.dueAt).toLocaleDateString('en-PH')}</p></div><div className="text-right"><p className="font-semibold text-stone-900">{formatPrice(invoice.amount)}</p><p className="text-xs text-stone-500">Paid {formatPrice(invoice.paidAmount)} · Remaining {formatPrice(invoice.remaining)}</p></div></div>

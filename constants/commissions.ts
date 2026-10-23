@@ -1,7 +1,13 @@
-export const COMMISSION_RATE = 0.005;
+/** Platform commission rate for COD accruals and GCash payouts. */
+export const COMMISSION_RATE = 0.05;
+export const GCASH_PAYOUT_ACTION_KEYS = {
+  request: 'gcash-payout:request',
+  adminPaid: (requestId: string) => `gcash-payout:paid:${requestId}`,
+  adminReject: (requestId: string) => `gcash-payout:reject:${requestId}`,
+} as const;
 export const INVOICE_DUE_MS = 7 * 24 * 60 * 60 * 1000;
 export const INVOICE_DAY = 'Monday';
-export const MIN_INVOICE_AMOUNT = 20;
+export const MIN_INVOICE_AMOUNT = 50;
 export const BLOCK_PAYOUT_WHEN_OVERDUE = false;
 
 export const COMMISSION_RECEIVABLE_STATUS = {

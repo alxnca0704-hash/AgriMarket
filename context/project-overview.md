@@ -34,7 +34,14 @@ reason or record the GCash transfer reference to close the payout. The app
 records the transaction but does not move money. Multiple payout requests
 may remain pending when they reserve different orders.
 
-Completed COD orders accrue a 0.5% commission on items subtotal, excluding delivery. Accruals are invoiced weekly when the stall total reaches ?20; smaller balances roll forward. Sellers pay invoices through the configured GCash account, and the allowlisted admin manually reviews each payment. Commission remains separate from seller sales and payout totals.`n`nBuyers and sellers can exchange text messages in one shared conversation per
+GCash payouts deduct a platform commission equal to 5% of the order's item
+subtotal; delivery fees are excluded. The order stores its commission rate,
+commission amount, and net payout at completion. Each completed GCash order
+creates one platform commission record, which is collected when its payout is
+recorded as sent or reversed when a return is refunded before payout. COD
+orders do not use this payout commission flow.
+
+Completed COD orders accrue a 5% commission on items subtotal, excluding delivery. Accruals are invoiced weekly when the stall total reaches ₱50; smaller balances roll forward. Sellers pay invoices through the configured GCash account, and the allowlisted admin manually reviews each payment. Commission remains separate from seller sales and payout totals.`n`nBuyers and sellers can exchange text messages in one shared conversation per
 buyer/seller pair. Buyers can start a conversation from the shops directory or
 their order details; either participant can open it from order details. Both
 roles return to conversations from a Messages tab in their app shell. Opening

@@ -71,6 +71,9 @@ export interface Order {
   toReceiveAt?: string;
   deliveredAt?: string;
   completedAt?: string;
+  commissionRate?: number;
+  commissionAmount?: number;
+  netPayoutAmount?: number;
   cancelledAt?: string;
   cancelReason?: string;
   refundReason?: string;
