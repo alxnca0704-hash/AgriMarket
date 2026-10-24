@@ -1,5 +1,6 @@
-import { SalesView } from '@/components/sales/SalesView';
+import { redirect } from 'next/navigation';
+import { APP_ROUTES } from '@/constants/routes';
 
 export default function AdminSalesPage() {
-  return <SalesView isAdmin />;
+  redirect(APP_ROUTES.adminStalls);
 }

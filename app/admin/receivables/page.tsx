@@ -1,5 +1,6 @@
-import { AdminReceivablesView } from '@/components/admin/AdminReceivablesView';
+import { redirect } from 'next/navigation';
+import { APP_ROUTES } from '@/constants/routes';
 
 export default function AdminReceivablesPage() {
-  return <AdminReceivablesView />;
+  redirect(APP_ROUTES.adminStalls);
 }

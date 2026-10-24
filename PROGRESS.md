@@ -8,9 +8,12 @@ Feature-complete MVP. Buyer, seller, COD, GCash payments, payouts, refunds, comm
 
 ## Current Goal
 
-Stall security deposit tracking is implemented. Next up is the authenticated
-deposit walkthrough and the remaining seller verification work in
-`context/progress-tracker.md`.
+Implement and verify Stall Accounts. The initial read-only list/detail routes
+and server aggregation are in progress; filters, summary cards, pagination,
+reconciliation form, exports, full detail tabs, seller parity, and the
+authenticated walkthrough remain. Keep the legacy finance, receivables, and
+sales page components and shared queries until parity is verified. Their
+sidebar/drawer links are removed and old URLs redirect to `/admin/stalls`.
 
 ## Just Completed
 
@@ -49,9 +52,13 @@ deposit walkthrough and the remaining seller verification work in
 
 ## Next Up
 
-1. Walk through deposit signup, skip-and-pay-later, partial top-up, rejection/resubmission, duplicate override, over-remaining rejection, and deadline overdue behavior with authenticated seller/admin accounts.
-2. Sync the schema and functions to the intended Convex deployment, then check admin totals against the per-stall rows.
-3. Continue seller verification work from `context/progress-tracker.md`.
+1. Complete Stall Accounts and compare figures with the existing finance,
+   receivables, and sales pages.
+2. Run the authenticated finance/refund/deposit/payout/reconciliation and
+   seller-ownership walkthrough, then remove and redirect replaced routes.
+3. Walk through deposit signup, partial top-up, rejection/resubmission,
+   duplicate override, over-remaining rejection, and overdue behavior.
+4. Continue seller verification work from `context/progress-tracker.md`.
 
 ## Open Questions
 

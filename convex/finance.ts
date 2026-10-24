@@ -6,6 +6,7 @@ import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { receivablePeriodStarts, resolveReceivableLedger } from "./receivableHelpers";
 import { orderStatusValidator } from "./shared";
+import { STALL_DEPOSIT_AMOUNT } from "../constants/deposits";
 
 const roundMoney = (amount: number) => Math.round(amount * 100) / 100;
 const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
@@ -95,6 +96,16 @@ const stallFinanceValidator = v.object({
     invoiceNumber: v.union(v.string(), v.null()), payoutReference: v.union(v.string(), v.null()),
   })),
 });
+
+const stallAccountRowValidator = v.object({
+  stallId: v.id("stalls"), stallName: v.string(), sellerName: v.string(), verificationStatus: v.string(),
+  gcashSales: v.number(), gcashOwed: v.number(), gcashPaidOut: v.number(), codSales: v.number(),
+  codOwed: v.number(), codOverdue: v.number(), commissionEarned: v.number(),
+  depositRequired: v.number(), depositPaid: v.number(), depositRemaining: v.number(), depositStatus: v.string(),
+  refundedAmount: v.number(), refundedGcash: v.number(), refundedCod: v.number(), refundedCount: v.number(),
+  inProgressAmount: v.number(), inProgressCount: v.number(), needsRefundAmount: v.number(), needsRefundCount: v.number(),
+});
+const stallAccountsValidator = v.object({ rows: v.array(stallAccountRowValidator), expectedGcashBalance: v.number(), reconciliations: v.array(reconciliationValidator) });
 
 type CodRecord = {
   orderId: Id<"orders">; stallId: Id<"stalls">; stallName: string; saleDate: string;
@@ -395,6 +406,55 @@ export const getAdminFinance = query({
         adminEmail: item.adminEmail,
         createdAt: item.createdAt,
       })),
+    };
+  },
+});
+
+/** Aggregates existing finance ledgers for the admin stall directory. */
+export const getAdminStallAccounts = query({
+  args: financeArgsValidator,
+  returns: stallAccountsValidator,
+  async handler(ctx, args) {
+    await requireAdmin(ctx);
+    const [finance, stalls, reconciliations] = await Promise.all([
+      computeFinance(ctx, null, args.from, args.to, args.now),
+      ctx.db.query("stalls").collect(),
+      ctx.db.query("financeReconciliations").withIndex("by_createdAt").order("desc").take(50),
+    ]);
+    const rows = await Promise.all(stalls.map(async stall => {
+      const [seller, orders, deposits] = await Promise.all([
+        ctx.db.get("users", stall.ownerId),
+        ctx.db.query("orders").withIndex("by_stallId", q => q.eq("stallId", stall._id)).collect(),
+        ctx.db.query("stallDeposits").withIndex("by_stallId", q => q.eq("stallId", stall._id)).collect(),
+      ]);
+      const scopedOrders = orders.filter(order => inRange(financeDate(order), args.from, args.to));
+      const isRefundInProgress = (order: Doc<"orders">) => isReturnStatus(order.status);
+      const refunded = scopedOrders.filter(order => order.status === "refunded");
+      const inProgress = scopedOrders.filter(isRefundInProgress);
+      const needsRefund = scopedOrders.filter(order => order.paymentMethod === "gcash" && order.status === "cancelled" && order.paymentStatus === "paid");
+      const approvedDeposit = deposits.filter(item => item.status === "approved").reduce((sum, item) => sum + (item.approvedAmount ?? item.amount), 0);
+      const financeRow = finance.stalls.find(row => row.stallId === stall._id);
+      const nonRefunded = scopedOrders.filter(order => order.status !== "refunded");
+      const depositStatus = approvedDeposit >= STALL_DEPOSIT_AMOUNT ? "paid" : stall.depositOverdue ? "overdue" : approvedDeposit > 0 ? "partial" : "unpaid";
+      return {
+        stallId: stall._id, stallName: stall.stallName, sellerName: seller?.fullName ?? "Unknown seller", verificationStatus: stall.verification.status,
+        gcashSales: roundMoney(nonRefunded.filter(order => order.paymentMethod === "gcash" && order.status === "completed").reduce((total, order) => total + order.total, 0)),
+        gcashOwed: financeRow?.gcashOwedToSeller ?? 0, gcashPaidOut: financeRow?.gcashPaidOut ?? 0,
+        codSales: roundMoney(nonRefunded.filter(order => order.paymentMethod === "cod" && order.status === "completed").reduce((total, order) => total + order.total, 0)),
+        codOwed: financeRow?.codOwed ?? 0, codOverdue: financeRow?.codOverdue ?? 0,
+        commissionEarned: financeRow?.totalCommission ?? 0, depositRequired: STALL_DEPOSIT_AMOUNT, depositPaid: roundMoney(approvedDeposit),
+        depositRemaining: roundMoney(Math.max(0, STALL_DEPOSIT_AMOUNT - approvedDeposit)), depositStatus,
+        refundedAmount: roundMoney(refunded.reduce((total, order) => total + (order.refundAmount ?? order.total), 0)),
+        refundedGcash: roundMoney(refunded.filter(order => order.paymentMethod === "gcash").reduce((total, order) => total + (order.refundAmount ?? order.total), 0)),
+        refundedCod: roundMoney(refunded.filter(order => order.paymentMethod === "cod").reduce((total, order) => total + (order.refundAmount ?? order.total), 0)),
+        refundedCount: refunded.length, inProgressAmount: roundMoney(inProgress.reduce((total, order) => total + order.total, 0)), inProgressCount: inProgress.length,
+        needsRefundAmount: roundMoney(needsRefund.reduce((total, order) => total + order.total, 0)), needsRefundCount: needsRefund.length,
+      };
+    }));
+    return {
+      rows,
+      expectedGcashBalance: finance.gcash.expectedBalance,
+      reconciliations: reconciliations.map(item => ({ _id: item._id, actualBalance: item.actualBalance, expectedBalance: item.expectedBalance, difference: item.difference, from: item.from, to: item.to, adminEmail: item.adminEmail, createdAt: item.createdAt })),
     };
   },
 });

@@ -9,7 +9,12 @@ full Cash-on-Delivery order lifecycle are built and wired to Convex.
 
 ## Current Goal
 
-Implement seller verification after its data and audit requirements are specified.
+Implement and verify the Stall Accounts replacement across the admin finance
+surfaces. Initial read-only list/detail routes and a server aggregation are in
+progress. Finish list filters, summary cards, server pagination/sorting,
+reconciliation and exports, the detail tabs, seller parity checks, and the
+authenticated walkthrough before removing old admin routes. Seller
+verification follows.
 
 ## Completed
 
@@ -277,12 +282,22 @@ Implement seller verification after its data and audit requirements are specifie
 - Sign-in supports password or one-time email code, including email
   code verification when Clerk requires an extra factor. Password sign-in
   uses Clerk's factor-specific method and reports incomplete states clearly.
+- Redesigned the admin stalls page (`/admin/stalls`) and stall detail page
+  (`/admin/stalls/[stallId]`) into dashboards with balance cards, attention
+  lists, and records navigation for better UX.
 
 ## Next Up
 
-- Run an authenticated finance walkthrough against real orders, payouts,
-  refunds, and reconciliations, then verify the expected GCash balance
-  matches the admin GCash account.
+- Complete and compare Stall Accounts against finance, receivables, and sales;
+  the legacy admin routes now redirect to `/admin/stalls`, and their sidebar
+  and mobile drawer links have been removed. The old page components and
+  shared queries remain until parity verification is complete.
+- Add server-filtered pagination/sorting, reconciliation form and exports,
+  detailed order/ledger tabs, and the authenticated refund/deposit/payout flow.
+- Verify seller parity and server-side ownership, then remove and redirect the
+  replaced admin routes.
+- Run the authenticated finance walkthrough against real orders, payouts,
+  refunds, and reconciliations; verify expected GCash against the admin account.
 - Implement seller verification after its data and audit requirements
   are specified.
 - Add an actor that moves stall verification status to verified.
@@ -299,6 +314,10 @@ Implement seller verification after its data and audit requirements are specifie
 - Scenario verification: a ₱1,000 COD order accrues ₱50; ₱1,000, ₱2,400, and ₱600 orders accrue ₱50, ₱120, and ₱30, respectively, then qualify together for one ₱200 invoice. Existing accruals retain their stored amount and are skipped by the idempotent accrual path. GCash still skips COD receivable accrual.
 
 ## Open Questions
+
+- Stall Accounts still needs an authenticated scenario walkthrough covering
+  refunds, held returns, unpaid COD invoices, partial deposits, and
+  reconciliation history before legacy admin pages can be removed.
 
 - The refund process for cancelled GCash orders with an approved payment is
   still undefined; the admin queue flags these as Needs refund for follow-up.

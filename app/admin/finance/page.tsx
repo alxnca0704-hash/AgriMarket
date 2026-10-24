@@ -1,5 +1,6 @@
-﻿import { AdminFinanceView } from '@/components/admin/AdminFinanceView';
+import { redirect } from 'next/navigation';
+import { APP_ROUTES } from '@/constants/routes';
 
 export default function AdminFinancePage() {
-  return <AdminFinanceView />;
+  redirect(APP_ROUTES.adminStalls);
 }

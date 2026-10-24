@@ -8,7 +8,6 @@ import type { MenuProps } from 'antd';
 import {
   AccountBookOutlined,
   ArrowLeftOutlined,
-  BankOutlined,
   CheckCircleOutlined,
   CloseOutlined,
   CreditCardOutlined,
@@ -17,6 +16,7 @@ import {
   SafetyCertificateOutlined,
   SettingOutlined,
   WalletOutlined,
+  ShopOutlined,
 } from '@ant-design/icons';
 import { BrandMark } from '@/components/BrandMark';
 import { APP_ROUTES } from '@/constants/routes';
@@ -25,15 +25,13 @@ import { useAdminShell } from '@/hooks/useAdminShell';
 const { Sider, Content } = Layout;
 
 const TABS = [
+  { key: 'stalls', label: 'Stall Accounts', href: APP_ROUTES.adminStalls, icon: <ShopOutlined /> },
   { key: 'gcash', label: 'GCash account', href: APP_ROUTES.adminGcash, icon: <SettingOutlined /> },
   { key: 'payments', label: 'Verify payments', href: APP_ROUTES.adminPayments, icon: <CreditCardOutlined /> },
   { key: 'payouts', label: 'Approve payouts', href: APP_ROUTES.adminPayouts, icon: <AccountBookOutlined /> },
   { key: 'refunds', label: 'Review refunds', href: APP_ROUTES.adminRefunds, icon: <CheckCircleOutlined /> },
   { key: 'deposits', label: 'Deposits', href: APP_ROUTES.adminDeposits, icon: <WalletOutlined /> },
   { key: 'commissions', label: 'Commissions', href: APP_ROUTES.adminCommissions, icon: <DollarOutlined /> },
-  { key: 'receivables', label: 'Commission receivables', href: APP_ROUTES.adminReceivables, icon: <AccountBookOutlined /> },
-  { key: 'sales', label: 'Sales', href: APP_ROUTES.adminSales, icon: <DollarOutlined /> },
-  { key: 'finance', label: 'Finance', href: APP_ROUTES.adminFinance, icon: <BankOutlined /> },
   { key: 'sellerVerification', label: 'Seller verification', href: APP_ROUTES.adminSellerVerification, icon: <SafetyCertificateOutlined /> },
 ] as const;
 
