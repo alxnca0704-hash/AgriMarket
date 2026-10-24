@@ -18,6 +18,15 @@ verification follows.
 
 ## Completed
 
+### Sales commission display
+
+- Seller and admin Sales summaries now show COD commission owed, GCash
+  commission, and their total as separate figures. Sales rows show GCash
+  commission amounts and ledger status; refunded rows are marked waived or
+  reversed.
+- Order timestamps use Philippine time explicitly.
+- Build passes; lint passes with the existing 10 warnings.
+
 ### Seller dashboard sales and commission totals
 
 - Dashboard sales now use the seller sales ledger's server-calculated total,

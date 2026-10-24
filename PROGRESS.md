@@ -17,6 +17,15 @@ sidebar/drawer links are removed and old URLs redirect to `/admin/stalls`.
 
 ## Just Completed
 
+### Sales commission display
+
+- Sales summaries split COD commission owed, active GCash commission, and
+  total commission. GCash sale rows now read their stored commission and
+  pending/collected/reversed ledger status; refunded COD/GCash rows display
+  waived/reversed.
+- Order timestamps now explicitly format in Philippine time.
+- `npm run build` passes. `npm run lint` passes with 10 existing warnings.
+
 ### Seller dashboard totals
 
 - Total sales now match the server-side seller sales ledger (completed orders,

@@ -26,6 +26,7 @@ export function formatAddressSummary(address: DeliveryAddress): string {
 
 export function formatOrderTime(iso: string): string {
   return new Date(iso).toLocaleString('en-PH', {
+    timeZone: 'Asia/Manila',
     month: 'short',
     day: 'numeric',
     hour: 'numeric',

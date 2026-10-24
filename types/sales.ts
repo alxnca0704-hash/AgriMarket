@@ -28,7 +28,7 @@ export interface SaleRecord {
   saleStatus: SaleStatus;
   stallId: string;
   commissionAmount: number | null;
-  commissionStatus: CommissionReceivableStatus | 'n/a';
+  commissionStatus: CommissionReceivableStatus | 'pending' | 'collected' | 'reversed' | 'n/a';
   invoiceNumber: string | null;
 }
 
@@ -42,6 +42,9 @@ export interface SalesSummary {
   thisMonth: number;
   commissionAccrued: number;
   commissionCollected: number;
+  codCommissionOwed: number;
+  gcashCommission: number;
+  totalCommission: number;
 }
 
 export interface StallSalesSummary {

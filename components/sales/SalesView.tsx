@@ -20,8 +20,8 @@ export function SalesView({ isAdmin }: SalesViewProps) {
   const cards = [
     ['Total sales', formatPrice(summary?.totalSales ?? 0)], ['GCash sales', formatPrice(summary?.gcashSales ?? 0)],
     ['COD sales', formatPrice(summary?.codSales ?? 0)], ['Orders', String(summary?.orderCount ?? 0)],
-    ['Today', formatPrice(summary?.today ?? 0)], ['This week', formatPrice(summary?.thisWeek ?? 0)], ['This month', formatPrice(summary?.thisMonth ?? 0)],
-    ['Commission accrued', formatPrice(summary?.commissionAccrued ?? 0)], ['Commission collected', formatPrice(summary?.commissionCollected ?? 0)],
+    ['COD commission owed', formatPrice(summary?.codCommissionOwed ?? 0)], ['GCash commission', formatPrice(summary?.gcashCommission ?? 0)],
+    ['Total commission', formatPrice(summary?.totalCommission ?? 0)],
   ];
   const columns: TableProps<SaleRecord>['columns'] = [
     { title: 'Completed', dataIndex: 'completedAt', render: (value: string) => formatOrderTime(value) },
@@ -34,7 +34,7 @@ export function SalesView({ isAdmin }: SalesViewProps) {
     { title: 'Payment', dataIndex: 'paymentMethod', render: (value: SaleRecord['paymentMethod']) => value.toUpperCase() },
     { title: 'Status', dataIndex: 'saleStatus', render: (value: SaleRecord['saleStatus']) => <Tag color={value === 'refunded' ? 'default' : value === 'refund-requested' ? 'warning' : 'success'}>{value}</Tag> },
     { title: 'Commission', dataIndex: 'commissionAmount', render: (value: number | null) => value === null ? 'n/a' : formatPrice(value) },
-    { title: 'Commission status', dataIndex: 'commissionStatus', render: (value: SaleRecord['commissionStatus']) => value === 'n/a' ? value : <Tag>{value}</Tag> },
+    { title: 'Commission status', dataIndex: 'commissionStatus', render: (value: SaleRecord['commissionStatus']) => <Tag>{value}</Tag> },
     { title: 'Invoice', dataIndex: 'invoiceNumber', render: (value: string | null) => value ? `#${value.slice(-7).toUpperCase()}` : '—' },
   ];
   return <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 sm:py-10">
