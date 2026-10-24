@@ -549,16 +549,23 @@ export const rejectOrder = mutation({
 });
 
 export const dispatchOrder = mutation({
-  args: { orderId: v.id("orders") },
+  args: { orderId: v.id("orders"), courier: v.string(), trackingNumber: v.string() },
   async handler(ctx, args) {
     const user = await requireUser(ctx);
     const order = await requireSellerOrder(ctx, user._id, args.orderId);
     assertStatus(order, "confirmed");
 
+    const courier = args.courier.trim();
+    const trackingNumber = args.trackingNumber.trim();
+    if (courier.length < 2 || courier.length > 80) throw new Error("Enter a courier name between 2 and 80 characters");
+    if (trackingNumber.length < 3 || trackingNumber.length > 100) throw new Error("Enter a tracking number between 3 and 100 characters");
+
     const now = new Date().toISOString();
     await ctx.db.patch("orders", order._id, {
       status: "to-receive",
       toReceiveAt: now,
+      deliveryCourier: courier,
+      deliveryTrackingNumber: trackingNumber,
       events: [
         ...order.events,
         { status: "to-receive", label: "Out for delivery", at: now },
@@ -571,7 +578,7 @@ export const dispatchOrder = mutation({
       orderId: order._id,
       type: "order_dispatched",
       title: "Order out for delivery",
-      body: `Order #${order._id.slice(-6).toUpperCase()} from ${order.sellerName} is out for delivery!`,
+      body: `Order #${order._id.slice(-6).toUpperCase()} from ${order.sellerName} is out for delivery via ${courier}. Tracking: ${trackingNumber}.`,
     });
     return null;
   },

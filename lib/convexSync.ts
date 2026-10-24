@@ -205,6 +205,8 @@ export function toOrder(order: OrderDoc): Order {
     placedAt: order.placedAt,
     confirmedAt: order.confirmedAt,
     toReceiveAt: order.toReceiveAt,
+    deliveryCourier: order.deliveryCourier,
+    deliveryTrackingNumber: order.deliveryTrackingNumber,
     deliveredAt: order.deliveredAt,
     completedAt: order.completedAt,
     cancelledAt: order.cancelledAt,

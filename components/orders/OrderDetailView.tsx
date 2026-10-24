@@ -143,6 +143,10 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
           <OrderProgress order={order} audience="buyer" />
         </div>
 
+        {order.deliveryCourier && order.deliveryTrackingNumber && (
+          <Alert className="mt-4" type="info" showIcon title="Delivery tracking" description={`${order.deliveryCourier} · Tracking ${order.deliveryTrackingNumber}`} />
+        )}
+
         {order.cancelReason && (
           <div className="mt-4 rounded-xl bg-[#FBF0EE] px-4 py-3 text-sm text-[#8C2F26]">
             <strong className="font-semibold">Cancellation reason: </strong>

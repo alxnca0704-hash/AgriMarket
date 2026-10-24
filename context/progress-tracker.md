@@ -18,6 +18,23 @@ verification follows.
 
 ## Completed
 
+### Seller delivery tracking
+
+- Sellers must enter a courier and tracking number when marking an order as
+  to receive. The dispatch mutation validates and saves both fields with the
+  status transition, and the buyer notification includes the tracking details.
+- Buyer and seller order details display the saved delivery tracking;
+  delivery tracking remains separate from return shipment details.
+- Build passes; lint passes with existing warnings.
+
+### Admin payment search
+
+- Payment verification search now matches buyer, stall, reference number, and
+  payment note without unmounting the search input while results refresh.
+- Input state is isolated and server queries are debounced; the results area
+  shows its loading state in place.
+- Build passes; lint passes with existing warnings.
+
 ### Refund review records
 
 - Reworked `/admin/refunds` into Pending and Refund records sections, with
@@ -30,6 +47,8 @@ verification follows.
 - Stall details now include completed refunds in the refund total and order
   history, with recorded method/reference, and link directly to the Refund
   records section.
+- Added search across pending and recorded refunds by order ID, buyer, stall,
+  payment/refund reference, courier, and courier tracking number.
 - Build passes; lint passes with existing warnings.
 
 ### Platform admin dashboard (implemented)

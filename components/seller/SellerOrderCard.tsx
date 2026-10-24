@@ -18,7 +18,7 @@ interface SellerOrderCardProps {
   isActionPending: (action: OrderAction, orderId: string) => boolean;
   onConfirm: () => void | Promise<unknown>;
   onReject: (reason: string) => void | Promise<unknown>;
-  onDispatch: () => void | Promise<unknown>;
+  onDispatch: (courier: string, trackingNumber: string) => void | Promise<unknown>;
   onComplete: () => void | Promise<unknown>;
   onConfirmReturnReceived: () => void | Promise<unknown>;
 }

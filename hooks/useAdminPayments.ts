@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { usePendingAction } from '@/hooks/usePendingAction';
@@ -10,7 +10,7 @@ export function useAdminPayments() {
   const { run, isPending } = usePendingAction();
   const reviewMutation = useMutation(api.admin.reviewGcashPayment);
   const [status, setStatus] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending');
-  const [search, setSearch] = useState('');
+  const [search, setSearchState] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [page, setPage] = useState(1);
@@ -19,8 +19,11 @@ export function useAdminPayments() {
   const [reason, setReason] = useState('');
   const [approvePrompt, setApprovePrompt] = useState<string | null>(null);
   const [overrideReason, setOverrideReason] = useState('');
-  const data = useQuery(api.admin.listAdminGcashPayments, { status, search, ...(from ? { from: new Date(`${from}T00:00:00`).toISOString() } : {}), ...(to ? { to: new Date(`${to}T23:59:59`).toISOString() } : {}), page, pageSize: 20 });
-  const exportData = useQuery(api.admin.listAdminGcashPayments, { status, search, ...(from ? { from: new Date(`${from}T00:00:00`).toISOString() } : {}), ...(to ? { to: new Date(`${to}T23:59:59`).toISOString() } : {}), page: 1, pageSize: 1000 });
+  const [querySearch, setQuerySearch] = useState('');
+  const setSearch = useCallback((value: string) => { setSearchState(value); setQuerySearch(value); setPage(1); }, []);
+  const args = { status, search: querySearch, ...(from ? { from: new Date(`${from}T00:00:00`).toISOString() } : {}), ...(to ? { to: new Date(`${to}T23:59:59`).toISOString() } : {}) };
+  const data = useQuery(api.admin.listAdminGcashPayments, { ...args, page, pageSize: 20 });
+  const exportData = useQuery(api.admin.listAdminGcashPayments, { ...args, page: 1, pageSize: 1000 });
   const act = async (paymentNote: string, decision: 'paid' | 'rejected') => {
     const key = decision === 'paid' ? ADMIN_PAYMENT_ACTION_KEYS.approve(paymentNote) : ADMIN_PAYMENT_ACTION_KEYS.reject(paymentNote);
     const result = await run(key, () => reviewMutation({ paymentNote, decision, ...(decision === 'paid' ? { ...(overrideReason.trim() ? { duplicateOverrideReason: overrideReason.trim() } : {}) } : { reason: reason.trim() }) }), { success: decision === 'paid' ? 'Payment approved.' : 'Payment rejected; buyer can resubmit.', error: 'Could not review payment.' });
@@ -29,7 +32,7 @@ export function useAdminPayments() {
   return {
     data, exportData, isLoading: data === undefined, error: data instanceof Error ? data.message : null,
     status, setStatus: (value: typeof status) => { setStatus(value); setPage(1); },
-    search, setSearch: (value: string) => { setSearch(value); setPage(1); },
+    search, setSearch,
     from, setFrom: (value: string) => { setFrom(value); setPage(1); },
     to, setTo: (value: string) => { setTo(value); setPage(1); }, page, setPage,
     selected, setSelected, rejecting, setRejecting, reason, setReason,

@@ -69,6 +69,8 @@ export interface Order {
   placedAt: string;
   confirmedAt?: string;
   toReceiveAt?: string;
+  deliveryCourier?: string;
+  deliveryTrackingNumber?: string;
   deliveredAt?: string;
   completedAt?: string;
   commissionRate?: number;

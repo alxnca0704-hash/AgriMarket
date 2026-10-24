@@ -12,7 +12,7 @@ interface SellerOrderActionsProps {
   isActionPending: (action: OrderAction, orderId: string) => boolean;
   onConfirm: () => void | Promise<unknown>;
   onReject: (reason: string) => void | Promise<unknown>;
-  onDispatch: () => void | Promise<unknown>;
+  onDispatch: (courier: string, trackingNumber: string) => void | Promise<unknown>;
   onComplete: () => void | Promise<unknown>;
   onConfirmReturnReceived: () => void | Promise<unknown>;
 }
@@ -29,6 +29,9 @@ export function SellerOrderActions({
 }: SellerOrderActionsProps) {
   const [rejectOpen, setRejectOpen] = useState(false);
   const [reason, setReason] = useState('');
+  const [dispatchOpen, setDispatchOpen] = useState(false);
+  const [courier, setCourier] = useState('');
+  const [trackingNumber, setTrackingNumber] = useState('');
 
   const compact = variant === 'card';
 
@@ -46,6 +49,12 @@ export function SellerOrderActions({
   const confirmReject = async () => {
     const result = await onReject(reason);
     if (result === 'success') setRejectOpen(false);
+  };
+
+  const confirmDispatch = async () => {
+    if (courier.trim().length < 2 || trackingNumber.trim().length < 3) return;
+    const result = await onDispatch(courier.trim(), trackingNumber.trim());
+    if (result === 'success') setDispatchOpen(false);
   };
 
   return (
@@ -86,7 +95,7 @@ export function SellerOrderActions({
           type="primary"
           size={compact ? 'middle' : 'large'}
           icon={<CarOutlined />}
-          onClick={onDispatch}
+          onClick={() => { setCourier(''); setTrackingNumber(''); setDispatchOpen(true); }}
           loading={dispatchPending}
           className="!rounded-xl !font-semibold"
         >
@@ -141,6 +150,31 @@ export function SellerOrderActions({
           onChange={(e) => setReason(e.target.value)}
           className="mt-1.5 !rounded-xl"
         />
+      </Modal>
+
+      <Modal
+        open={dispatchOpen}
+        onCancel={() => setDispatchOpen(false)}
+        onOk={confirmDispatch}
+        okText="Save and mark to receive"
+        okButtonProps={{ loading: dispatchPending, disabled: courier.trim().length < 2 || courier.trim().length > 80 || trackingNumber.trim().length < 3 || trackingNumber.trim().length > 100, className: '!rounded-lg' }}
+        cancelText="Cancel"
+        cancelButtonProps={{ className: '!rounded-lg', disabled: dispatchPending }}
+        title="Add delivery details"
+        width="min(92%, 420px)"
+        centered
+      >
+        <p className="mb-4 text-sm leading-relaxed text-stone-500">Add the courier and tracking number so the buyer can follow this delivery.</p>
+        <div className="space-y-4">
+          <label className="block text-sm font-medium text-stone-700">Courier <span className="text-red-600">*</span>
+            <Input maxLength={80} autoComplete="organization" placeholder="e.g. LBC" value={courier} onChange={(event) => setCourier(event.target.value)} className="mt-1.5 !rounded-xl" />
+            <span className="mt-1 block text-xs font-normal text-stone-500">Enter the delivery company or courier name.</span>
+          </label>
+          <label className="block text-sm font-medium text-stone-700">Tracking number <span className="text-red-600">*</span>
+            <Input maxLength={100} autoComplete="off" placeholder="e.g. 1234567890" value={trackingNumber} onChange={(event) => setTrackingNumber(event.target.value)} className="mt-1.5 !rounded-xl" />
+            <span className="mt-1 block text-xs font-normal text-stone-500">Enter the tracking number from your courier receipt.</span>
+          </label>
+        </div>
       </Modal>
 
     </div>

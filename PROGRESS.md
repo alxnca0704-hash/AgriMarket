@@ -17,6 +17,22 @@ sidebar/drawer links are removed and old URLs redirect to `/admin/stalls`.
 
 ## Just Completed
 
+### Seller delivery tracking
+
+- Sellers provide a courier and tracking number when marking an order as to
+  receive. The mutation validates and saves both, and notifies the buyer with
+  the details.
+- Buyer and seller order details show delivery tracking, distinct from return
+  shipment tracking.
+- `npm run build` passes. `npm run lint` passes with existing warnings.
+
+### Admin payment search
+
+- Search by buyer, stall, payment reference, or payment note no longer loses
+  focus as the server results update. Search is isolated and debounced, with
+  inline loading feedback.
+- Build and lint pass with existing warnings.
+
 ### Refund review records
 
 - `/admin/refunds` now has Pending and Refund records sections with desktop
@@ -24,6 +40,8 @@ sidebar/drawer links are removed and old URLs redirect to `/admin/stalls`.
   disbursement method, reference, and date through a verified-admin query.
 - Stall details now show recorded refund totals and refund order rows, with a
   direct link to Refund records.
+- Refund search covers pending and recorded entries by order ID, buyer, stall,
+  payment/refund reference, courier, and tracking number.
 - Build and lint pass with existing lint warnings.
 
 ### Platform admin dashboard

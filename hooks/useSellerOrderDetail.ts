@@ -49,11 +49,11 @@ export function useSellerOrderDetail(orderId: string) {
     );
   };
 
-  const handleDispatch = () => {
+  const handleDispatch = (courier: string, trackingNumber: string) => {
     if (!order) return Promise.resolve('skipped' as const);
     return run(
       ORDER_ACTION_KEYS.dispatchOrder(order.id),
-      () => dispatchMutation({ orderId: order.id as Id<'orders'> }),
+      () => dispatchMutation({ orderId: order.id as Id<'orders'>, courier, trackingNumber }),
       { success: 'Order marked as to receive', error: 'Could not update the order' }
     );
   };

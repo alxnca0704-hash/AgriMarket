@@ -77,7 +77,7 @@ export function SellerOrdersView() {
                   isActionPending={isActionPending}
                   onConfirm={() => handleConfirm(order)}
                   onReject={(reason) => handleReject(order, reason)}
-                  onDispatch={() => handleDispatch(order)}
+                  onDispatch={(courier, trackingNumber) => handleDispatch(order, courier, trackingNumber)}
                   onComplete={() => handleComplete(order)}
                   onConfirmReturnReceived={() => handleConfirmReturnReceived(order)}
                 />

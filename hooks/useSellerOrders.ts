@@ -61,10 +61,10 @@ export function useSellerOrders() {
       { success: 'Order rejected', error: 'Could not reject the order' }
     );
 
-  const handleDispatch = (order: Order) =>
+  const handleDispatch = (order: Order, courier: string, trackingNumber: string) =>
     run(
       ORDER_ACTION_KEYS.dispatchOrder(order.id),
-      () => dispatchMutation({ orderId: order.id as Id<'orders'> }),
+      () => dispatchMutation({ orderId: order.id as Id<'orders'>, courier, trackingNumber }),
       { success: 'Order marked as to receive', error: 'Could not update the order' }
     );
 

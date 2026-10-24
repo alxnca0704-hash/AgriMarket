@@ -26,6 +26,8 @@ export interface AdminRecordedRefund {
   refundReference: string;
   refundAmount: number;
   refundedAt: string;
+  returnCarrier: string;
+  returnTrackingNumber: string;
 }
 
 export interface AdminPayoutRequest {

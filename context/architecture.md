@@ -54,6 +54,10 @@
   keyed by user), `orders` (immutable line-item snapshot plus a mutable
   status/event log), `reviews` (rating, comment, seller reply),
   `conversations` (buyer/seller threads), and `messages` (text messages).
+- Orders optionally store the seller-entered delivery courier and tracking
+  number when dispatched. These delivery fields are distinct from the buyer's
+  return courier and tracking fields and remain visible in both parties' order
+  details.
 - **Sales records**: seller and admin sales views are read-only projections
   of completed `orders`. They use the order's immutable item and seller
   snapshots plus `completedAt`, payment fields, and refund status; they do

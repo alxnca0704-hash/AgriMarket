@@ -119,6 +119,8 @@ export default defineSchema({
     placedAt: v.string(),
     confirmedAt: v.optional(v.string()),
     toReceiveAt: v.optional(v.string()),
+    deliveryCourier: v.optional(v.string()),
+    deliveryTrackingNumber: v.optional(v.string()),
     deliveredAt: v.optional(v.string()),
     completedAt: v.optional(v.string()),
     commissionRate: v.optional(v.number()),

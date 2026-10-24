@@ -60,6 +60,8 @@ const recordedRefundValidator = v.array(v.object({
   refundReference: v.string(),
   refundAmount: v.number(),
   refundedAt: v.string(),
+  returnCarrier: v.string(),
+  returnTrackingNumber: v.string(),
 }));
 
 export const getPendingRefundCount = query({
@@ -149,6 +151,8 @@ export const listRecordedRefunds = query({
         refundReference: order.refundReference ?? "Not provided",
         refundAmount: order.refundAmount ?? order.total,
         refundedAt: order.refundConfirmedAt ?? order.updatedAt,
+        returnCarrier: order.returnCarrier ?? "",
+        returnTrackingNumber: order.returnTrackingNumber ?? "",
       };
     }));
     return refunds.sort((a, b) => b.refundedAt.localeCompare(a.refundedAt));
