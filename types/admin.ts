@@ -17,6 +17,17 @@ export interface AdminRefundRequest {
 
 export type RefundDisbursementMethod = 'gcash' | 'cash';
 
+export interface AdminRecordedRefund {
+  orderId: string;
+  buyerName: string;
+  sellerName: string;
+  paymentMethod: 'cod' | 'gcash';
+  refundMethod: RefundDisbursementMethod | null;
+  refundReference: string;
+  refundAmount: number;
+  refundedAt: string;
+}
+
 export interface AdminPayoutRequest {
   _id: string;
   sellerName: string;

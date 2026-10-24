@@ -133,6 +133,10 @@ Sider, and Tabs.
   and 9 seller tabs (Dashboard, Products, Orders, Messages, My stall, Earnings,
   Reviews, Notifications, Settings). Active state comes from
   `usePathname()` with `startsWith` prefix matching for nested routes.
+  Admin navigation starts with Dashboard (`/admin`). The admin dashboard uses
+  24px section spacing, 20px card padding, one-line metric labels, and
+  tabular-nums for currency. Its reconciliation drawer is the only place to
+  record the actual GCash balance.
 - Buyer and seller shells also include a Messages tab. The messaging experience is
   cleanly separated into a dedicated Inbox view and a dedicated Chat Room view.
   The Inbox provides search, unread and order filters, rich cards with contact

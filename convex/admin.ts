@@ -51,6 +51,17 @@ const pendingRefundValidator = v.array(v.object({
   requestedAt: v.string(),
 }));
 
+const recordedRefundValidator = v.array(v.object({
+  orderId: v.id("orders"),
+  buyerName: v.string(),
+  sellerName: v.string(),
+  paymentMethod: v.union(v.literal("cod"), v.literal("gcash")),
+  refundMethod: v.union(v.literal("gcash"), v.literal("cash"), v.null()),
+  refundReference: v.string(),
+  refundAmount: v.number(),
+  refundedAt: v.string(),
+}));
+
 export const getPendingRefundCount = query({
   args: {},
   returns: v.number(),
@@ -115,6 +126,32 @@ export const listPendingRefundRequests = query({
       });
     }
     return refunds.sort((a, b) => b.requestedAt.localeCompare(a.requestedAt));
+  },
+});
+
+export const listRecordedRefunds = query({
+  args: {},
+  returns: recordedRefundValidator,
+  async handler(ctx) {
+    await requireAdminEmail(ctx);
+    const orders = await ctx.db.query("orders")
+      .withIndex("by_status", q => q.eq("status", "refunded"))
+      .order("desc")
+      .take(500);
+    const refunds = await Promise.all(orders.map(async order => {
+      const buyer = await ctx.db.get("users", order.buyerId);
+      return {
+        orderId: order._id,
+        buyerName: buyer?.fullName ?? "Buyer",
+        sellerName: order.sellerName,
+        paymentMethod: order.paymentMethod,
+        refundMethod: order.refundMethod ?? null,
+        refundReference: order.refundReference ?? "Not provided",
+        refundAmount: order.refundAmount ?? order.total,
+        refundedAt: order.refundConfirmedAt ?? order.updatedAt,
+      };
+    }));
+    return refunds.sort((a, b) => b.refundedAt.localeCompare(a.refundedAt));
   },
 });
 

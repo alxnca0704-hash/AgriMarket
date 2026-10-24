@@ -72,6 +72,13 @@
   payable copy is stored. `financeReconciliations` stores append-only
   snapshots of actual GCash balance, expected balance, difference, selected
   period, admin email, and timestamp; reconciliation history is never edited.
+  `finance:getAdminDashboard` is the admin home read model. Its current expected
+  GCash balance is approved buyer GCash payments plus approved stall deposits
+  plus approved COD commission payments, less paid seller payout amounts and
+  GCash refunds recorded as sent. Seller amounts, approved deposits, buyer
+  refunds due, and platform-owned residual remain separate groups; range filters
+  affect income, sales, and trends but not current balances or obligations.
+  Admin reads and reconciliation writes recheck the verified allowlisted email.
 - **Clerk** (identity): user id, session, and `publicMetadata.role`.
   `users.tokenIdentifier` and `users.clerkId` are the join keys.
 - **Cloudinary**: all product and stall images, uploaded through

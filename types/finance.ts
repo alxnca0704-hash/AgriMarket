@@ -125,6 +125,10 @@ export interface StallFinanceOrder {
   status: OrderStatus;
   invoiceNumber: string | null;
   payoutReference: string | null;
+  refundAmount: number | null;
+  refundMethod: 'gcash' | 'cash' | null;
+  refundReference: string | null;
+  refundConfirmedAt: string | null;
 }
 
 export interface StallFinanceResult {

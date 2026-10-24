@@ -89,6 +89,12 @@ in their live order details.
 | **Seller** | Seller area (dashboard, products, orders, earnings, settings) | Manage stall and catalogue, fulfil orders, request payouts |
 | **Admin** | `/admin/*` only | Manage GCash QR and number, verify payments, review return requests by order ID and payment reference, approve payouts, review seller verification |
 
+The admin home at `/admin` is the platform dashboard and first admin
+navigation item. It summarizes GCash balance ownership, collected and pending
+commission, COD receivables, completed sales, review queues, trends, stall
+balances, and recent platform activity. Reconciliation is recorded only from
+this dashboard; the record is an append-only snapshot.
+
 Roles are mirrored into Convex `users.role` and Clerk `publicMetadata`.
 After sign-in, buyers land on `/home`, sellers on the seller dashboard,
 and admins on `/admin`.

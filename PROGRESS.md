@@ -17,6 +17,26 @@ sidebar/drawer links are removed and old URLs redirect to `/admin/stalls`.
 
 ## Just Completed
 
+### Refund review records
+
+- `/admin/refunds` now has Pending and Refund records sections with desktop
+  tables, mobile cards, and detail drawers. Recorded refunds show amount,
+  disbursement method, reference, and date through a verified-admin query.
+- Stall details now show recorded refund totals and refund order rows, with a
+  direct link to Refund records.
+- Build and lint pass with existing lint warnings.
+
+### Platform admin dashboard
+
+- `/admin` is the first admin navigation item and now shows the platform
+  balance, obligations split, income, action counts, trends, top stall
+  balances, recent activity, and the only reconciliation form.
+- Added `finance:getAdminDashboard` with verified allowlisted admin checks.
+  Expected GCash includes approved buyer payments, deposits, and COD commission
+  payments, less paid payouts and recorded GCash refunds.
+- Removed the reconciliation card from Stall Accounts. Build and lint pass;
+  signed-in browser sizing and transaction walkthrough remain release follow-up.
+
 ### Admin finance ledger
 
 - `/admin/finance` with three sections:

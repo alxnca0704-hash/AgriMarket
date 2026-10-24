@@ -17,6 +17,7 @@ import {
   SettingOutlined,
   WalletOutlined,
   ShopOutlined,
+  DashboardOutlined,
 } from '@ant-design/icons';
 import { BrandMark } from '@/components/BrandMark';
 import { APP_ROUTES } from '@/constants/routes';
@@ -25,6 +26,7 @@ import { useAdminShell } from '@/hooks/useAdminShell';
 const { Sider, Content } = Layout;
 
 const TABS = [
+  { key: 'dashboard', label: 'Dashboard', href: APP_ROUTES.admin, icon: <DashboardOutlined /> },
   { key: 'stalls', label: 'Stall Accounts', href: APP_ROUTES.adminStalls, icon: <ShopOutlined /> },
   { key: 'gcash', label: 'GCash account', href: APP_ROUTES.adminGcash, icon: <SettingOutlined /> },
   { key: 'payments', label: 'Verify payments', href: APP_ROUTES.adminPayments, icon: <CreditCardOutlined /> },
@@ -36,7 +38,7 @@ const TABS = [
 ] as const;
 
 function resolveActiveKey(pathname: string): string | null {
-  const tab = TABS.find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
+  const tab = TABS.find((item) => item.key === 'dashboard' ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`));
   return tab?.key ?? null;
 }
 

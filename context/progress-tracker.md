@@ -18,6 +18,39 @@ verification follows.
 
 ## Completed
 
+### Refund review records
+
+- Reworked `/admin/refunds` into Pending and Refund records sections, with
+  desktop tables, mobile cards, and a detail drawer modeled on payment
+  verification.
+- The drawer shows order/payment identifiers, buyer and seller details, reason,
+  evidence, return progress, and the existing approve, reject, and refund actions.
+- Added the verified-admin `admin:listRecordedRefunds` query for closed refunds,
+  including amount, disbursement method, reference, and date.
+- Stall details now include completed refunds in the refund total and order
+  history, with recorded method/reference, and link directly to the Refund
+  records section.
+- Build passes; lint passes with existing warnings.
+
+### Platform admin dashboard (implemented)
+
+- `/admin` is now the first sidebar and mobile drawer item, with GCash balance
+  ownership groups, reconciliation history/form, income metrics, action queues,
+  7/30/90-day trend tabs, top stall balances, and recent platform activity.
+- Added the verified-admin `finance:getAdminDashboard` read model. Expected
+  balance includes approved buyer payments, approved deposits, and approved
+  COD commission payments, less recorded payouts and GCash refunds. The
+  reconciliation mutation and append-only table remain in place.
+- Removed reconciliation from Stall Accounts and linked back to the dashboard.
+- Shared GCash seller owed projections include unpaid, non-refunded orders
+  outside an active return hold, keeping dashboard and stall/seller views aligned.
+- Buyer obligations include paid cancelled orders and returns still in the
+  refund workflow across both payment methods, so a pending COD refund also
+  appears in the buyer owed figure.
+- `npm run build` passes. `npm run lint` passes with existing warnings. A live
+  transaction walkthrough and signed-in responsive browser check remain release
+  follow-up because no authenticated browser session is available here.
+
 ### Stall security deposit ledger (implemented)
 
 - Added the separate `stallDeposits` submission ledger with normalized unique

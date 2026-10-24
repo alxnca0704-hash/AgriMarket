@@ -7,6 +7,7 @@ export const APP_ROUTES = {
   adminPayments: '/admin/payments',
   adminPayouts: '/admin/payouts',
   adminRefunds: '/admin/refunds',
+  adminRefundRecords: '/admin/refunds/records',
   adminDeposits: '/admin/deposits',
   adminCommissions: '/admin/commissions',
   adminReceivables: '/admin/receivables',

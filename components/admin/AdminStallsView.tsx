@@ -1,30 +1,23 @@
 'use client';
 
 import Link from 'next/link';
-import { Alert, Button, Drawer, Form, Input, InputNumber, Select, Skeleton, Tag } from 'antd';
+import { Alert, Input, Select, Skeleton, Tag } from 'antd';
 import { RightOutlined } from '@ant-design/icons';
 import { useMemo, useState } from 'react';
-import { useMutation } from 'convex/react';
-import { makeFunctionReference } from 'convex/server';
 import { APP_ROUTES } from '@/constants/routes';
 import { useAdminStalls } from '@/hooks/useAdminStalls';
 import { formatPrice } from '@/lib/format';
 import type { StallAccountRow } from '@/types/stallAccount';
 
-const recordReconciliationRef = makeFunctionReference<'mutation', { actualBalance: number; expectedBalance: number; difference: number; from: string | null; to: string | null }, unknown>('finance:recordReconciliation');
 
 type FilterKey = 'all' | 'needs' | 'deposit' | 'overdue' | 'refund';
 type SortKey = 'name' | 'owedSeller' | 'owedPlatform';
 
 export function AdminStallsView() {
   const { data, isLoading, error } = useAdminStalls();
-  const recordReconciliation = useMutation(recordReconciliationRef);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterKey>('all');
   const [sort, setSort] = useState<SortKey>('name');
-  const [reconcileOpen, setReconcileOpen] = useState(false);
-  const [form] = Form.useForm();
-  const [submitting, setSubmitting] = useState(false);
 
   const rows = useMemo(() => {
     const base = data?.rows ?? [];
@@ -95,28 +88,6 @@ export function AdminStallsView() {
     return badges;
   };
 
-  const handleReconcile = async () => {
-    try {
-      const values = await form.validateFields();
-      setSubmitting(true);
-      const expected = data?.expectedGcashBalance ?? 0;
-      const actual = Number(values.actualBalance || 0);
-      const diff = actual - expected;
-      await recordReconciliation({
-        actualBalance: actual,
-        expectedBalance: expected,
-        difference: diff,
-        from: null,
-        to: null,
-      });
-      form.resetFields();
-      setReconcileOpen(false);
-    } catch (e) {
-      // ignore
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -165,15 +136,7 @@ export function AdminStallsView() {
         </div>
       </section>
 
-      <section className="flex flex-col gap-3 rounded-2xl bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:px-5">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm text-stone-600">Expected GCash balance</span>
-          <span className="text-sm font-semibold text-stone-900 tabular-nums">{formatPrice(data?.expectedGcashBalance ?? 0)}</span>
-        </div>
-        <Button type="primary" onClick={() => setReconcileOpen(true)}>
-          Reconcile
-        </Button>
-      </section>
+      <p className="text-sm text-stone-500">Reconciliation has moved to the <Link href={APP_ROUTES.admin} className="text-sage">admin dashboard</Link>.</p>
 
       <section className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
@@ -346,49 +309,6 @@ export function AdminStallsView() {
         </div>
       </section>
 
-      <Drawer title="Reconcile GCash balance" open={reconcileOpen} onClose={() => setReconcileOpen(false)} size={420}>
-        <div className="space-y-4">
-          <div className="rounded-xl bg-stone-50 p-4">
-            <p className="text-xs text-stone-500">Expected balance</p>
-            <p className="mt-1 text-lg font-semibold text-stone-900 tabular-nums">{formatPrice(data?.expectedGcashBalance ?? 0)}</p>
-            <p className="mt-2 text-xs text-stone-500">Reconciliation history: {data?.reconciliations?.length ?? 0} records</p>
-          </div>
-          <Form form={form} layout="vertical">
-            <Form.Item
-              label="Actual GCash balance"
-              name="actualBalance"
-              rules={[{ required: true, message: 'Enter actual balance' }]}
-            >
-              <InputNumber
-                min={0}
-                className="w-full"
-                formatter={(value) => `₱ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                parser={(value) => value!.replace(/₱\s?|(,*)/g, '') as any}
-              />
-            </Form.Item>
-          </Form>
-          <div className="flex justify-end gap-2">
-            <Button onClick={() => setReconcileOpen(false)}>Cancel</Button>
-            <Button type="primary" loading={submitting} onClick={handleReconcile}>
-              Record
-            </Button>
-          </div>
-          {data?.reconciliations && data.reconciliations.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-stone-900">History</p>
-              {data.reconciliations.slice(0, 5).map((rec) => (
-                <div key={rec._id} className="rounded-lg border border-stone-100 p-3 text-xs text-stone-600">
-                  <div className="flex justify-between">
-                    <span>Actual {formatPrice(rec.actualBalance)}</span>
-                    <span>Diff {formatPrice(rec.difference)}</span>
-                  </div>
-                  <p className="mt-1 text-stone-400">{new Date(rec.createdAt).toLocaleString()}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </Drawer>
     </div>
   );
 }

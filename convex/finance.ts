@@ -88,12 +88,24 @@ const adminFinanceValidator = v.object({
   stalls: v.array(stallRowValidator), codRecords: v.array(codRecordValidator), gcashRecords: v.array(gcashRecordValidator),
   reconciliations: v.array(reconciliationValidator),
 });
+const adminDashboardValidator = v.object({
+  expected: v.number(), buyerPayments: v.number(), deposited: v.number(), codCollected: v.number(), paidOut: v.number(), refundsOut: v.number(),
+  sellerOwed: v.number(), heldDeposits: v.number(), buyersOwed: v.number(), ownMoney: v.number(),
+  lastReconciliation: v.union(reconciliationValidator, v.null()), reconciliations: v.array(reconciliationValidator),
+  income: v.object({ earned: v.number(), earnedMonth: v.number(), pending: v.number(), codOwed: v.number(), codOverdue: v.number(), sales: v.number(), salesGcash: v.number(), salesCod: v.number() }),
+  actions: v.object({ payments: v.number(), deposits: v.number(), commissions: v.number(), payouts: v.number(), returns: v.number(), refunds: v.number(), overdue: v.number() }),
+  trend: v.array(v.object({ date: v.string(), in: v.number(), out: v.number(), gcash: v.number(), cod: v.number() })),
+  topSeller: v.array(stallRowValidator), topPlatform: v.array(stallRowValidator),
+  activity: v.array(v.object({ action: v.string(), date: v.string(), orderId: v.union(v.string(), v.null()), payoutId: v.union(v.string(), v.null()), depositId: v.union(v.string(), v.null()), commissionPaymentId: v.union(v.string(), v.null()) })),
+});
 const stallFinanceValidator = v.object({
   stallId: v.id("stalls"), stallName: v.string(),
   orders: v.array(v.object({
     orderId: v.id("orders"), date: v.string(), paymentMethod: v.union(v.literal("cod"), v.literal("gcash")),
     itemsSubtotal: v.number(), deliveryFee: v.number(), commission: v.number(), status: orderStatusValidator,
     invoiceNumber: v.union(v.string(), v.null()), payoutReference: v.union(v.string(), v.null()),
+    refundAmount: v.union(v.number(), v.null()), refundMethod: v.union(v.literal("gcash"), v.literal("cash"), v.null()),
+    refundReference: v.union(v.string(), v.null()), refundConfirmedAt: v.union(v.string(), v.null()),
   })),
 });
 
@@ -231,7 +243,7 @@ async function computeGcashFinance(ctx: QueryCtx | MutationCtx, stallId: Id<"sta
     }
     if (requestPending) payoutRequested += netPayout;
     if (requestPaid) paidOut += netPayout;
-    else if (order.status === "completed" && !held) owedToSellers += netPayout;
+    else if (order.status !== "cancelled" && order.status !== "refunded" && !held) owedToSellers += netPayout;
 
     const payoutStatus: GcashRecord["payoutStatus"] = order.status === "refunded"
       ? "refunded"
@@ -301,7 +313,7 @@ async function buildStallRows(ctx: QueryCtx, stallId: Id<"stalls"> | null, codRe
   for (const record of gcashRecords) {
     const row = ensure(record.stallId, record.stallName);
     if (record.payoutStatus === "paid") row.gcashPaidOut += record.netPayout;
-    if (record.status === "completed" && record.payoutStatus !== "paid" && record.payoutStatus !== "hold") row.gcashOwedToSeller += record.netPayout;
+    if (record.status !== "cancelled" && record.status !== "refunded" && record.payoutStatus !== "paid" && record.payoutStatus !== "hold") row.gcashOwedToSeller += record.netPayout;
     if (record.commissionStatus === "collected") row.gcashCommissionCollected += record.commission;
   }
   return [...rows.values()]
@@ -368,6 +380,22 @@ async function computeFinance(ctx: QueryCtx, stallId: Id<"stalls"> | null, from:
   };
 }
 
+async function computeExpectedGcashBalance(ctx: QueryCtx | MutationCtx) {
+  const [orders, deposits, commissionPayments, payouts] = await Promise.all([
+    ctx.db.query("orders").take(4000), ctx.db.query("stallDeposits").take(2000),
+    ctx.db.query("commissionPayments").withIndex("by_status", q => q.eq("status", "approved")).take(2000),
+    ctx.db.query("payoutRequests").withIndex("by_status", q => q.eq("status", "paid")).take(2000),
+  ]);
+  const total = (values: number[]) => values.reduce((a, b) => a + b, 0);
+  return roundMoney(
+    total(orders.filter(o => o.paymentMethod === "gcash" && o.paymentStatus === "paid").map(o => o.total)) +
+    total(deposits.filter(d => d.status === "approved").map(d => d.approvedAmount ?? d.amount)) +
+    total(commissionPayments.map(p => p.approvedAmount ?? p.amount)) -
+    total(payouts.map(p => p.amount)) -
+    total(orders.filter(o => o.status === "refunded" && o.refundMethod === "gcash").map(o => o.refundAmount ?? o.total))
+  );
+}
+
 const emptySellerFinance = () => ({
   cod: { unbilled: 0, invoiced: 0, overdue: 0, collected: 0, waived: 0, totalOwed: 0, orderCount: 0 },
   gcash: {
@@ -406,6 +434,82 @@ export const getAdminFinance = query({
         adminEmail: item.adminEmail,
         createdAt: item.createdAt,
       })),
+    };
+  },
+});
+
+/** Single server-side read model for the platform admin home. */
+export const getAdminDashboard = query({
+  args: { ...financeArgsValidator, days: v.union(v.literal(7), v.literal(30), v.literal(90)) },
+  returns: adminDashboardValidator,
+  async handler(ctx, args) {
+    await requireAdmin(ctx);
+    const nowDate = new Date(args.now);
+    const monthStart = new Date(nowDate.getFullYear(), nowDate.getMonth(), 1).toISOString();
+    const [orders, payouts, deposits, commissionPayments, commissions, invoices, audit, reconciliations, finance, currentFinance, monthCod] = await Promise.all([
+      ctx.db.query("orders").take(4000),
+      ctx.db.query("payoutRequests").take(2000),
+      ctx.db.query("stallDeposits").take(2000),
+      ctx.db.query("commissionPayments").take(2000),
+      ctx.db.query("platformCommissions").take(4000),
+      ctx.db.query("commissionInvoices").take(2000),
+      ctx.db.query("adminAuditLog").withIndex("by_createdAt").order("desc").take(100),
+      ctx.db.query("financeReconciliations").withIndex("by_createdAt").order("desc").take(50),
+      computeFinance(ctx, null, args.from, args.to, args.now),
+      computeFinance(ctx, null, null, null, args.now),
+      computeCodFinance(ctx, null, monthStart, null, args.now),
+    ]);
+    const paidGcash = orders.filter(o => o.paymentMethod === "gcash" && o.paymentStatus === "paid");
+    const approvedDeposits = deposits.filter(d => d.status === "approved");
+    const approvedCodPayments = commissionPayments.filter(p => p.status === "approved");
+    const paidPayouts = payouts.filter(p => p.status === "paid");
+    const gcashRefunds = orders.filter(o => o.status === "refunded" && o.refundMethod === "gcash");
+    const sumBy = (rows: number[]) => roundMoney(rows.reduce((a, b) => a + b, 0));
+    const deposited = sumBy(approvedDeposits.map(d => d.approvedAmount ?? d.amount));
+    const codCollected = sumBy(approvedCodPayments.map(p => p.approvedAmount ?? p.amount));
+    const buyerPayments = sumBy(paidGcash.map(o => o.total));
+    const paidOut = sumBy(paidPayouts.map(p => p.amount));
+    const refundsOut = sumBy(gcashRefunds.map(o => o.refundAmount ?? o.total));
+    const expected = roundMoney(buyerPayments + deposited + codCollected - paidOut - refundsOut);
+    const sellerOwed = roundMoney(currentFinance.gcash.owedToSellers);
+    const heldDeposits = deposited;
+    const activeRefundStatuses = ["refund-requested", "return-approved", "return-in-transit", "return-received"];
+    const buyerRefundsOwed = orders.filter(o =>
+      (o.status === "cancelled" && o.paymentStatus === "paid") ||
+      o.refundPayoutHold === true ||
+      activeRefundStatuses.includes(o.status)
+    );
+    const buyersOwed = roundMoney(buyerRefundsOwed.reduce((total, order) => total + (order.status === "cancelled" ? order.total : order.refundAmount ?? order.total), 0));
+    const ownMoney = roundMoney(expected - sellerOwed - heldDeposits - buyersOwed);
+    const isInRange = (date: string) => inRange(date, args.from, args.to);
+    const rangeOrders = orders.filter(o => isInRange(financeDate(o)));
+    const rangeSales = rangeOrders.filter(o => o.status === "completed" && o.paymentStatus === "paid");
+    const earnedGcash = sumBy(commissions.filter(c => c.status === "collected" && (c.collectedAt ?? "") >= (args.from ?? "") && (c.collectedAt ?? "") <= (args.to ?? "\uffff")).filter(c => rangeOrders.some(o => o._id === c.orderId && o.status !== "refunded")).map(c => c.amount));
+    const pendingCommission = sumBy(commissions.filter(c => c.status === "pending" && rangeOrders.some(o => o._id === c.orderId && o.status === "completed")).map(c => c.amount));
+    const overdueCommission = sumBy(finance.codRecords.filter(r => r.status === "overdue").map(r => r.amountOwed));
+    const start = new Date(args.now - (args.days - 1) * 86400000); start.setHours(0, 0, 0, 0);
+    const trend = Array.from({ length: args.days }, (_, i) => { const date = new Date(start.getTime() + i * 86400000); const key = date.toISOString().slice(0, 10); return { date: key, in: 0, out: 0, gcash: 0, cod: 0 }; });
+    const trendByDate = new Map(trend.map(row => [row.date, row]));
+    for (const o of paidGcash) { const date = o.reviewedAt ?? o.placedAt; const row = trendByDate.get(date.slice(0, 10)); if (row && isInRange(date)) row.in += o.total; }
+    for (const d of approvedDeposits) { const date = d.reviewedAt ?? d.createdAt; const row = trendByDate.get(date.slice(0, 10)); if (row && isInRange(date)) row.in += d.approvedAmount ?? d.amount; }
+    for (const p of approvedCodPayments) { const date = p.reviewedAt ?? p.createdAt; const row = trendByDate.get(date.slice(0, 10)); if (row && isInRange(date)) row.in += p.approvedAmount ?? p.amount; }
+    for (const p of paidPayouts) { const date = p.reviewedAt ?? p.requestedAt; const row = trendByDate.get(date.slice(0, 10)); if (row && isInRange(date)) row.out += p.amount; }
+    for (const o of gcashRefunds) { const date = o.updatedAt ?? o.placedAt; const row = trendByDate.get(date.slice(0, 10)); if (row && isInRange(date)) row.out += o.refundAmount ?? o.total; }
+    for (const o of rangeSales) { const row = trendByDate.get((o.completedAt ?? financeDate(o)).slice(0, 10)); if (row) row[o.paymentMethod] += o.total; }
+    const topSeller = [...currentFinance.stalls].sort((a, b) => b.gcashOwedToSeller - a.gcashOwedToSeller).slice(0, 5);
+    const topPlatform = [...currentFinance.stalls].sort((a, b) => b.codOwed - a.codOwed).slice(0, 5);
+    const pendingPayments = new Set(orders.filter(o => o.paymentMethod === "gcash" && o.paymentStatus === "pending").map(o => o.paymentNote).filter((note): note is string => note !== undefined)).size;
+    const pendingPayouts = payouts.filter(p => p.status === "pending").length;
+    const pendingReturns = orders.filter(o => ["refund-requested", "return-received"].includes(o.status)).length;
+    const pendingRefunds = orders.filter(o => o.paymentStatus === "paid" && o.status === "cancelled").length;
+    const activity = audit.filter(a => ["gcash_payment_approved", "payout_paid", "deposit_approved", "commission_payment_approved", "return_refunded"].includes(a.action)).slice(0, 10).map(a => ({ action: a.action, date: a.createdAt, orderId: a.orderId ? String(a.orderId) : null, payoutId: a.payoutRequestId ? String(a.payoutRequestId) : null, depositId: a.depositId ? String(a.depositId) : null, commissionPaymentId: a.commissionPaymentId ? String(a.commissionPaymentId) : null }));
+    const reconciliationRows = reconciliations.map(item => ({ _id: item._id, actualBalance: item.actualBalance, expectedBalance: item.expectedBalance, difference: item.difference, from: item.from, to: item.to, adminEmail: item.adminEmail, createdAt: item.createdAt }));
+    return {
+      expected, buyerPayments, deposited, codCollected, paidOut, refundsOut, sellerOwed, heldDeposits, buyersOwed, ownMoney,
+      lastReconciliation: reconciliationRows[0] ?? null, reconciliations: reconciliationRows,
+      income: { earned: roundMoney(earnedGcash + finance.cod.collected), earnedMonth: roundMoney(commissions.filter(c => c.status === "collected" && (c.collectedAt ?? "") >= monthStart).reduce((s, c) => s + c.amount, 0) + monthCod.section.collected), pending: pendingCommission, codOwed: finance.cod.totalOwed, codOverdue: overdueCommission, sales: sumBy(rangeSales.map(o => o.total)), salesGcash: sumBy(rangeSales.filter(o => o.paymentMethod === "gcash").map(o => o.total)), salesCod: sumBy(rangeSales.filter(o => o.paymentMethod === "cod").map(o => o.total)) },
+      actions: { payments: pendingPayments, deposits: deposits.filter(d => d.status === "pending").length, commissions: commissionPayments.filter(p => p.status === "pending").length, payouts: pendingPayouts, returns: pendingReturns, refunds: pendingRefunds, overdue: invoices.filter(invoice => invoice.status === "overdue" && invoice.paidAmount < invoice.amount).length },
+      trend, topSeller, topPlatform, activity,
     };
   },
 });
@@ -504,7 +608,7 @@ export const getAdminFinanceStall = query({
       }
       return {
         orderId: order._id,
-        date: financeDate(order),
+        date: order.status === "refunded" ? order.refundConfirmedAt ?? financeDate(order) : financeDate(order),
         paymentMethod: order.paymentMethod,
         itemsSubtotal: order.subtotal,
         deliveryFee: order.deliveryFee,
@@ -512,6 +616,10 @@ export const getAdminFinanceStall = query({
         status: order.status,
         invoiceNumber,
         payoutReference,
+        refundAmount: order.status === "refunded" ? order.refundAmount ?? order.total : null,
+        refundMethod: order.status === "refunded" ? order.refundMethod ?? null : null,
+        refundReference: order.status === "refunded" ? order.refundReference ?? null : null,
+        refundConfirmedAt: order.refundConfirmedAt ?? null,
       };
     }));
     return { stallId: stall._id, stallName: stall.stallName, orders: result.sort((a, b) => b.date.localeCompare(a.date)) };
@@ -524,12 +632,12 @@ export const recordReconciliation = mutation({
   async handler(ctx, args) {
     const adminEmail = await requireAdmin(ctx);
     if (!Number.isFinite(args.actualBalance) || args.actualBalance < 0) throw new Error("Enter a valid actual GCash balance.");
-    const gcash = await computeGcashFinance(ctx, null, args.from, args.to, args.now);
+    const expectedBalance = await computeExpectedGcashBalance(ctx);
     const actualBalance = roundMoney(args.actualBalance);
     return ctx.db.insert("financeReconciliations", {
       actualBalance,
-      expectedBalance: gcash.section.expectedBalance,
-      difference: roundMoney(actualBalance - gcash.section.expectedBalance),
+      expectedBalance,
+      difference: roundMoney(actualBalance - expectedBalance),
       from: args.from,
       to: args.to,
       adminEmail,
