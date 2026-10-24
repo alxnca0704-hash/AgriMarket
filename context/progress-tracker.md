@@ -376,3 +376,6 @@ Implement seller verification after its data and audit requirements are specifie
 
 
 
+
+### Signup stall GCash info (implemented)
+- Seller signup stall step now displays the platform GCash QR and account number (fetched via `deposits:getPublicGcashSettings`) with copy/download actions, alongside the required deposit amount.
