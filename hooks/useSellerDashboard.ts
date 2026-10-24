@@ -16,6 +16,19 @@ export function useSellerDashboard() {
   const { current, isReady } = useConvexUserSync();
   const rawProducts = useQuery(api.products.listMyProducts);
   const rawOrders = useQuery(api.orders.listSellerOrders);
+  const [now] = useState(() => Date.now());
+  const rawSales = useQuery(api.sales.sellerSales, {
+    search: '',
+    paymentMethod: 'all',
+    saleStatus: 'all',
+    from: null,
+    to: null,
+    stallId: null,
+    page: 1,
+    pageSize: 1,
+    now,
+  });
+  const rawFinance = useQuery(api.finance.getSellerFinance, { from: null, to: null, now });
 
   const [isLoading, setIsLoading] = useState(true);
 
@@ -38,7 +51,7 @@ export function useSellerDashboard() {
       inTransitOrders: 0,
       completedOrders: 0,
       cancelledOrders: 0,
-      totalSales: 0,
+      totalSales: rawSales?.summary.totalSales ?? 0,
     };
     orders.forEach((order) => {
       if (isToday(order.placedAt)) result.todayOrders += 1;
@@ -51,12 +64,9 @@ export function useSellerDashboard() {
       } else if (order.status === 'cancelled') {
         result.cancelledOrders += 1;
       }
-      if (order.status !== 'pending' && order.status !== 'cancelled') {
-        result.totalSales += order.total;
-      }
     });
     return result;
-  }, [rawOrders]);
+  }, [rawOrders, rawSales]);
 
   const activeListings = listings.filter((l) => l.isActive);
   const lowStock = listings.filter(
@@ -69,14 +79,19 @@ export function useSellerDashboard() {
       ? rawProducts.message
       : rawOrders instanceof Error
         ? rawOrders.message
-        : null;
+        : rawSales instanceof Error
+          ? rawSales.message
+          : rawFinance instanceof Error
+            ? rawFinance.message
+            : null;
 
   return {
     isLoading:
-      isLoading || !isReady || rawProducts === undefined || rawOrders === undefined,
+      isLoading || !isReady || rawProducts === undefined || rawOrders === undefined || rawSales === undefined || rawFinance === undefined,
     error,
     stall,
     stats,
+    codCommissionOwed: rawFinance?.cod.totalOwed ?? 0,
     activeListings,
     lowStock,
     outOfStockCount,

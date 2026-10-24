@@ -18,6 +18,16 @@ verification follows.
 
 ## Completed
 
+### Seller dashboard sales and commission totals
+
+- Dashboard sales now use the seller sales ledger's server-calculated total,
+  so only completed sales count and refunded orders are excluded; it no longer
+  sums values from the limited recent-orders list.
+- Added COD commission owed as its own figure using the existing seller finance
+  query, keeping commissions separate from gross sales and honoring refunded
+  or waived accruals.
+- Build and lint pass with existing warnings.
+
 ### Seller delivery tracking
 
 - Sellers must enter a courier and tracking number when marking an order as

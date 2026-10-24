@@ -20,7 +20,7 @@ function StatTile({ label, value, hint }: { label: string; value: string; hint: 
 
 export function DashboardView() {
   const router = useRouter();
-  const { isLoading, error, stall, stats, lowStock, outOfStockCount, listingCount } =
+  const { isLoading, error, stall, stats, codCommissionOwed, lowStock, outOfStockCount, listingCount } =
     useSellerDashboard();
 
   if (isLoading) {
@@ -47,7 +47,7 @@ export function DashboardView() {
 
       {error && <Alert type="error" title={error} showIcon />}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-5">
         <StatTile
           label="Today's orders"
           value={String(stats.todayOrders)}
@@ -61,7 +61,12 @@ export function DashboardView() {
         <StatTile
           label="Total sales"
           value={formatPrice(stats.totalSales)}
-          hint="Confirmed + delivered"
+          hint="Completed sales · refunds excluded"
+        />
+        <StatTile
+          label="COD commission owed"
+          value={formatPrice(codCommissionOwed)}
+          hint="Unpaid commission · refunded orders excluded"
         />
         <StatTile
           label="Low stock"

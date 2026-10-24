@@ -17,6 +17,14 @@ sidebar/drawer links are removed and old URLs redirect to `/admin/stalls`.
 
 ## Just Completed
 
+### Seller dashboard totals
+
+- Total sales now match the server-side seller sales ledger (completed orders,
+  refunded orders excluded) instead of summing the limited recent order list.
+- COD commission owed is shown separately through the seller finance query;
+  it is not subtracted from gross sales.
+- Build and lint pass with existing warnings.
+
 ### Seller delivery tracking
 
 - Sellers provide a courier and tracking number when marking an order as to
