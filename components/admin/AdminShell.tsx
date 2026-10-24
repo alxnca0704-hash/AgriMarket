@@ -8,6 +8,7 @@ import type { MenuProps } from 'antd';
 import {
   AccountBookOutlined,
   ArrowLeftOutlined,
+  BankOutlined,
   CheckCircleOutlined,
   CloseOutlined,
   CreditCardOutlined,
@@ -32,6 +33,7 @@ const TABS = [
   { key: 'commissions', label: 'Commissions', href: APP_ROUTES.adminCommissions, icon: <DollarOutlined /> },
   { key: 'receivables', label: 'Commission receivables', href: APP_ROUTES.adminReceivables, icon: <AccountBookOutlined /> },
   { key: 'sales', label: 'Sales', href: APP_ROUTES.adminSales, icon: <DollarOutlined /> },
+  { key: 'finance', label: 'Finance', href: APP_ROUTES.adminFinance, icon: <BankOutlined /> },
   { key: 'sellerVerification', label: 'Seller verification', href: APP_ROUTES.adminSellerVerification, icon: <SafetyCertificateOutlined /> },
 ] as const;
 

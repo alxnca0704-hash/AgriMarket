@@ -24,7 +24,7 @@ import { BrandMark } from '@/components/BrandMark';
 import { useSellerShell } from '@/hooks/useSellerShell';
 import { useUnreadMessages } from '@/hooks/useUnreadMessages';
 import { useSellerDeposit } from '@/hooks/useSellerDeposit';
-import { SELLER_DEPOSIT_AMOUNT } from '@/constants/deposits';
+import { STALL_DEPOSIT_AMOUNT } from '@/constants/deposits';
 
 const { Sider, Content } = Layout;
 
@@ -207,7 +207,7 @@ export function SellerShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <Content>
-          <main>{deposit.data && deposit.data.stall.depositPaidAmount < SELLER_DEPOSIT_AMOUNT && <div className="mx-auto max-w-6xl px-4 pt-4 sm:px-6"><div className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">Your stall deposit is incomplete. {deposit.data.stall.suspended ? 'Your stall is suspended.' : 'Complete it within 7 days to stay visible to buyers.'} <Link href={APP_ROUTES.sellerStall} className="ml-1 font-semibold text-amber-900">Review deposit</Link></div></div>}{children}</main>
+          <main>{deposit.data && deposit.data.stall.depositPaidAmount < STALL_DEPOSIT_AMOUNT && <div className="mx-auto max-w-6xl px-4 pt-4 sm:px-6"><div className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">{deposit.data.stall.overdue ? 'Your stall deposit is overdue.' : `Your ${deposit.data.stall.depositStatus === 'partial' ? 'partial' : 'unpaid'} stall deposit is due in ${deposit.deadlineDaysLeft} days.`} <Link href={APP_ROUTES.sellerStall} className="ml-1 font-semibold text-amber-900">Review deposit</Link></div></div>}{children}</main>
         </Content>
       </Layout>
 

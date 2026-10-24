@@ -38,7 +38,8 @@
   `profile`, `review`, `seller`). No runtime logic.
 - `convex/` — the backend. `schema.ts` (tables + indexes), `shared.ts`
   (validators), then one file per domain: `users`, `stalls`, `products`,
-  `cart`, `orders`, `reviews`, `market` (public reads).
+  `cart`, `orders`, `reviews`, `market` (public reads), `commissions`,
+  `payouts`, `sales`, and `finance` (derived platform ledger reads).
 - `context/` — the six spec documents that define what to build and
   how. Not imported by any code.
 - `public/` — static assets only (`AgriMarketLogo.png`, placeholder
@@ -64,6 +65,13 @@
   Approved invoice payments are allocated to the oldest non-waived accruals;
   the same query computes admin and seller balances. No receivable copy is
   stored. Accrual reads use stall and creation-time indexes.
+- **Finance ledger**: admin and seller finance views are read-only
+  projections of paid orders, `commissionAccruals`, `commissionInvoices`,
+  `commissionPayments`, `platformCommissions`, and `payoutRequests`. The
+  same server computation powers admin and seller figures. No balance or
+  payable copy is stored. `financeReconciliations` stores append-only
+  snapshots of actual GCash balance, expected balance, difference, selected
+  period, admin email, and timestamp; reconciliation history is never edited.
 - **Clerk** (identity): user id, session, and `publicMetadata.role`.
   `users.tokenIdentifier` and `users.clerkId` are the join keys.
 - **Cloudinary**: all product and stall images, uploaded through
@@ -80,11 +88,13 @@
   their reason and can be resubmitted with a new reference. COD remains unpaid
   until delivery confirmation.
 - **Seller stall deposits**: the `stallDeposits` ledger records each
-  unique GCash reference and append-only review events. Approved totals
-  are stored on stalls and gate public visibility, checkout, and payout
-  requests at ₱2,000. Stall deadlines are numeric timestamps for the
-  scheduled seven-day suspension worker; fields remain optional during
-  rollout and are backfilled by that worker.
+  normalized unique GCash reference and append-only review events. Approved
+  totals are derived from submission records and mirrored on stalls for
+  display. This separate ledger never participates in sales, order
+  acceptance, payout eligibility or requests, or commission calculations.
+  Numeric seven-day deadlines are backfilled for legacy stalls by the
+  scheduled worker; overdue is a display/notification state and does not
+  hide or suspend stalls. New stall fields remain optional for rollout.
 - **COD commissions**: `commissionAccruals` stores one row per completed COD order using the shared `COMMISSION_RATE` (5% of item subtotal, delivery excluded); its optional rate snapshot and amount preserve values set when the accrual is created. Existing accrual amounts are never recalculated. GCash uses the same rate in the separate payout commission ledger. `commissionInvoices` bundles accrued rows weekly when the stall total reaches ₱50, and `commissionPayments` tracks unique GCash references and manual review. Commission is separate from sales and payout eligibility. Refunded orders waive an accrual; invoiced amounts and append-only invoice events are adjusted. Every admin payment decision rechecks the verified allowlisted email and writes both the admin audit log and invoice event.
 - **Admin return review**: within 24 hours of delivery, a buyer can
   submit a 10–500 character reason plus 1–5 Cloudinary photo/video URLs.
@@ -213,5 +223,10 @@
     orders create a COD accrual using the same `COMMISSION_RATE`. Existing
     accruals and order snapshots are never recalculated. Payout totals use the
     snapshotted net payout, never a client-supplied total or a later rate.
+14. **Finance balances are derived, never stored copies.** COD owed, GCash
+    held for sellers, expected GCash balance, and platform commission earned
+    are recomputed server-side from their source records on every read.
+    Reconciliation entries only snapshot the comparison; they never overwrite
+    or mutate the underlying ledgers.
 
 

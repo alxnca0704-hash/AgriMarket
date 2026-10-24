@@ -5,7 +5,6 @@ import { MutationCtx, QueryCtx } from "./_generated/server";
 import { deliveryAddressValidator } from "./shared";
 import { createNotification } from "./notifications";
 import { makeFunctionReference } from "convex/server";
-import { SELLER_DEPOSIT_AMOUNT } from "../constants/deposits";
 import { RETURN_REQUEST_WINDOW_MS, RETURN_WINDOW_CLOSED_MESSAGE } from "../constants/refunds";
 import { COMMISSION_RATE } from "../constants/commissions";
 
@@ -162,10 +161,6 @@ export const placeOrders = mutation({
       if (stall === null) {
         throw new Error("A seller in your cart is no longer available");
       }
-      if ((stall.depositPaidAmount ?? 0) < SELLER_DEPOSIT_AMOUNT) {
-        throw new Error("A stall in your cart is not accepting orders until its deposit is fully approved.");
-      }
-
       const lineItems: Doc<"orders">["items"] = [];
       let subtotal = 0;
       for (const item of items) {

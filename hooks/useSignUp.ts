@@ -8,7 +8,7 @@ import { useMutation } from 'convex/react';
 import { makeFunctionReference } from 'convex/server';
 import { api } from '@/convex/_generated/api';
 import { APP_ROUTES, API_ROUTES } from '@/constants/routes';
-import { SELLER_DEPOSIT_AMOUNT } from '@/constants/deposits';
+import { STALL_DEPOSIT_AMOUNT } from '@/constants/deposits';
 import { ROLES, UserRole } from '@/constants/roles';
 import { SignUpFormData } from '@/types/auth';
 import { updateSessionUser, setActiveView } from '@/lib/mockSession';
@@ -331,7 +331,7 @@ export function useSignUp() {
         setStep(3);
       }
     } else if (currentStep === 3 && isSeller) {
-      if (!depositSkipped && (depositAmount === null || depositAmount <= 0 || depositAmount > SELLER_DEPOSIT_AMOUNT || !depositReference.trim())) {
+      if (!depositSkipped && (depositAmount === null || depositAmount <= 0 || depositAmount > STALL_DEPOSIT_AMOUNT || !depositReference.trim())) {
         setSubmitError('Enter a valid deposit amount and GCash reference, or skip for now.');
         return;
       }

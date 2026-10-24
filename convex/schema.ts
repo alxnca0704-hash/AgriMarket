@@ -48,6 +48,8 @@ export default defineSchema({
     depositStatus: v.optional(v.union(v.literal("unpaid"), v.literal("partial"), v.literal("paid"))),
     depositPaidAmount: v.optional(v.number()),
     depositDeadline: v.optional(v.number()),
+    depositPaidAt: v.optional(v.string()),
+    depositOverdue: v.optional(v.boolean()),
     updatedAt: v.string(),
   }).index("by_ownerId", ["ownerId"]),
 
@@ -268,12 +270,18 @@ export default defineSchema({
     rejectionReason: v.optional(v.string()),
     reviewedBy: v.optional(v.string()),
     reviewedAt: v.optional(v.string()),
-    events: v.array(v.object({ status: v.string(), label: v.string(), at: v.string(), actor: v.optional(v.string()), reason: v.optional(v.string()), amount: v.optional(v.number()) })),
+    attemptNumber: v.optional(v.number()),
+    submittedAt: v.optional(v.string()),
+    events: v.array(v.union(
+      v.object({ type: v.string(), actorId: v.string(), actorRole: v.union(v.literal("seller"), v.literal("admin")), amount: v.optional(v.number()), reason: v.optional(v.string()), at: v.string() }),
+      v.object({ status: v.string(), label: v.string(), at: v.string(), actor: v.optional(v.string()), reason: v.optional(v.string()), amount: v.optional(v.number()) })
+    )),
     createdAt: v.string(),
   })
     .index("by_stallId", ["stallId"])
     .index("by_status", ["status"])
-    .index("by_referenceNumber", ["referenceNumber"]),
+    .index("by_referenceNumber", ["referenceNumber"])
+    .index("by_submittedAt", ["submittedAt"]),
 
   commissionAccruals: defineTable({
     orderId: v.id("orders"), stallId: v.id("stalls"), sellerId: v.id("users"), amount: v.number(),
@@ -295,6 +303,16 @@ export default defineSchema({
     status: v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected")), approvedAmount: v.optional(v.number()),
     rejectionReason: v.optional(v.string()), reviewedBy: v.optional(v.string()), reviewedAt: v.optional(v.string()), createdAt: v.string(),
   }).index("by_invoiceId", ["invoiceId"]).index("by_status", ["status"]).index("by_referenceNumber", ["referenceNumber"]),
+
+  financeReconciliations: defineTable({
+    actualBalance: v.number(),
+    expectedBalance: v.number(),
+    difference: v.number(),
+    from: v.union(v.string(), v.null()),
+    to: v.union(v.string(), v.null()),
+    adminEmail: v.string(),
+    createdAt: v.string(),
+  }).index("by_createdAt", ["createdAt"]),
 
   adminAuditLog: defineTable({
     actorEmail: v.string(),

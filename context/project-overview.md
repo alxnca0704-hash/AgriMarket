@@ -18,12 +18,14 @@ seller verification. Admins are not
 self-signup: they are promoted manually, and every admin action is
 enforced server-side and recorded in an audit log.
 
-Sellers submit a ₱2,000 GCash stall deposit during signup or within seven
-days from their stall page. Partial payments are allowed; the stall and
-products stay hidden and orders/payout requests stay blocked until admins
-approve the full amount. Admins compare each unique reference with GCash,
-approve the actual received amount, or reject with a reason. Expired unpaid
-stalls are suspended and reactivate when the approved total reaches ₱2,000.
+Sellers submit a ₱2,000 GCash stall security deposit during signup or within
+seven days from their stall page. Partial payments are allowed. The deposit
+is tracked in a separate ledger and does not change stall visibility, order
+acceptance, sales totals, payout eligibility, payout requests, or commissions.
+Admins compare each unique reference with GCash, approve the actual received
+amount, or reject with a reason. Expired unpaid deposits are flagged overdue;
+they do not hide or suspend stalls. Deposit refunds, offsets, and penalties
+are outside the current deposit scope.
 
 Sellers select specific orders from eligible earnings and request payout by
 submitting their GCash account name and number. Completed, paid orders become eligible after the

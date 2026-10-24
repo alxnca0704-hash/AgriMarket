@@ -48,6 +48,8 @@ export function EarningsView() {
         <div className="rounded-2xl bg-white p-4 shadow-sm sm:p-5"><p className="text-xs font-medium uppercase tracking-wide text-stone-400">In transit</p><p className="mt-1 text-2xl font-semibold text-stone-900 sm:text-3xl">{formatPrice(earnings.summary.inTransit)}</p><p className="mt-1 text-xs text-stone-400">Shipped, not yet confirmed</p></div>
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-white px-4 py-3 shadow-sm sm:px-5"><div><p className="text-sm font-medium text-stone-800">Security deposit held</p><p className="text-xs text-stone-500">Separate from sales and not withdrawable.</p></div><p className="font-semibold text-stone-900">{formatPrice(earnings.depositHeld)}</p></div>
+
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="rounded-2xl bg-white p-4 shadow-sm sm:p-5">
           <p className="text-xs font-medium uppercase tracking-wide text-stone-400">GCash earnings</p>
@@ -60,6 +62,28 @@ export function EarningsView() {
           <p className="mt-1 text-xs text-stone-400">Cash collected directly from the buyer on delivery · no payout request needed</p>
         </div>
       </div>
+
+      {earnings.finance && (
+        <section className="rounded-2xl bg-white p-4 shadow-sm sm:p-6">
+          <div className="mb-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-stone-400">Platform ledger</p>
+            <h2 className="mt-1 text-sm font-semibold text-stone-900">Funds held by AgriMarket</h2>
+            <p className="mt-1 text-sm text-stone-500">These figures come from the same server-side finance ledger used by the admin finance page.</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            <div className="rounded-xl bg-stone-50 p-3.5"><p className="text-xs text-stone-500">GCash owed to you</p><p className="mt-1 text-base font-semibold text-sage">{formatPrice(earnings.finance.gcash.owedToSellers)}</p></div>
+            <div className="rounded-xl bg-stone-50 p-3.5"><p className="text-xs text-stone-500">Ready to request</p><p className="mt-1 text-base font-semibold text-stone-900">{formatPrice(earnings.finance.gcash.payoutReady)}</p></div>
+            <div className="rounded-xl bg-stone-50 p-3.5"><p className="text-xs text-stone-500">In return window</p><p className="mt-1 text-base font-semibold text-stone-900">{formatPrice(earnings.finance.gcash.inReturnWindow)}</p></div>
+            <div className="rounded-xl bg-stone-50 p-3.5"><p className="text-xs text-stone-500">Payout requested</p><p className="mt-1 text-base font-semibold text-amber-700">{formatPrice(earnings.finance.gcash.payoutRequested)}</p></div>
+            <div className="rounded-xl bg-stone-50 p-3.5"><p className="text-xs text-stone-500">Paid out</p><p className="mt-1 text-base font-semibold text-stone-900">{formatPrice(earnings.finance.gcash.paidOut)}</p></div>
+            <div className="rounded-xl bg-stone-50 p-3.5"><p className="text-xs text-stone-500">On hold</p><p className="mt-1 text-base font-semibold text-amber-700">{formatPrice(earnings.finance.gcash.onHold)}</p></div>
+            <div className="rounded-xl bg-stone-50 p-3.5"><p className="text-xs text-stone-500">COD commission owed</p><p className="mt-1 text-base font-semibold text-stone-900">{formatPrice(earnings.finance.cod.totalOwed)}</p></div>
+            <div className="rounded-xl bg-stone-50 p-3.5"><p className="text-xs text-stone-500">COD commission overdue</p><p className="mt-1 text-base font-semibold text-red-600">{formatPrice(earnings.finance.cod.overdue)}</p></div>
+            <div className="rounded-xl bg-stone-50 p-3.5"><p className="text-xs text-stone-500">COD commission collected</p><p className="mt-1 text-base font-semibold text-stone-900">{formatPrice(earnings.finance.cod.collected)}</p></div>
+            <div className="rounded-xl bg-stone-50 p-3.5"><p className="text-xs text-stone-500">GCash commission collected</p><p className="mt-1 text-base font-semibold text-stone-900">{formatPrice(earnings.finance.commission.gcashCollected)}</p></div>
+          </div>
+        </section>
+      )}
 
       <section className="space-y-4 rounded-2xl bg-white p-4 shadow-sm sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">

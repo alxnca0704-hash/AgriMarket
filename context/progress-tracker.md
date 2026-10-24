@@ -13,6 +13,24 @@ Implement seller verification after its data and audit requirements are specifie
 
 ## Completed
 
+### Stall security deposit ledger (implemented)
+
+- Added the separate `stallDeposits` submission ledger with normalized unique
+  references, attempt numbers, submit/review events, actual approved amounts,
+  required rejection reasons, and verified-admin audit entries.
+- Signup supports a full or partial GCash deposit or skip-for-now; seller stall
+  page shows balance, due date, countdown/overdue state, and submission history.
+- Admin deposit review includes verified-email checks on every query/mutation,
+  summary totals, status/date/search filters, server pagination, CSV export,
+  per-stall balances, duplicate-reference override, and event timeline.
+- Seller notifications cover submit, approval, rejection, reminders, and
+  overdue. Admin receives a live submission notification and pending badge.
+- Deposit totals are derived server-side from submission records. The ledger
+  stays separate from sales, order acceptance, payout eligibility/requests,
+  and commission. Overdue deposits do not hide or suspend stalls.
+- `npm run build` and `npm run lint` pass. Authenticated browser walkthrough
+  and deployment sync remain release follow-up.
+
 ### GCash payout commission (implemented)
 
 - Completed GCash orders snapshot their 5% items-subtotal commission and net payout; COD orders remain unchanged.
@@ -21,6 +39,18 @@ Implement seller verification after its data and audit requirements are specifie
 - Seller earnings and payout history show the full breakdown, transfer reference, and decision date. Admin payout review shows request and per-order breakdowns.
 - Admin payout reads and decisions recheck the verified allowlisted email. Payout actions use keyed `usePendingAction` guards.
 - COD commissions now use the shared 5% rate and ₱50 invoice minimum; deposit and offset behavior is unchanged. `npm run build` and `npm run lint` pass; authenticated walkthrough remains release follow-up.
+
+### Finance ledger (implemented)
+
+- Added `/admin/finance` with three server-derived sections: COD commission owed to the platform, GCash held for stalls, and platform commission earned. Admin queries recheck the verified allowlisted email.
+- Section A derives unbilled, invoiced, overdue, collected, and waived amounts from `commissionAccruals`, `commissionInvoices`, and approved `commissionPayments` through `resolveReceivableLedger`; paid orders can be partially collected without being marked paid.
+- Section B derives total GCash received, in-return-window, payout-ready, payout-requested, paid-out, on-hold, refunded, needs-refund, owed-to-sellers, commission-kept, and expected GCash balance from paid GCash orders, payout requests, and `platformCommissions`.
+- Section C derives pending, collected, and reversed GCash commission plus collected COD commission; today/week/month/all-time collection figures use collection timestamps independently of the selected order-date range.
+- Added date-range filtering, per-stall grouped columns with drill-down, section record drawers, and CSV exports for each section, per-stall totals, and reconciliations.
+- Added the append-only `financeReconciliations` table and verified-admin mutation to record actual GCash balance, server-derived expected balance, difference, period, admin email, and timestamp. The finance page shows reconciliation history.
+- Seller earnings and commissions now reuse the same `finance:getSellerFinance` calculations for funds held, payout readiness, and COD commission totals.
+- Added `finance:getAdminFinance`, `finance:getAdminFinanceStall`, `finance:recordReconciliation`, and `finance:getSellerFinance`. `npx convex codegen` updated the generated API bindings.
+- `npm run build` and `npm run lint` pass. Authenticated deployment walkthrough and production reconciliation validation remain.
 
 ### Foundation
 
@@ -250,6 +280,9 @@ Implement seller verification after its data and audit requirements are specifie
 
 ## Next Up
 
+- Run an authenticated finance walkthrough against real orders, payouts,
+  refunds, and reconciliations, then verify the expected GCash balance
+  matches the admin GCash account.
 - Implement seller verification after its data and audit requirements
   are specified.
 - Add an actor that moves stall verification status to verified.
@@ -278,17 +311,12 @@ Implement seller verification after its data and audit requirements are specifie
 
 ## Session Notes
 
-- Seller deposits now use `constants/deposits.ts`, a `stallDeposits`
-  review ledger, verified-admin approval/rejection mutations and audit
-  entries, seller signup and stall-page forms, an admin review route, a
-  seller shell banner, buyer-market filtering, checkout and payout gates,
-  and hourly deadline/reminder processing. Existing stall deposit fields
-  remain optional during rollout; the scheduled worker backfills missing
-  values with a seven-day deadline.
-- The deposit feature still needs an authenticated end-to-end walkthrough
-  and a Convex deployment/code generation pass before release. Admin
-  notification delivery is not wired because the current notification
-  model only supports buyer/seller roles.
+- Deposit ledger fields are optional for legacy stalls and submission rows;
+  the hourly worker backfills deadlines, tracks overdue status, and sends
+  seller deadline reminders. Status and all financial totals are derived
+  from approved submission records.
+- Authenticated end-to-end walkthrough and syncing the schema/functions to
+  the intended Convex deployment remain release follow-up.
 
 ## Architecture Decisions
 

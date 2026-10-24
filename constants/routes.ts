@@ -12,6 +12,7 @@ export const APP_ROUTES = {
   adminReceivables: '/admin/receivables',
   adminSellerVerification: '/admin/seller-verification',
   adminSales: '/admin/sales',
+  adminFinance: '/admin/finance',
   signUpWithRole: (role: string) => `/signup?role=${encodeURIComponent(role)}`,
   signUpOnboarding: (role: string, step = 1) =>
     `/signup?role=${encodeURIComponent(role)}&step=${step}`,

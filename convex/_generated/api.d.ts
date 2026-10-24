@@ -13,6 +13,7 @@ import type * as cart from "../cart.js";
 import type * as commissions from "../commissions.js";
 import type * as crons from "../crons.js";
 import type * as deposits from "../deposits.js";
+import type * as finance from "../finance.js";
 import type * as market from "../market.js";
 import type * as messages from "../messages.js";
 import type * as notifications from "../notifications.js";
@@ -38,6 +39,7 @@ declare const fullApi: ApiFromModules<{
   commissions: typeof commissions;
   crons: typeof crons;
   deposits: typeof deposits;
+  finance: typeof finance;
   market: typeof market;
   messages: typeof messages;
   notifications: typeof notifications;

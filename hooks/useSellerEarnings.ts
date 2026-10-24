@@ -8,6 +8,7 @@ import { EarningsPeriod, getEarningsSummary } from '@/lib/earnings';
 import { toOrder } from '@/lib/convexSync';
 import { COMMISSION_RATE, GCASH_PAYOUT_ACTION_KEYS } from '@/constants/commissions';
 import { usePendingAction } from '@/hooks/usePendingAction';
+import { useSellerFinance } from '@/hooks/useSellerFinance';
 
 export const EARNINGS_PERIOD_OPTIONS: Array<{ key: EarningsPeriod; label: string }> = [
   { key: 'daily', label: 'Daily' },
@@ -17,8 +18,12 @@ export const EARNINGS_PERIOD_OPTIONS: Array<{ key: EarningsPeriod; label: string
 
 export function useSellerEarnings() {
   const pendingAction = usePendingAction();
+  const sellerFinance = useSellerFinance();
+  const [currentTime, setCurrentTime] = useState(0);
+  useEffect(() => { const refresh = () => setCurrentTime(Date.now()); refresh(); const timer = window.setInterval(refresh, 60_000); return () => window.clearInterval(timer); }, []);
   const rawOrders = useQuery(api.orders.listSellerOrders);
   const payoutData = useQuery(api.payouts.getSellerPayouts, {});
+  const depositData = useQuery(api.deposits.getSellerDeposit, { now: currentTime });
   const requestMutation = useMutation(api.payouts.requestPayout);
   const backfillMutation = useMutation(api.payouts.backfillSellerGcashCommissions);
   const [period, setPeriod] = useState<EarningsPeriod>('weekly');
@@ -59,8 +64,10 @@ export function useSellerEarnings() {
   };
 
   return {
-    isLoading: rawOrders === undefined || payoutData === undefined,
-    error: rawOrders instanceof Error ? rawOrders.message : payoutData instanceof Error ? payoutData.message : null,
+    isLoading: rawOrders === undefined || payoutData === undefined || depositData === undefined || sellerFinance.financeLoading,
+    error: rawOrders instanceof Error ? rawOrders.message : payoutData instanceof Error ? payoutData.message : depositData instanceof Error ? depositData.message : sellerFinance.financeError,
+    depositHeld: depositData?.stall?.depositPaidAmount ?? 0,
+    finance: sellerFinance.finance,
     summary,
     period,
     setPeriod,
