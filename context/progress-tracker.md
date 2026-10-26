@@ -18,6 +18,29 @@ verification follows.
 
 ## Completed
 
+### Seller Platform tab and COD accrual consistency
+
+- Renamed the seller stall `Commissions` tab to `Platform` at
+  `/seller/stall?tab=platform`; `/seller/commissions` and legacy
+  `?tab=commissions` links redirect to the new tab.
+- Updated overview attention and activity links, notification routing and
+  bodies, tab badge counts, and added the required Platform subtitle.
+- Added `convex/commissionAccruals.ts` as the shared resolver for COD
+  accruals. It filters removed rows, missing or non-COD orders,
+  refunded/cancelled orders, and duplicate accruals while keeping waived rows
+  available for history.
+- Seller commissions, finance, admin stall finance, admin stall detail, and
+  seller/admin sales now use the shared resolver. The Platform Unbilled card
+  sums the server-provided unbilled rows, never falls back to a hard-coded
+  amount, and shows `0` when there are no eligible orders.
+- Added `commissions:repairCommissionAccruals` to mark orphan and duplicate
+  rows with `removedAt`/`removedReason` and append
+  `commission_accrual_removed` admin audit events. Invoiced rows are skipped
+  so invoice math and approval flows are unchanged.
+- Build and lint pass. The repair scan found 0 rows because the dev deployment
+  currently has no orders or accruals; the live 2.50 fixture check is pending
+  restored data.
+
 ### Sales commission display
 
 - Seller and admin Sales summaries now show COD commission owed, GCash
@@ -373,6 +396,8 @@ verification follows.
   are specified.
 - Add an actor that moves stall verification status to verified.
 - Replace the demo/mock session layer with Convex-only reads for signed-in users.
+- Restore or reseed the dev COD fixture and verify the Platform Unbilled
+  amount against the actual seller finance and commissions responses.
 
 ### COD commissions (implemented)
 

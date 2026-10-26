@@ -62,6 +62,8 @@ function iconFor(type: string) {
 }
 
 function orderRouteFor(type: string, orderId?: string): string | null {
+  if (type.startsWith('commission_')) return APP_ROUTES.sellerStallTab('platform');
+  if (type.startsWith('deposit_')) return APP_ROUTES.sellerStallTab('deposit');
   if (!orderId) return null;
   const orderTypes = [
     'new-order', 'order_placed', 'order_confirmed', 'order_dispatched',

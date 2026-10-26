@@ -20,6 +20,14 @@ export interface SaleRecord {
   buyerName: string;
   stallName: string;
   itemSummary: string;
+  items: Array<{
+    productId: string;
+    name: string;
+    price: number;
+    unit: string;
+    imageUrl: string;
+    qty: number;
+  }>;
   itemsSubtotal: number;
   deliveryFee: number;
   orderTotal: number;
@@ -30,6 +38,11 @@ export interface SaleRecord {
   commissionAmount: number | null;
   commissionStatus: CommissionReceivableStatus | 'pending' | 'collected' | 'reversed' | 'n/a';
   invoiceNumber: string | null;
+  payoutReference: string | null;
+  refundAmount: number | null;
+  refundMethod: 'gcash' | 'cash' | null;
+  refundReference: string | null;
+  refundConfirmedAt: string | null;
 }
 
 export interface SalesSummary {

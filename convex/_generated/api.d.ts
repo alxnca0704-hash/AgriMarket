@@ -11,6 +11,7 @@
 import type * as admin from "../admin.js";
 import type * as cart from "../cart.js";
 import type * as clearExceptUsers from "../clearExceptUsers.js";
+import type * as commissionAccruals from "../commissionAccruals.js";
 import type * as commissions from "../commissions.js";
 import type * as crons from "../crons.js";
 import type * as deposits from "../deposits.js";
@@ -38,6 +39,7 @@ declare const fullApi: ApiFromModules<{
   admin: typeof admin;
   cart: typeof cart;
   clearExceptUsers: typeof clearExceptUsers;
+  commissionAccruals: typeof commissionAccruals;
   commissions: typeof commissions;
   crons: typeof crons;
   deposits: typeof deposits;

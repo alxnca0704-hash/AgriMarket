@@ -187,6 +187,8 @@ export function useSellerStall() {
     isLoading: isLoading || !isReady,
     error: null,
     stall,
+    stallId: convexStall?._id ?? null,
+    ownerName: current?.user.fullName ?? null,
     isEditing,
     isSaving,
     draft,

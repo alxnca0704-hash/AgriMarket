@@ -37,8 +37,8 @@ export function useSalesPage(isAdmin: boolean) {
         const next = await convex.query(fetchPage, { ...args, page: currentPage, pageSize: 100 });
         rows.push(...next.records);
       }
-      const header = ['Completed at', 'Order ID', 'Buyer', 'Stall', 'Items', 'Items subtotal', 'Delivery fee', 'Order total', 'Payment method', 'GCash reference', 'Sale status', 'Commission', 'Commission status', 'Invoice number'];
-      const values = rows.map(row => [row.completedAt, row.orderId, row.buyerName, row.stallName, row.itemSummary, row.itemsSubtotal, row.deliveryFee, row.orderTotal, row.paymentMethod, row.gcashReference ?? '', row.saleStatus, row.commissionAmount ?? 'n/a', row.commissionStatus, row.invoiceNumber ?? '']);
+      const header = ['Completed at', 'Order ID', 'Buyer', 'Stall', 'Items', 'Items subtotal', 'Delivery fee', 'Order total', 'Payment method', 'GCash reference', 'Sale status', 'Commission', 'Commission status', 'Invoice number', 'Payout reference', 'Refund amount', 'Refund method', 'Refund reference', 'Refund confirmed at'];
+      const values = rows.map(row => [row.completedAt, row.orderId, row.buyerName, row.stallName, row.itemSummary, row.itemsSubtotal, row.deliveryFee, row.orderTotal, row.paymentMethod, row.gcashReference ?? '', row.saleStatus, row.commissionAmount ?? 'n/a', row.commissionStatus, row.invoiceNumber ?? '', row.payoutReference ?? '', row.refundAmount ?? '', row.refundMethod ?? '', row.refundReference ?? '', row.refundConfirmedAt ?? '']);
       const csv = [header, ...values].map(row => row.map(value => `"${String(value).replaceAll('"', '""')}"`).join(',')).join('\r\n');
       const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
       const link = document.createElement('a'); link.href = url; link.download = 'agrimarket-sales.csv'; link.click(); URL.revokeObjectURL(url);

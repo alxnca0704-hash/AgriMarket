@@ -17,6 +17,30 @@ sidebar/drawer links are removed and old URLs redirect to `/admin/stalls`.
 
 ## Just Completed
 
+### Seller Platform tab and COD accrual consistency
+
+- Renamed the seller stall `Commissions` tab to `Platform`; the canonical tab
+  key is now `platform`, the label is `Platform`, and `/seller/commissions`
+  plus legacy `?tab=commissions` links redirect to `?tab=platform`.
+- Updated notification routes, overview attention/activity links, invoice
+  notification bodies, the tab badge count, and the tab content subtitle.
+- Added shared `commissionAccruals.ts` resolution for COD accruals: removed
+  rows, missing/non-COD orders, refunded/cancelled orders, and duplicate
+  accruals are excluded from outstanding totals while preserving waived
+  history.
+- Seller commissions, finance, admin stall finance, admin stall detail, and
+  seller/admin sales now use the shared resolver. The Platform Unbilled card
+  sums the same server rows shown under Unbilled orders, so it has no fallback
+  amount and shows `0` with no eligible orders.
+- Added internal `commissions:repairCommissionAccruals` to mark orphan and
+  duplicate accruals with `removedAt`/`removedReason` and append
+  `commission_accrual_removed` admin audit events. It skips invoiced rows so
+  invoice math and payment approval flows are untouched.
+- `npm run build` and `npm run lint` pass; lint has 10 existing warnings.
+- The repair mutation scanned 0 rows because the dev deployment currently has
+  no orders or commission accruals. The live `₱2.50` fixture check remains
+  unavailable until that data is restored.
+
 ### Sales commission display
 
 - Sales summaries split COD commission owed, active GCash commission, and
@@ -114,6 +138,9 @@ sidebar/drawer links are removed and old URLs redirect to `/admin/stalls`.
 3. Walk through deposit signup, partial top-up, rejection/resubmission,
    duplicate override, over-remaining rejection, and overdue behavior.
 4. Continue seller verification work from `context/progress-tracker.md`.
+5. Restore or reseed the dev COD fixture and verify the Platform Unbilled
+   figure against the actual `finance:getSellerFinance` and
+   `commissions:getSellerCommissions` responses.
 
 ## Open Questions
 

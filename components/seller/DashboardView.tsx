@@ -85,11 +85,11 @@ export function DashboardView() {
             <Button onClick={() => router.push(APP_ROUTES.sellerOrders)} className="!rounded-xl">
               View orders
             </Button>
-            <Button onClick={() => router.push(APP_ROUTES.sellerEarnings)} className="!rounded-xl">
-              View earnings
+            <Button onClick={() => router.push(APP_ROUTES.sellerStallTab('payouts'))} className="!rounded-xl">
+              View payouts
             </Button>
             <Button onClick={() => router.push(APP_ROUTES.sellerStall)} className="!rounded-xl">
-              Edit stall
+              Manage stall
             </Button>
           </div>
         </div>

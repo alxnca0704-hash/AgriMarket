@@ -1,5 +1,6 @@
-import { EarningsView } from '@/components/seller/EarningsView';
+import { redirect } from 'next/navigation';
+import { APP_ROUTES } from '@/constants/routes';
 
-export default function SellerEarningsPage() {
-  return <EarningsView />;
+export default function SellerEarningsRedirect() {
+  redirect(APP_ROUTES.sellerStallTab('payouts'));
 }

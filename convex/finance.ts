@@ -1,10 +1,12 @@
 import { v } from "convex/values";
 import { ADMIN_EMAIL } from "../constants/roles";
+import { COMMISSION_RATE } from "../constants/commissions";
 import { RETURN_REQUEST_WINDOW_MS } from "../constants/refunds";
 import { mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { receivablePeriodStarts, resolveReceivableLedger } from "./receivableHelpers";
+import { loadCodCommissionAccrualsForOrders, resolveCodCommissionAccruals } from "./commissionAccruals";
 import { orderStatusValidator } from "./shared";
 import { STALL_DEPOSIT_AMOUNT } from "../constants/deposits";
 
@@ -20,7 +22,7 @@ function financeDate(order: Doc<"orders">) {
 }
 
 function commissionValues(order: Doc<"orders">) {
-  const amount = order.commissionAmount ?? roundMoney(order.subtotal * 0.05);
+  const amount = order.commissionAmount ?? roundMoney(order.subtotal * COMMISSION_RATE);
   return {
     amount,
     netPayoutAmount: order.netPayoutAmount ?? roundMoney(order.subtotal + order.deliveryFee - amount),
@@ -137,16 +139,9 @@ async function computeCodFinance(ctx: QueryCtx, stallId: Id<"stalls"> | null, fr
     ? ctx.db.query("commissionAccruals").withIndex("by_stallId_and_createdAt", q => q.eq("stallId", stallId).gte("createdAt", from ?? "").lte("createdAt", to ?? "\uffff"))
     : ctx.db.query("commissionAccruals").withIndex("by_createdAt", q => q.gte("createdAt", from ?? "").lte("createdAt", to ?? "\uffff"));
   const raw = await source.order("desc").take(2000);
-  const hydrated = await Promise.all(raw.map(async accrual => {
-    const order = await ctx.db.get("orders", accrual.orderId);
-    return order ? { accrual, order } : null;
-  }));
-  const pairs = hydrated
-    .filter((pair): pair is NonNullable<typeof pair> => pair !== null)
+  const pairs = (await resolveCodCommissionAccruals(ctx, raw))
     .filter(pair => inRange(pair.order.completedAt ?? pair.accrual.createdAt, from, to));
-  const accruals = pairs.map(pair => pair.accrual);
-  const orderByOrderId = new Map(pairs.map(pair => [String(pair.accrual.orderId), pair.order]));
-  const ledger = await resolveReceivableLedger(ctx, accruals, now);
+  const ledger = await resolveReceivableLedger(ctx, pairs.map(pair => pair.accrual), now);
 
   let unbilled = 0;
   let invoiced = 0;
@@ -155,25 +150,26 @@ async function computeCodFinance(ctx: QueryCtx, stallId: Id<"stalls"> | null, fr
   let waived = 0;
   const records: CodRecord[] = [];
 
-  for (const accrual of accruals) {
-    const order = orderByOrderId.get(String(accrual.orderId));
+  for (const { accrual, order, amount, eligible } of pairs) {
     const allocation = ledger.allocations.get(accrual._id);
-    if (!order || !allocation) continue;
+    if (!allocation) continue;
     const invoice = accrual.invoiceId ? ledger.invoices.get(accrual.invoiceId) : undefined;
-    if (allocation.status === "accrued") unbilled += allocation.amountOwed;
-    if (allocation.status === "invoiced") invoiced += allocation.amountOwed;
-    if (allocation.status === "overdue") overdue += allocation.amountOwed;
-    if (allocation.status === "waived") waived += accrual.amount;
+    const status = eligible ? allocation.status : "waived";
+    const amountOwed = eligible ? allocation.status === "accrued" ? amount : allocation.amountOwed : 0;
+    if (status === "accrued") unbilled += amountOwed;
+    if (status === "invoiced") invoiced += amountOwed;
+    if (status === "overdue") overdue += amountOwed;
+    if (status === "waived") waived += amount;
     collected += allocation.amountPaid;
     records.push({
       orderId: accrual.orderId,
       stallId: accrual.stallId,
       stallName: order.sellerName,
       saleDate: order.completedAt ?? accrual.createdAt,
-      commission: accrual.amount,
+      commission: amount,
       amountPaid: allocation.amountPaid,
-      amountOwed: allocation.amountOwed,
-      status: allocation.status,
+      amountOwed,
+      status,
       invoiceNumber: invoice ? String(invoice._id) : null,
       paidAt: allocation.paidAt,
     });
@@ -590,14 +586,15 @@ export const getAdminFinanceStall = query({
       .order("desc")
       .take(1000);
     const visible = orders.filter(order => inRange(financeDate(order), args.from, args.to));
+    const codPairByOrderId = new Map((await loadCodCommissionAccrualsForOrders(ctx, visible)).map(pair => [pair.order._id, pair]));
     const result = await Promise.all(visible.map(async order => {
       let commission = order.commissionAmount ?? 0;
       let invoiceNumber: string | null = null;
       let payoutReference: string | null = null;
       if (order.paymentMethod === "cod") {
-        const accrual = await ctx.db.query("commissionAccruals").withIndex("by_orderId", q => q.eq("orderId", order._id)).unique();
-        commission = accrual?.amount ?? 0;
-        invoiceNumber = accrual?.invoiceId ? String(accrual.invoiceId) : null;
+        const pair = codPairByOrderId.get(order._id);
+        commission = pair?.amount ?? 0;
+        invoiceNumber = pair?.accrual.invoiceId ? String(pair.accrual.invoiceId) : null;
       } else {
         const platformCommission = await ctx.db.query("platformCommissions").withIndex("by_orderId", q => q.eq("orderId", order._id)).unique();
         commission = order.commissionAmount ?? platformCommission?.amount ?? 0;

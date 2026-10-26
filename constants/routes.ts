@@ -1,3 +1,5 @@
+import type { SellerStallTab } from './sellerStall';
+
 export const APP_ROUTES = {
   landing: '/',
   signIn: '/signin',
@@ -41,9 +43,7 @@ export const APP_ROUTES = {
   sellerMessages: '/seller/messages',
   sellerMessageThread: (id: string) => `/seller/messages?conversation=${encodeURIComponent(id)}`,
   sellerStall: '/seller/stall',
-  sellerEarnings: '/seller/earnings',
-  sellerSales: '/seller/sales',
-  sellerCommissions: '/seller/commissions',
+  sellerStallTab: (tab: SellerStallTab) => `/seller/stall?tab=${tab}`,
   sellerReviews: '/seller/reviews',
   sellerNotifications: '/seller/notifications',
   sellerSettings: '/seller/settings',

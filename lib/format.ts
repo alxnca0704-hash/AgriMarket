@@ -3,7 +3,24 @@ import { DeliveryAddress } from '@/types/auth';
 export const CURRENCY_SYMBOL = '₱';
 
 export function formatPrice(value: number): string {
-  return `${CURRENCY_SYMBOL}${value.toLocaleString('en-PH')}`;
+  return `${CURRENCY_SYMBOL}${value.toLocaleString('en-PH', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+export function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-PH', {
+    timeZone: 'Asia/Manila',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+export function formatOrderId(id: string): string {
+  const compact = id.replace(/[^a-zA-Z0-9]/g, '');
+  return `#${(compact.slice(-6) || id).toUpperCase()}`;
 }
 
 export function formatUnitPrice(value: number, unit: string): string {

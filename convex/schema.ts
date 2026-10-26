@@ -290,6 +290,7 @@ export default defineSchema({
     rate: v.optional(v.number()),
     status: v.union(v.literal("accrued"), v.literal("invoiced"), v.literal("waived")),
     invoiceId: v.optional(v.id("commissionInvoices")), createdAt: v.string(),
+    removedAt: v.optional(v.string()), removedReason: v.optional(v.string()), replacedByAccrualId: v.optional(v.id("commissionAccruals")),
   }).index("by_stallId_and_status", ["stallId", "status"]).index("by_stallId_and_createdAt", ["stallId", "createdAt"]).index("by_createdAt", ["createdAt"]).index("by_orderId", ["orderId"]),
 
   commissionInvoices: defineTable({
@@ -327,10 +328,11 @@ export default defineSchema({
       v.literal("payout_rejected"),
       v.literal("deposit_approved"),
       v.literal("deposit_rejected")
-      ,v.literal("commission_payment_approved"), v.literal("commission_payment_rejected"),
+      ,v.literal("commission_payment_approved"), v.literal("commission_payment_rejected"), v.literal("commission_accrual_removed"),
       v.literal("gcash_payment_approved"), v.literal("gcash_payment_rejected")
     ),
     orderId: v.optional(v.id("orders")),
+    commissionAccrualId: v.optional(v.id("commissionAccruals")),
     payoutRequestId: v.optional(v.id("payoutRequests")),
     paymentReference: v.optional(v.string()),
     refundReference: v.optional(v.string()),

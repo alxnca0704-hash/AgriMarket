@@ -4,6 +4,8 @@ import { query } from './_generated/server';
 import type { QueryCtx } from './_generated/server';
 import type { Doc } from './_generated/dataModel';
 import { resolveReceivableLedger } from './receivableHelpers';
+import { loadCodCommissionAccrualsForOrders } from './commissionAccruals';
+import { orderItemValidator } from './shared';
 
 const filtersValidator = {
   search: v.string(),
@@ -19,12 +21,17 @@ const filtersValidator = {
 
 const recordValidator = v.object({
   orderId: v.string(), completedAt: v.string(), buyerName: v.string(), stallName: v.string(),
-  itemSummary: v.string(), itemsSubtotal: v.number(), deliveryFee: v.number(), orderTotal: v.number(),
+  itemSummary: v.string(), items: v.array(orderItemValidator), itemsSubtotal: v.number(), deliveryFee: v.number(), orderTotal: v.number(),
   paymentMethod: v.union(v.literal('gcash'), v.literal('cod')), gcashReference: v.union(v.string(), v.null()),
   saleStatus: v.union(v.literal('counted'), v.literal('refund-requested'), v.literal('refunded')),
   stallId: v.string(),
   commissionAmount: v.union(v.number(), v.null()), commissionStatus: v.union(v.literal('accrued'), v.literal('invoiced'), v.literal('overdue'), v.literal('paid'), v.literal('waived'), v.literal('pending'), v.literal('collected'), v.literal('reversed'), v.literal('n/a')),
   invoiceNumber: v.union(v.string(), v.null()),
+  payoutReference: v.union(v.string(), v.null()),
+  refundAmount: v.union(v.number(), v.null()),
+  refundMethod: v.union(v.literal('gcash'), v.literal('cash'), v.null()),
+  refundReference: v.union(v.string(), v.null()),
+  refundConfirmedAt: v.union(v.string(), v.null()),
 });
 const summaryValidator = v.object({ totalSales: v.number(), gcashSales: v.number(), codSales: v.number(), orderCount: v.number(), today: v.number(), thisWeek: v.number(), thisMonth: v.number(), commissionAccrued: v.number(), commissionCollected: v.number(), codCommissionOwed: v.number(), gcashCommission: v.number(), totalCommission: v.number() });
 const resultValidator = v.object({
@@ -91,11 +98,11 @@ async function listSales(ctx: QueryCtx, args: { search: string; paymentMethod: '
   const orders = await source.order('desc').collect();
   const completed = orders.filter(order => order.completedAt && ['completed', 'refund-requested', 'return-approved', 'return-in-transit', 'return-received', 'refunded'].includes(order.status) && (args.paymentMethod === 'all' || order.paymentMethod === args.paymentMethod));
   const visible = (await searchOrders(completed)).filter((row): row is NonNullable<typeof row> => row !== null);
-  const codAccruals = (await Promise.all(visible.filter(({ order }) => order.paymentMethod === 'cod').map(({ order }) => ctx.db.query('commissionAccruals').withIndex('by_orderId', q => q.eq('orderId', order._id)).unique()))).filter((accrual): accrual is NonNullable<typeof accrual> => accrual !== null);
+  const codPairs = await loadCodCommissionAccrualsForOrders(ctx, visible.map(({ order }) => order));
   const gcashCommissions = (await Promise.all(visible.filter(({ order }) => order.paymentMethod === 'gcash').map(({ order }) => ctx.db.query('platformCommissions').withIndex('by_orderId', q => q.eq('orderId', order._id)).unique()))).filter((commission): commission is NonNullable<typeof commission> => commission !== null);
-  const receivableLedger = await resolveReceivableLedger(ctx, codAccruals, args.now);
-  const accrualByOrderId = new Map(codAccruals.map(accrual => [String(accrual.orderId), accrual]));
-  const codCommissionOwed = codAccruals.reduce((sum, accrual) => { const allocation = receivableLedger.allocations.get(accrual._id); return sum + (allocation && allocation.status !== 'waived' ? allocation.amountOwed : 0); }, 0);
+  const receivableLedger = await resolveReceivableLedger(ctx, codPairs.map(pair => pair.accrual), args.now);
+  const pairByOrderId = new Map(codPairs.map(pair => [String(pair.order._id), pair]));
+  const codCommissionOwed = codPairs.reduce((sum, { accrual, eligible }) => { const allocation = receivableLedger.allocations.get(accrual._id); return sum + (eligible && allocation && allocation.status !== 'waived' ? allocation.amountOwed : 0); }, 0);
   const gcashCommission = gcashCommissions.filter(item => item.status === 'pending' || item.status === 'collected').reduce((sum, item) => sum + item.amount, 0);
   const commissionAccrued = codCommissionOwed;
   const commissionCollected = gcashCommissions.filter(item => item.status === 'collected').reduce((sum, item) => sum + item.amount, 0);
@@ -113,15 +120,27 @@ async function listSales(ctx: QueryCtx, args: { search: string; paymentMethod: '
   }
   const start = Math.max(0, (args.page - 1) * args.pageSize);
   const page = visible.slice(start, start + args.pageSize);
-  const records = await Promise.all(page.map(async ({ order, buyerName, saleStatus }) => ({
-    orderId: String(order._id), completedAt: order.completedAt ?? '', buyerName, stallName: order.sellerName,
-    itemSummary: order.items.map(item => `${item.name} × ${item.qty}`).join(', '), itemsSubtotal: order.subtotal,
-    deliveryFee: order.deliveryFee, orderTotal: order.total, paymentMethod: order.paymentMethod,
-    gcashReference: order.paymentMethod === 'gcash' ? order.paymentReference ?? null : null, saleStatus, stallId: String(order.stallId),
-    commissionAmount: order.paymentMethod === 'gcash' ? gcashCommissions.find(item => String(item.orderId) === String(order._id))?.amount ?? order.commissionAmount ?? 0 : accrualByOrderId.get(String(order._id))?.amount ?? 0,
-    commissionStatus: order.status === 'refunded' ? (order.paymentMethod === 'gcash' ? 'reversed' as const : 'waived' as const) : order.paymentMethod === 'gcash' ? gcashCommissions.find(item => String(item.orderId) === String(order._id))?.status ?? 'pending' as const : (() => { const accrual = accrualByOrderId.get(String(order._id)); return accrual ? receivableLedger.allocations.get(accrual._id)?.status ?? 'accrued' : 'accrued'; })(),
-    invoiceNumber: order.paymentMethod === 'gcash' ? null : (() => { const accrual = accrualByOrderId.get(String(order._id)); return accrual?.invoiceId ? String(receivableLedger.invoices.get(accrual.invoiceId)?._id ?? accrual.invoiceId) : null; })(),
-  })));
+  const records = await Promise.all(page.map(async ({ order, buyerName, saleStatus }) => {
+    const payoutRequest = order.payoutRequestId ? await ctx.db.get('payoutRequests', order.payoutRequestId) : null;
+    const codPair = pairByOrderId.get(String(order._id));
+    const codAllocation = codPair ? receivableLedger.allocations.get(codPair.accrual._id) : undefined;
+    const commissionStatus: 'accrued' | 'invoiced' | 'overdue' | 'paid' | 'waived' | 'pending' | 'collected' | 'reversed' | 'n/a' = order.status === 'refunded' ? (order.paymentMethod === 'gcash' ? 'reversed' : 'waived') : order.paymentMethod === 'gcash' ? gcashCommissions.find(item => String(item.orderId) === String(order._id))?.status ?? 'pending' : codPair ? (codPair.eligible ? codAllocation?.status ?? 'accrued' : 'waived') : 'n/a';
+    return {
+      orderId: String(order._id), completedAt: order.completedAt ?? '', buyerName, stallName: order.sellerName,
+      itemSummary: order.items.map(item => `${item.name} x ${item.qty}`).join(', '),
+      items: order.items, itemsSubtotal: order.subtotal,
+      deliveryFee: order.deliveryFee, orderTotal: order.total, paymentMethod: order.paymentMethod,
+      gcashReference: order.paymentMethod === 'gcash' ? order.paymentReference ?? null : null, saleStatus, stallId: String(order.stallId),
+      commissionAmount: order.paymentMethod === 'gcash' ? gcashCommissions.find(item => String(item.orderId) === String(order._id))?.amount ?? order.commissionAmount ?? 0 : codPair?.amount ?? 0,
+      commissionStatus,
+      invoiceNumber: order.paymentMethod === 'gcash' ? null : codPair?.accrual.invoiceId ? String(receivableLedger.invoices.get(codPair.accrual.invoiceId)?._id ?? codPair.accrual.invoiceId) : null,
+      payoutReference: payoutRequest?.transferReference ?? null,
+      refundAmount: order.refundAmount ?? null,
+      refundMethod: order.refundMethod ?? null,
+      refundReference: order.refundReference ?? null,
+      refundConfirmedAt: order.refundConfirmedAt ?? null,
+    };
+  }));
   return { records, total: visible.length, summary, stalls: Array.from(stallsMap.values()).sort((a, b) => a.stallName.localeCompare(b.stallName)) };
 }
 

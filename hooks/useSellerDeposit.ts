@@ -6,7 +6,7 @@ import { makeFunctionReference } from 'convex/server';
 import { DEPOSIT_ACTION_KEYS, DEPOSIT_GRACE_PERIOD_MS, STALL_DEPOSIT_AMOUNT } from '@/constants/deposits';
 import { usePendingAction } from '@/hooks/usePendingAction';
 
-type DepositRecord = { _id: string; amount: number; referenceNumber: string; status: string; approvedAmount?: number; rejectionReason?: string; submittedAt?: string; createdAt: string };
+type DepositRecord = { _id: string; amount: number; referenceNumber: string; status: string; approvedAmount?: number; rejectionReason?: string; submittedAt?: string; reviewedAt?: string; createdAt: string };
 type DepositData = { stall: { depositPaidAmount: number; depositStatus: string; depositDeadline: number; overdue: boolean }; submissions: DepositRecord[]; gcash: { qrUrl: string; number: string } | null } | null;
 const getSellerDeposit = makeFunctionReference<'query', { now: number }, DepositData>('deposits:getSellerDeposit');
 const submitDeposit = makeFunctionReference<'mutation', { amount: number; referenceNumber: string }, string>('deposits:submit');

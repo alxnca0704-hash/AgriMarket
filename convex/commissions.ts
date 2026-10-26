@@ -5,6 +5,7 @@ import { APP_ROUTES } from "../constants/routes";
 import { internalMutation, mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { createNotification } from "./notifications";
+import { codCommissionAmountForOrder, resolveCodCommissionAccruals } from "./commissionAccruals";
 import { resolveReceivableLedger, receivablePeriodStarts } from "./receivableHelpers";
 import type { Id } from "./_generated/dataModel";
 
@@ -25,12 +26,20 @@ async function notifyAdmin(ctx: MutationCtx, type: string, title: string, body: 
 const roundMoney = (amount: number) => Math.round(amount * 100) / 100;
 const invoiceRemaining = (invoice: { amount: number; paidAmount: number }) => Math.max(0, roundMoney(invoice.amount - invoice.paidAmount));
 const invoiceStatusValidator = v.union(v.literal("issued"), v.literal("pending-review"), v.literal("partial"), v.literal("paid"), v.literal("overdue"));
+const paymentStatusValidator = v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected"));
+const commissionOrderValidator = v.object({ orderId: v.id("orders"), amount: v.number(), date: v.string() });
+const commissionPaymentValidator = v.object({
+  _id: v.id("commissionPayments"), amount: v.number(), referenceNumber: v.string(), status: paymentStatusValidator,
+  approvedAmount: v.union(v.number(), v.null()), rejectionReason: v.union(v.string(), v.null()),
+  createdAt: v.string(), reviewedAt: v.union(v.string(), v.null()),
+});
 const sellerCommissionDataValidator = v.union(v.null(), v.object({
   unbilled: v.number(),
+  unbilledOrders: v.array(commissionOrderValidator),
   invoices: v.array(v.object({
     _id: v.id("commissionInvoices"), periodStart: v.string(), periodEnd: v.string(), amount: v.number(), paidAmount: v.number(), remaining: v.number(),
     dueAt: v.number(), status: invoiceStatusValidator, pending: v.boolean(), canResubmit: v.boolean(),
-    orders: v.array(v.object({ orderId: v.id("orders"), amount: v.number(), date: v.string() })),
+    orders: v.array(commissionOrderValidator), payments: v.array(commissionPaymentValidator),
   })),
   gcash: v.union(v.null(), v.object({ qrUrl: v.string(), number: v.string() })),
 }));
@@ -43,19 +52,35 @@ export const getSellerCommissions = query({
     const accruals = await ctx.db.query("commissionAccruals").withIndex("by_stallId_and_status", q => q.eq("stallId", stall._id).eq("status", "accrued")).take(500);
     const invoices = await ctx.db.query("commissionInvoices").withIndex("by_stallId", q => q.eq("stallId", stall._id)).order("desc").take(100);
     const gcash = await ctx.db.query("gcashSettings").withIndex("by_key", q => q.eq("key", "primary")).first();
+    const unbilledPairs = (await resolveCodCommissionAccruals(ctx, accruals)).filter(pair => pair.eligible);
+    const unbilledOrders = unbilledPairs
+      .sort((a, b) => (b.order.completedAt ?? b.accrual.createdAt).localeCompare(a.order.completedAt ?? a.accrual.createdAt))
+      .map(pair => ({ orderId: pair.order._id, amount: pair.amount, date: pair.order.completedAt ?? pair.accrual.createdAt }));
+    const invoiceAccrualIds = [...new Set(invoices.flatMap(invoice => invoice.accrualIds))];
+    const invoiceAccruals = (await Promise.all(invoiceAccrualIds.map(id => ctx.db.get("commissionAccruals", id))))
+      .filter((accrual): accrual is NonNullable<typeof accrual> => accrual !== null);
+    const invoicePairByAccrualId = new Map((await resolveCodCommissionAccruals(ctx, invoiceAccruals)).map(pair => [pair.accrual._id, pair]));
     const hydrated = await Promise.all(invoices.map(async invoice => {
       const currentStatus = invoiceRemaining(invoice) > 0 && invoice.dueAt <= args.now ? "overdue" : invoice.status;
-      const items = await Promise.all(invoice.accrualIds.map(async id => {
-        const accrual = await ctx.db.get("commissionAccruals", id); if (!accrual) return null;
-        const order = await ctx.db.get("orders", accrual.orderId);
-        return { orderId: accrual.orderId, amount: accrual.amount, date: order?.completedAt ?? accrual.createdAt };
+      const items = [...new Set(invoice.accrualIds)].map(id => invoicePairByAccrualId.get(id)).filter((pair): pair is NonNullable<typeof pair> => pair !== undefined).map(pair => ({
+        orderId: pair.order._id, amount: pair.amount, date: pair.order.completedAt ?? pair.accrual.createdAt,
       }));
-      const latestPayment = await ctx.db.query("commissionPayments").withIndex("by_invoiceId", q => q.eq("invoiceId", invoice._id)).order("desc").first();
-      const pending = latestPayment?.status === "pending";
-      return { _id: invoice._id, periodStart: invoice.periodStart, periodEnd: invoice.periodEnd, amount: invoice.amount, paidAmount: invoice.paidAmount, dueAt: invoice.dueAt, status: currentStatus, remaining: invoiceRemaining(invoice), orders: items.filter((item): item is NonNullable<typeof item> => item !== null), pending, canResubmit: !pending };
+      const payments = await ctx.db.query("commissionPayments").withIndex("by_invoiceId", q => q.eq("invoiceId", invoice._id)).order("desc").take(20);
+      const pending = payments.some(payment => payment.status === "pending");
+      return {
+        _id: invoice._id, periodStart: invoice.periodStart, periodEnd: invoice.periodEnd, amount: invoice.amount, paidAmount: invoice.paidAmount, dueAt: invoice.dueAt,
+        status: currentStatus, remaining: invoiceRemaining(invoice), orders: items.filter((item): item is NonNullable<typeof item> => item !== null),
+        payments: payments.map(payment => ({
+          _id: payment._id, amount: payment.amount, referenceNumber: payment.referenceNumber, status: payment.status,
+          approvedAmount: payment.approvedAmount ?? null, rejectionReason: payment.rejectionReason ?? null,
+          createdAt: payment.createdAt, reviewedAt: payment.reviewedAt ?? null,
+        })),
+        pending, canResubmit: !pending,
+      };
     }));
     return {
-      unbilled: roundMoney(accruals.reduce((sum, item) => sum + item.amount, 0)),
+      unbilled: roundMoney(unbilledPairs.reduce((sum, pair) => sum + pair.amount, 0)),
+      unbilledOrders,
       invoices: hydrated,
       gcash: gcash ? { qrUrl: gcash.qrUrl, number: gcash.number } : null,
     };
@@ -65,7 +90,7 @@ export const getSellerCommissions = query({
 export const sellerUnpaidCount = query({ args: {}, returns: v.number(), async handler(ctx) {
   const user = await seller(ctx); if (!user) return 0;
   const stall = await ctx.db.query("stalls").withIndex("by_ownerId", q => q.eq("ownerId", user._id)).first(); if (!stall) return 0;
-  return (await ctx.db.query("commissionInvoices").withIndex("by_stallId", q => q.eq("stallId", stall._id)).take(200)).filter(invoice => invoiceRemaining(invoice) > 0).length;
+  return (await ctx.db.query("commissionInvoices").withIndex("by_stallId", q => q.eq("stallId", stall._id)).take(200)).filter(invoice => invoiceRemaining(invoice) > 0 && invoice.status !== "pending-review").length;
 } });
 
 export const submitPayment = mutation({
@@ -144,11 +169,12 @@ export const issueWeeklyInvoices = internalMutation({ args: {}, returns: v.null(
   const stalls = await ctx.db.query("stalls").take(1000);
   for (const stall of stalls) {
     const accruals = await ctx.db.query("commissionAccruals").withIndex("by_stallId_and_status", q => q.eq("stallId", stall._id).eq("status", "accrued")).take(500);
-    const amount = roundMoney(accruals.reduce((sum, item) => sum + item.amount, 0)); if (amount < MIN_INVOICE_AMOUNT) continue;
+    const pairs = (await resolveCodCommissionAccruals(ctx, accruals)).filter(pair => pair.eligible && pair.accrual.status === "accrued");
+    const amount = roundMoney(pairs.reduce((sum, pair) => sum + pair.amount, 0)); if (amount < MIN_INVOICE_AMOUNT) continue;
     const createdAt = new Date(now).toISOString(); const dueAt = now + INVOICE_DUE_MS;
-    const invoiceId = await ctx.db.insert("commissionInvoices", { stallId: stall._id, sellerId: stall.ownerId, periodStart: periodStart.toISOString(), periodEnd: periodEnd.toISOString(), amount, paidAmount: 0, status: "issued", dueAt, accrualIds: accruals.map(item => item._id), events: [{ type: "issued", label: "Weekly invoice issued", at: createdAt }], createdAt });
-    for (const accrual of accruals) await ctx.db.patch("commissionAccruals", accrual._id, { status: "invoiced", invoiceId });
-    await createNotification(ctx, { userId: stall.ownerId, role: "seller", refId: invoiceId, type: "commission_invoice_issued", title: "Weekly commission invoice", body: `Your ₱${amount.toFixed(2)} invoice covers ${accruals.length} orders and is due ${new Date(dueAt).toLocaleDateString("en-PH")}. Open ${APP_ROUTES.sellerCommissions} to pay.` });
+    const invoiceId = await ctx.db.insert("commissionInvoices", { stallId: stall._id, sellerId: stall.ownerId, periodStart: periodStart.toISOString(), periodEnd: periodEnd.toISOString(), amount, paidAmount: 0, status: "issued", dueAt, accrualIds: pairs.map(pair => pair.accrual._id), events: [{ type: "issued", label: "Weekly invoice issued", at: createdAt }], createdAt });
+    for (const pair of pairs) await ctx.db.patch("commissionAccruals", pair.accrual._id, { status: "invoiced", invoiceId });
+    await createNotification(ctx, { userId: stall.ownerId, role: "seller", refId: invoiceId, type: "commission_invoice_issued", title: "Weekly commission invoice", body: `Your ₱${amount.toFixed(2)} invoice covers ${pairs.length} orders and is due ${new Date(dueAt).toLocaleDateString("en-PH")}. Open ${APP_ROUTES.sellerStallTab("platform")} to pay.` });
   }
   return null;
 } });
@@ -159,7 +185,7 @@ export const processInvoiceReminders = internalMutation({ args: {}, returns: v.n
     const remaining = invoiceRemaining(invoice); if (remaining <= 0 || invoice.events.some(event => event.type === (invoice.dueAt <= now ? "overdue_notified" : "due_reminder"))) continue;
     if (invoice.dueAt <= now) {
       await ctx.db.patch("commissionInvoices", invoice._id, { status: "overdue", events: [...invoice.events, { type: "overdue_notified", label: "Invoice overdue", at: new Date(now).toISOString() }] });
-      await createNotification(ctx, { userId: invoice.sellerId, role: "seller", refId: invoice._id, type: "commission_overdue", title: "Commission invoice overdue", body: `₱${remaining.toFixed(2)} remains due. Please open ${APP_ROUTES.sellerCommissions}.` });
+      await createNotification(ctx, { userId: invoice.sellerId, role: "seller", refId: invoice._id, type: "commission_overdue", title: "Commission invoice overdue", body: `₱${remaining.toFixed(2)} remains due. Please open ${APP_ROUTES.sellerStallTab("platform")}.` });
       await notifyAdmin(ctx, "commission_invoice_overdue", "Commission invoice overdue", `Invoice ${invoice._id} has ₱${remaining.toFixed(2)} outstanding.`);
     } else if (invoice.dueAt - now <= 2 * 86400000) {
       await ctx.db.patch("commissionInvoices", invoice._id, { events: [...invoice.events, { type: "due_reminder", label: "Due in two days reminder sent", at: new Date(now).toISOString() }] });
@@ -169,19 +195,70 @@ export const processInvoiceReminders = internalMutation({ args: {}, returns: v.n
   return null;
 } });
 
+export const repairCommissionAccruals = internalMutation({
+  args: {},
+  returns: v.object({ scanned: v.number(), removedOrphans: v.number(), removedDuplicates: v.number(), skippedInvoiced: v.number(), retained: v.number() }),
+  async handler(ctx) {
+    const now = new Date().toISOString();
+    const accruals = await ctx.db.query("commissionAccruals").take(4000);
+    const active = accruals.filter(accrual => !accrual.removedAt);
+    const orders = await Promise.all(active.map(accrual => ctx.db.get("orders", accrual.orderId)));
+    const byOrderId = new Map<Id<"orders">, typeof active>();
+    let removedOrphans = 0;
+    let removedDuplicates = 0;
+    let skippedInvoiced = 0;
+
+    for (let index = 0; index < active.length; index++) {
+      const accrual = active[index];
+      const order = orders[index];
+      const orphanReason = !order ? "orphan:order-missing" : order.paymentMethod !== "cod" ? "orphan:non-cod-order" : null;
+      if (orphanReason) {
+        if (accrual.invoiceId) { skippedInvoiced++; continue; }
+        await ctx.db.patch("commissionAccruals", accrual._id, { removedAt: now, removedReason: orphanReason });
+        await ctx.db.insert("adminAuditLog", { actorEmail: "system:commission-repair", action: "commission_accrual_removed", orderId: accrual.orderId, commissionAccrualId: accrual._id, reason: orphanReason, createdAt: now });
+        removedOrphans++;
+        continue;
+      }
+      const group = byOrderId.get(accrual.orderId) ?? [];
+      group.push(accrual);
+      byOrderId.set(accrual.orderId, group);
+    }
+
+    for (const group of byOrderId.values()) {
+      if (group.length < 2) continue;
+      group.sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a._creationTime - b._creationTime || String(a._id).localeCompare(String(b._id)));
+      const canonical = group.shift();
+      if (!canonical) continue;
+      for (const duplicate of group) {
+        if (duplicate.invoiceId) { skippedInvoiced++; continue; }
+        const reason = `duplicate:replaced-by:${canonical._id}`;
+        await ctx.db.patch("commissionAccruals", duplicate._id, { removedAt: now, removedReason: reason, replacedByAccrualId: canonical._id });
+        await ctx.db.insert("adminAuditLog", { actorEmail: "system:commission-repair", action: "commission_accrual_removed", orderId: duplicate.orderId, commissionAccrualId: duplicate._id, reason, createdAt: now });
+        removedDuplicates++;
+      }
+    }
+
+    const removed = removedOrphans + removedDuplicates;
+    return { scanned: accruals.length, removedOrphans, removedDuplicates, skippedInvoiced, retained: accruals.length - removed };
+  },
+});
+
 export const accrueCodDelivery = internalMutation({ args: { orderId: v.id("orders") }, returns: v.null(), async handler(ctx, args) {
   const order = await ctx.db.get("orders", args.orderId); if (!order || order.paymentMethod !== "cod" || order.status !== "completed") return null;
-  const existing = await ctx.db.query("commissionAccruals").withIndex("by_orderId", q => q.eq("orderId", order._id)).unique(); if (existing) return null;
-  const amount = roundMoney(order.subtotal * COMMISSION_RATE); if (amount <= 0) return null;
+  const existing = await ctx.db.query("commissionAccruals").withIndex("by_orderId", q => q.eq("orderId", order._id)).collect();
+  if (existing.some(accrual => !accrual.removedAt)) return null;
+  const amount = codCommissionAmountForOrder(order); if (amount <= 0) return null;
   const accrualId = await ctx.db.insert("commissionAccruals", { orderId: order._id, stallId: order.stallId, sellerId: order.sellerId, amount, rate: COMMISSION_RATE, status: "accrued", createdAt: new Date().toISOString() });
   const accruals = await ctx.db.query("commissionAccruals").withIndex("by_stallId_and_status", q => q.eq("stallId", order.stallId).eq("status", "accrued")).take(500);
-  const total = roundMoney(accruals.reduce((sum, item) => sum + item.amount, 0));
+  const total = roundMoney((await resolveCodCommissionAccruals(ctx, accruals)).filter(pair => pair.eligible).reduce((sum, pair) => sum + pair.amount, 0));
   await createNotification(ctx, { userId: order.sellerId, role: "seller", orderId: order._id, refId: accrualId, type: "commission_accrued", title: "COD commission added", body: `Delivery complete. ₱${amount.toLocaleString("en-PH", { maximumFractionDigits: 2 })} commission added to this week's invoice. Total unbilled: ₱${total.toFixed(2)}.` });
   return null;
 } });
 
 export const waiveRefundedOrder = internalMutation({ args: { orderId: v.id("orders") }, returns: v.null(), async handler(ctx, args) {
-  const accrual = await ctx.db.query("commissionAccruals").withIndex("by_orderId", q => q.eq("orderId", args.orderId)).unique(); if (!accrual || accrual.status === "waived") return null;
+  const accruals = await ctx.db.query("commissionAccruals").withIndex("by_orderId", q => q.eq("orderId", args.orderId)).collect();
+  const accrual = accruals.filter(item => !item.removedAt).sort((a, b) => a._creationTime - b._creationTime || String(a._id).localeCompare(String(b._id)))[0];
+  if (!accrual || accrual.status === "waived") return null;
   const now = new Date().toISOString();
   if (accrual.status === "accrued") { await ctx.db.patch("commissionAccruals", accrual._id, { status: "waived" }); return null; }
   if (!accrual.invoiceId) return null; const invoice = await ctx.db.get("commissionInvoices", accrual.invoiceId); if (!invoice) return null;
@@ -222,23 +299,25 @@ async function getReceivableRecords(
   if (stallId) queryRange = ctx.db.query("commissionAccruals").withIndex("by_stallId_and_createdAt", q => q.eq("stallId", stallId).gte("createdAt", args.from ?? "").lte("createdAt", args.to ?? "\uffff"));
   else queryRange = ctx.db.query("commissionAccruals").withIndex("by_createdAt", q => q.gte("createdAt", args.from ?? "").lte("createdAt", args.to ?? "\uffff"));
   const accruals = await queryRange.order("desc").collect();
-  const ledger = await resolveReceivableLedger(ctx, accruals, args.now);
+  const pairs = await resolveCodCommissionAccruals(ctx, accruals);
+  const ledger = await resolveReceivableLedger(ctx, pairs.map(pair => pair.accrual), args.now);
   const search = args.search.trim().toLowerCase();
-  const hydrated = await Promise.all(accruals.map(async accrual => {
-    const [order, stall] = await Promise.all([ctx.db.get("orders", accrual.orderId), ctx.db.get("stalls", accrual.stallId)]);
-    if (!order) return null;
+  const hydrated = await Promise.all(pairs.map(async ({ accrual, order, amount, eligible }) => {
+    const stall = await ctx.db.get("stalls", accrual.stallId);
     const allocation = ledger.allocations.get(accrual._id);
     if (!allocation) return null;
     const invoice = accrual.invoiceId ? ledger.invoices.get(accrual.invoiceId) ?? null : null;
     const saleDate = order.completedAt ?? accrual.createdAt;
     if (args.from && saleDate < args.from || args.to && saleDate > args.to) return null;
+    const status = eligible ? allocation.status : "waived";
+    const amountOwed = eligible ? allocation.status === "accrued" ? amount : allocation.amountOwed : 0;
     const matchesSearch = !search || String(order._id).toLowerCase().includes(search) || String(order._id).slice(-6).toLowerCase().includes(search) || String(invoice?._id ?? "").toLowerCase().includes(search);
-    if (!matchesSearch || args.status !== "all" && allocation.status !== args.status) return null;
+    if (!matchesSearch || args.status !== "all" && status !== args.status) return null;
     return {
       accrualId: accrual._id, orderId: order._id, saleDate, itemsSummary: order.items.map(item => `${item.name} × ${item.qty}`).join(", "),
-      itemsSubtotal: order.subtotal, commission: accrual.amount, amountPaid: allocation.amountPaid, amountOwed: allocation.amountOwed,
+      itemsSubtotal: order.subtotal, commission: amount, amountPaid: allocation.amountPaid, amountOwed,
       invoiceId: invoice?._id ?? null, invoiceNumber: invoice ? String(invoice._id) : null, invoiceDueAt: invoice?.dueAt ?? null,
-      status: allocation.status, paymentReference: allocation.paymentReference, paymentId: allocation.paymentId, paymentAmount: allocation.paymentAmount, paidAt: allocation.paidAt,
+      status, paymentReference: allocation.paymentReference, paymentId: allocation.paymentId, paymentAmount: allocation.paymentAmount, paidAt: allocation.paidAt,
       invoiceAmount: invoice?.amount ?? null, invoicePaidAmount: invoice?.paidAmount ?? null,
       stallId: accrual.stallId, stallName: stall?.stallName ?? "Unknown stall",
     };

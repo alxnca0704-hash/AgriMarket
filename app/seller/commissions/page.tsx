@@ -1,2 +1,6 @@
-import { CommissionsView } from '@/components/seller/CommissionsView';
-export default function SellerCommissionsPage() { return <CommissionsView />; }
+import { redirect } from 'next/navigation';
+import { APP_ROUTES } from '@/constants/routes';
+
+export default function SellerCommissionsRedirect() {
+  redirect(APP_ROUTES.sellerStallTab('platform'));
+}
