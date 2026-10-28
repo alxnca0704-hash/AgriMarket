@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Badge, Drawer, Layout, Menu } from 'antd';
+import { Badge, Button, Drawer, Layout, Menu } from 'antd';
 import type { MenuProps } from 'antd';
 import {
   AccountBookOutlined,
@@ -12,12 +12,14 @@ import {
   CloseOutlined,
   CreditCardOutlined,
   DollarOutlined,
+  LogoutOutlined,
   MenuOutlined,
   SettingOutlined,
   WalletOutlined,
   ShopOutlined,
   DashboardOutlined,
 } from '@ant-design/icons';
+import { useClerk } from '@clerk/nextjs';
 import { BrandMark } from '@/components/BrandMark';
 import { APP_ROUTES } from '@/constants/routes';
 import { useAdminShell } from '@/hooks/useAdminShell';
@@ -43,6 +45,7 @@ function resolveActiveKey(pathname: string): string | null {
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { signOut } = useClerk();
   const { pendingGcashCount, pendingRefundCount, pendingDepositCount, pendingCommissionCount } = useAdminShell();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const navItems: MenuProps['items'] = useMemo(
@@ -67,6 +70,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     if (tab) router.push(tab.href);
   };
   const activeKey = resolveActiveKey(pathname);
+  const handleSignOut = async () => {
+    setDrawerOpen(false);
+    await signOut({ redirectUrl: APP_ROUTES.landing });
+  };
 
   const renderSidebar = (closeButton?: React.ReactNode) => (
     <div className="flex h-full flex-col">
@@ -75,7 +82,12 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         {closeButton ?? <span className="w-8 shrink-0" aria-hidden />}
       </div>
       <p className="px-6 pb-2 text-[11px] font-medium uppercase tracking-wide text-stone-400">Admin</p>
-      <Menu mode="inline" items={navItems} selectedKeys={activeKey ? [activeKey] : []} onClick={handleNavigate} className="flex-1 !border-none !bg-transparent !px-0 pb-6" />
+      <Menu mode="inline" items={navItems} selectedKeys={activeKey ? [activeKey] : []} onClick={handleNavigate} className="flex-1 !border-none !bg-transparent !px-0 pb-4" />
+      <div className="px-4 pb-6">
+        <Button type="text" icon={<LogoutOutlined />} onClick={handleSignOut} className="w-full justify-start text-stone-600 hover:text-[#2D6A4F]">
+          Sign out
+        </Button>
+      </div>
     </div>
   );
 
