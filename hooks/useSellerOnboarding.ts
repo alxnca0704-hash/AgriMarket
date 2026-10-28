@@ -85,8 +85,6 @@ export interface StallDraftPayload {
     location: StallProfile['location'];
     deliveryFeePeso: number;
     pickupAvailable: boolean;
-    idType: string;
-    idNumber: string;
   };
 }
 
@@ -108,8 +106,8 @@ export function buildStallPayload(draft: StallFormDraft): StallDraftPayload {
     deliveryFeePeso: parseFloat(draft.deliveryFee),
     pickupAvailable: draft.pickupAvailable,
     verification: {
-      status: 'pending',
-      idType: 'Barangay Clearance',
+      status: 'verified',
+      idType: '',
       idNumber: '',
     },
     rating: 0,
@@ -127,8 +125,6 @@ export function buildStallPayload(draft: StallFormDraft): StallDraftPayload {
       location: profile.location,
       deliveryFeePeso: profile.deliveryFeePeso,
       pickupAvailable: profile.pickupAvailable,
-      idType: profile.verification.idType,
-      idNumber: profile.verification.idNumber,
     },
   };
 }

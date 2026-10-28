@@ -7,7 +7,6 @@ import { createNotification } from "./notifications";
 import { makeFunctionReference } from "convex/server";
 import {
   COD_REFUND_REPAYMENT_DEADLINE_MS,
-  COD_REFUND_SELLER_RESPONSE_MS,
   RETURN_REQUEST_WINDOW_MS,
   RETURN_WINDOW_CLOSED_MESSAGE,
   maskGcashNumber,
@@ -687,7 +686,7 @@ export const requestRefund = mutation({
       ...(isCod ? {
         refundGcashNumber,
         refundGcashName,
-        refundSellerResponseDueAt: Date.now() + COD_REFUND_SELLER_RESPONSE_MS,
+        refundSellerResponseDueAt: undefined,
         refundBuyerShipDueAt: undefined,
         refundRepaymentDueAt: undefined,
         refundBuyerResponseDueAt: undefined,
@@ -718,7 +717,9 @@ export const requestRefund = mutation({
       orderId: order._id,
       type: "refund_requested",
       title: "New refund request",
-      body: `Buyer requested a return for order #${order._id.slice(-6).toUpperCase()}: "${reason}". Approve or reject it within 2 days.`,
+      body: isCod
+        ? `Buyer requested a return for order #${order._id.slice(-6).toUpperCase()}: "${reason}". Approve or reject it. If approved, the buyer will ship the items to your stall.`
+        : `Buyer requested a return for order #${order._id.slice(-6).toUpperCase()}: "${reason}".`,
     });
     await createNotification(ctx, {
       userId: order.buyerId,
@@ -727,7 +728,7 @@ export const requestRefund = mutation({
       type: "refund_requested",
       title: "Return request submitted",
       body: isCod
-        ? `Your return request for order #${order._id.slice(-6).toUpperCase()} was sent to the seller. The seller has 2 days to respond.`
+        ? `Your return request for order #${order._id.slice(-6).toUpperCase()} was sent to the seller. You will be notified when the seller approves it.`
         : `Your return request for order #${order._id.slice(-6).toUpperCase()} was submitted for admin review.`,
     });
     return null;

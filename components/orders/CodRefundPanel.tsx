@@ -94,7 +94,7 @@ export function CodRefundPanel({
       )}
 
       {refund.status === 'refund-requested' && (
-        <Alert className="mt-3" type="info" showIcon title="Waiting for the seller" description={`The seller must approve or reject your return by ${deadline(refund.sellerResponseDueAt)}. If they do not respond, the request is escalated to the admin.`} />
+        <Alert className="mt-3" type="info" showIcon title="Waiting for the seller" description="The seller is reviewing your return request. Once approved, you can choose the courier and ship the items back." />
       )}
 
       {refund.status === 'seller-rejected' && (

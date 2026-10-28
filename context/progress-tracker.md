@@ -10,11 +10,12 @@ full Cash-on-Delivery order lifecycle are built and wired to Convex.
 ## Current Goal
 
 Verify the COD seller-funded refund workflow end-to-end with authenticated
-buyer, seller, and admin sessions, including deadlines, masked-number reveal,
+buyer, seller, and admin sessions, including buyer shipping and repayment
+deadlines, masked-number reveal,
 repayment proof, admin correction, commission credits, and payout blocking.
 The `ys8gxfew` refund-method correction is pending because no matching order
-exists in the dev or prod deployment. Stall Accounts replacement verification
-and seller verification follow.
+exists in the dev or prod deployment. Stall Accounts replacement work follows;
+stalls are auto-verified and do not require admin ID review.
 
 ## Completed
 
@@ -23,10 +24,13 @@ and seller verification follow.
 - Buyer COD refunds now require a GCash account name/number and use a
   seller-funded return workflow: `refund-requested`, seller approve/reject,
   `escalated`, `return-approved`, `return-in-transit`, `return-received`,
-  `repayment-submitted`, `buyer-confirmed`/`buyer-disputed`, then `refunded`.
-- Added deadline enforcement and hourly reminders for seller response, buyer
-  shipping, seller repayment, and buyer confirmation/dispute. Late repayment
-  submissions are accepted and flagged as overdue.
+  `repayment-submitted`, then `refunded`. Buyer confirmation records the refund
+  immediately; buyer disputes and buyer non-response still require admin review.
+- Seller review has no response deadline or escalation. Approving uses the
+  stall address automatically, then the buyer chooses the courier and ships
+  the return. Deadline enforcement and hourly reminders cover buyer shipping,
+  seller repayment, and buyer confirmation/dispute. Late repayment submissions
+  are accepted and flagged as overdue.
 - Seller order queries expose only a masked GCash number. Sellers reveal the
   full number only at `return-received`, which writes a refund event. Buyer,
   seller, and admin panels show the timeline and required actions.
@@ -39,7 +43,10 @@ and seller verification follow.
   and `refundAffectsPlatformGcash: false`.
 - Payout requests are blocked while a COD refund is overdue; seller payout
   and attention surfaces show the blocking amount.
-- Refunded paid GCash invoices create `commissionCredits`; credits are applied
+- COD commission is waived as soon as the buyer confirms receiving the
+  seller's refund. That confirmation also records the refund and closes the
+  order, so no admin closeout is needed unless the buyer disputes or does not respond.
+  Refunded paid GCash invoices create `commissionCredits`; credits are applied
   before the next invoice is issued, and the seller Platform tab shows
   available refund credit and per-invoice credit applied.
 - `npx tsc --noEmit`, `npm run lint` (existing warnings only), and
@@ -251,7 +258,7 @@ and seller verification follow.
 
 - Seller shell with 8 sections and a mobile drawer.
 - Onboarding: stall creation with farm type, full address, delivery
-  fee, pickup availability, and government ID for verification.
+  fee, and pickup availability. Stalls are auto-verified; no ID is collected.
 - Dashboard with today's orders, pending, in-transit, completed,
   cancelled, and total sales.
 - Product management: list, create, edit, archive/delete, mark out of
@@ -312,9 +319,9 @@ and seller verification follow.
 - Admin sign-in promotes the verified, allowlisted Clerk account and
   routes to `/admin`, with a server-guarded admin shell and sidebar links
   for GCash account management, payment verification, payout approval,
-  return review, and seller verification. GCash account management,
-  payment review, and the full audited return workflow through refund
-  closeout are implemented. Seller verification remains unimplemented.
+  and return review. GCash account management, payment review, and the full
+  audited return workflow through refund closeout are implemented. Seller ID
+  verification was removed; stalls are auto-verified.
 - `/admin/sales` shows platform totals and per-stall totals, with verified
   admin authorization in the Convex query, stall drill-down, filters,
   pagination, and CSV export. Refunded orders remain visible and are
@@ -330,9 +337,8 @@ and seller verification follow.
   they contain different orders. Orders with a pending refund remain on hold.
   Eligibility starts after the 24-hour buyer return window and excludes
   already reserved orders.
-- Admin payout review shows stall identity, location, verification status,
-  submitted ID details, GCash destination, requested amount, and selected
-  order dates, payment methods, and amounts.
+- Admin payout review shows stall identity, location, GCash destination,
+  requested amount, and selected order dates, payment methods, and amounts.
   Admins can reject with a reason or record a sent transfer with its
   reference. Paid/rejected actions are written to the admin audit log, and
   rejected requests release their orders.
@@ -421,9 +427,6 @@ and seller verification follow.
   replaced admin routes.
 - Run the authenticated finance walkthrough against real orders, payouts,
   refunds, and reconciliations; verify expected GCash against the admin account.
-- Implement seller verification after its data and audit requirements
-  are specified.
-- Add an actor that moves stall verification status to verified.
 - Replace the demo/mock session layer with Convex-only reads for signed-in users.
 - Restore or reseed the dev COD fixture and verify the Platform Unbilled
   amount against the actual seller finance and commissions responses.

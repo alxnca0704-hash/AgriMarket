@@ -468,7 +468,7 @@ export function AdminFinanceView() {
                     <div><p className="text-xs text-stone-500">Payment</p><p className="font-medium uppercase">{order.paymentMethod}</p></div>
                     <div><p className="text-xs text-stone-500">Items subtotal</p><p className="font-medium">{formatPrice(order.itemsSubtotal)}</p></div>
                     <div><p className="text-xs text-stone-500">Delivery fee</p><p className="font-medium">{formatPrice(order.deliveryFee)}</p></div>
-                    <div><p className="text-xs text-stone-500">Commission</p><p className="font-medium">{formatPrice(order.commission)}</p></div>
+                    <div><p className="text-xs text-stone-500">Commission</p><p className="font-medium">{formatPrice(order.commissionAmount)}</p></div>
                   </div>
                   <p className="mt-3 text-xs text-stone-500">
                     {order.paymentMethod === 'cod'

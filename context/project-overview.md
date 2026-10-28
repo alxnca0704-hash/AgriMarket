@@ -13,8 +13,7 @@ earnings, payout requests, and reviews from a dedicated seller area.
 An **admin** operates the platform. The admin manages the system GCash
 account (QR code and number) used for buyer payments, verifies GCash
 payment proofs, reviews return requests against order IDs and payment
-references, approves and pays out seller payout requests, and reviews
-seller verification. Admins are not
+references, and approves and pays out seller payout requests. Admins are not
 self-signup: they are promoted manually, and every admin action is
 enforced server-side and recorded in an audit log.
 
@@ -31,7 +30,7 @@ Sellers select specific orders from eligible earnings and request payout by
 submitting their GCash account name and number. Completed, paid orders become eligible after the
 24-hour return window; orders with an open return hold remain excluded until
 the return is rejected or the refund is recorded. Admins review the request
-alongside the stall's location and verification details, then reject with a
+alongside the stall's location details, then reject with a
 reason or record the GCash transfer reference to close the payout. The app
 records the transaction but does not move money. Multiple payout requests
 may remain pending when they reserve different orders.
@@ -87,7 +86,7 @@ in their live order details.
 |---|---|---|
 | **Buyer** | `/home`, `/shops`, `/cart`, `/checkout`, `/orders` | Browse, order, pay (COD or GCash), confirm receipt, request refunds, review |
 | **Seller** | Seller area (dashboard, products, orders, earnings, settings) | Manage stall and catalogue, fulfil orders, request payouts |
-| **Admin** | `/admin/*` only | Manage GCash QR and number, verify payments, review return requests by order ID and payment reference, approve payouts, review seller verification |
+| **Admin** | `/admin/*` only | Manage GCash QR and number, verify payments, review return requests by order ID and payment reference, approve payouts |
 
 The admin home at `/admin` is the platform dashboard and first admin
 navigation item. It summarizes GCash balance ownership, collected and pending

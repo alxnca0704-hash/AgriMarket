@@ -13,7 +13,6 @@ export const APP_ROUTES = {
   adminDeposits: '/admin/deposits',
   adminCommissions: '/admin/commissions',
   adminReceivables: '/admin/receivables',
-  adminSellerVerification: '/admin/seller-verification',
   adminSales: '/admin/sales',
   adminFinance: '/admin/finance',
   adminStalls: '/admin/stalls',

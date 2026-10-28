@@ -106,7 +106,7 @@
   Numeric seven-day deadlines are backfilled for legacy stalls by the
   scheduled worker; overdue is a display/notification state and does not
   hide or suspend stalls. New stall fields remain optional for rollout.
-- **COD commissions**: `commissionAccruals` stores one row per completed COD order using the shared `COMMISSION_RATE` (5% of item subtotal, delivery excluded); its optional rate snapshot and amount preserve values set when the accrual is created. Existing accrual amounts are never recalculated. GCash uses the same rate in the separate payout commission ledger. `commissionInvoices` bundles accrued rows weekly when the stall total reaches ₱50, and `commissionPayments` tracks unique GCash references and manual review. Commission is separate from sales and payout eligibility. Refunded orders waive an accrual; invoiced amounts and append-only invoice events are adjusted. Every admin payment decision rechecks the verified allowlisted email and writes both the admin audit log and invoice event.
+- **COD commissions**: `commissionAccruals` stores one row per completed COD order using the shared `COMMISSION_RATE` (5% of item subtotal, delivery excluded); its optional rate snapshot and amount preserve values set when the accrual is created. Existing accrual amounts are never recalculated. GCash uses the same rate in the separate payout commission ledger. `commissionInvoices` bundles accrued rows weekly when the stall total reaches ₱50, and `commissionPayments` tracks unique GCash references and manual review. Commission is separate from sales and payout eligibility. Refunded orders waive an accrual; COD accruals are waived when the buyer confirms the seller's refund, and invoiced amounts and append-only invoice events are adjusted. Every admin payment decision rechecks the verified allowlisted email and writes both the admin audit log and invoice event.
 - **Admin return review**: within 24 hours of delivery, a buyer can
   submit a 10–500 character reason plus 1–5 Cloudinary photo/video URLs.
   The server enforces the cutoff using `deliveredAt`. The order records
@@ -115,12 +115,12 @@
   reference, plus the buyer's reason and evidence. Admins approve or
   reject with an audit entry. Approval snapshots the seller return
   address; the buyer submits courier/tracking details; the seller
-  confirms receipt; then the admin records the actual refund reference
-  and disbursement method (GCash to the buyer's saved number or cash
-  handoff) and releases the hold. COD refunds are separate outgoing
-  payments because the original payment was collected in cash on delivery.
-  Payout eligibility must exclude held orders. Returned goods are not
-  automatically restocked.
+  confirms receipt. GCash returns require the admin to record the refund
+  reference and disbursement method. For COD, buyer confirmation records the
+  seller-funded refund immediately; the admin records it only when the buyer disputes or
+  does not respond. COD refunds are separate outgoing payments because the
+  original payment was collected in cash on delivery. Payout eligibility must
+  exclude held orders. Returned goods are not automatically restocked.
 - **In-memory demo layer** (`lib/mockSession.ts`, `lib/mockCatalog.ts`,
   `lib/mockEarnings.ts`, `lib/mockNotifications.ts`, `lib/demoSeed.ts`):
   backs the landing page and any unauthenticated or not-yet-migrated
@@ -142,7 +142,7 @@
   request at most. Eligibility begins 24 hours after
   delivery (the buyer return window), requires `completed` and paid status,
   and excludes any active `refundPayoutHold`. The admin queue includes the
-  stall's current identity, location, and verification details for review. Admins may
+  stall's current identity and location for review. Admins may
   reject with a reason (releasing reserved orders) or mark paid after
   recording a GCash transfer reference. The app does not execute transfers.
 - **Buyer/seller messages**: one conversation is shared by each buyer and
@@ -172,8 +172,8 @@
   only after a successful authenticated sign-in. `/admin` checks both
   the allowlisted primary email and admin metadata server-side. GCash
   settings, payment review, and return request queue functions also
-  check the allowlisted, verified email inside Convex. Seller verification
-  remains unimplemented.
+  check the allowlisted, verified email inside Convex. Stalls are auto-verified
+  at creation; admin ID verification is not part of the flow.
 - Ownership is always checked inside the function, never inferred from
   the caller: `getBuyerOrder` (`order.buyerId === buyerId`),
   `requireSellerOrder` (`order.sellerId === sellerId`),

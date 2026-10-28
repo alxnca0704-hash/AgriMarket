@@ -13,7 +13,6 @@ import {
   CreditCardOutlined,
   DollarOutlined,
   MenuOutlined,
-  SafetyCertificateOutlined,
   SettingOutlined,
   WalletOutlined,
   ShopOutlined,
@@ -34,7 +33,6 @@ const TABS = [
   { key: 'refunds', label: 'Review refunds', href: APP_ROUTES.adminRefunds, icon: <CheckCircleOutlined /> },
   { key: 'deposits', label: 'Deposits', href: APP_ROUTES.adminDeposits, icon: <WalletOutlined /> },
   { key: 'commissions', label: 'Commissions', href: APP_ROUTES.adminCommissions, icon: <DollarOutlined /> },
-  { key: 'sellerVerification', label: 'Seller verification', href: APP_ROUTES.adminSellerVerification, icon: <SafetyCertificateOutlined /> },
 ] as const;
 
 function resolveActiveKey(pathname: string): string | null {

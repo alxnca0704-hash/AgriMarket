@@ -44,7 +44,6 @@ export function CodRefundPanel({
   onReportNumberIssue,
   onRevealNumber,
 }: CodRefundPanelProps) {
-  const [returnAddress, setReturnAddress] = useState<string | null>(null);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [issueOpen, setIssueOpen] = useState(false);
@@ -60,7 +59,6 @@ export function CodRefundPanel({
 
   const pending = (action: OrderAction) => isActionPending(action, orderId);
   const repayable = refund.status === 'return-received' || refund.status === 'buyer-disputed';
-  const returnAddressValue = returnAddress ?? refund.returnAddress ?? refund.defaultReturnAddress ?? '';
   const referenceValue = reference ?? refund.repaymentReference ?? '';
   const repaymentOpen = repaymentOverride ?? (
     (refund.status === 'return-received' && Boolean(refund.repaymentRejectReason))
@@ -68,8 +66,7 @@ export function CodRefundPanel({
   );
 
   const approve = async () => {
-    if (returnAddressValue.trim().length < 10) return;
-    await onApprove(returnAddressValue);
+    await onApprove('');
   };
 
   const reject = async () => {
@@ -141,23 +138,15 @@ export function CodRefundPanel({
 
       {refund.status === 'refund-requested' && (
         <div className="mt-3 space-y-3 rounded-xl bg-white p-4">
-          <p className="text-sm text-stone-700"><strong className="font-semibold">Respond by {deadline(refund.sellerResponseDueAt)}.</strong> If you do not respond, the request is escalated to the admin.</p>
-          <div>
-            <Typography.Text type="secondary" className="text-xs">Return address</Typography.Text>
-            <Input.TextArea
-              rows={2}
-              maxLength={300}
-              value={returnAddressValue}
-              onChange={(event) => setReturnAddress(event.target.value)}
-              placeholder="Where the buyer should ship the returned goods"
-              className="mt-1.5"
-            />
+          <p className="text-sm text-stone-700"><strong className="font-semibold">Review the return request.</strong> If approved, the buyer will choose the courier and ship the items to your stall.</p>
+          <div className="rounded-xl bg-stone-50 p-3">
+            <p className="text-xs text-stone-500">Return destination</p>
+            <p className="mt-1 text-sm text-stone-800">{refund.defaultReturnAddress || 'Your registered stall address'}</p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <Button
               type="primary"
               loading={pending(ORDER_ACTIONS.approveCodReturn)}
-              disabled={returnAddressValue.trim().length < 10}
               onClick={() => void approve()}
               className="!rounded-xl"
             >

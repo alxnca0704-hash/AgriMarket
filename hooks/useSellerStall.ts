@@ -141,8 +141,6 @@ export function useSellerStall() {
           },
           deliveryFeePeso: parseFloat(draft.deliveryFee),
           pickupAvailable: draft.pickupAvailable,
-          idType: stall.verification.idType,
-          idNumber: stall.verification.idNumber,
         },
       });
 

@@ -112,7 +112,7 @@ const stallFinanceValidator = v.object({
   stallId: v.id("stalls"), stallName: v.string(),
   orders: v.array(v.object({
     orderId: v.id("orders"), date: v.string(), paymentMethod: v.union(v.literal("cod"), v.literal("gcash")),
-    itemsSubtotal: v.number(), deliveryFee: v.number(), commission: v.number(), status: orderStatusValidator,
+    itemsSubtotal: v.number(), deliveryFee: v.number(), commissionAmount: v.number(), netPayoutAmount: v.union(v.number(), v.null()), status: orderStatusValidator,
     invoiceNumber: v.union(v.string(), v.null()), payoutReference: v.union(v.string(), v.null()),
     refundAmount: v.union(v.number(), v.null()), refundMethod: v.union(v.literal("gcash"), v.literal("cash"), v.literal("seller-gcash"), v.null()),
     refundReference: v.union(v.string(), v.null()), refundConfirmedAt: v.union(v.string(), v.null()),
@@ -617,7 +617,8 @@ export const getAdminFinanceStall = query({
         paymentMethod: order.paymentMethod,
         itemsSubtotal: order.subtotal,
         deliveryFee: order.deliveryFee,
-        commission,
+        commissionAmount: commission,
+        netPayoutAmount: order.netPayoutAmount ?? null,
         status: order.status,
         invoiceNumber,
         payoutReference,

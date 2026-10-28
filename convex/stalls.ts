@@ -1,4 +1,4 @@
-import { mutation, query } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { Doc } from "./_generated/dataModel";
 import { QueryCtx, MutationCtx } from "./_generated/server";
@@ -46,14 +46,13 @@ export const createStall = mutation({
     }
 
     const now = new Date().toISOString();
-    const { idType, idNumber, ...stall } = args.stall;
     const id = await ctx.db.insert("stalls", {
       ownerId: user._id,
-      ...stall,
+      ...args.stall,
       verification: {
-        status: "pending",
-        idType: idType.trim() || "Barangay Clearance",
-        idNumber: idNumber.trim(),
+        status: "verified",
+        idType: "",
+        idNumber: "",
       },
       rating: 0,
       ratingCount: 0,
@@ -96,15 +95,28 @@ export const updateStall = mutation({
       location: args.stall.location,
       deliveryFeePeso: args.stall.deliveryFeePeso,
       pickupAvailable: args.stall.pickupAvailable,
-      verification: {
-        ...current.verification,
-        idType: args.stall.idType.trim() || current.verification.idType,
-        idNumber: args.stall.idNumber.trim(),
-      },
       updatedAt: new Date().toISOString(),
     });
 
     const updated = await ctx.db.get("stalls", args.stallId);
     return updated ?? current;
+  },
+});
+
+export const autoVerifyStalls = internalMutation({
+  args: {},
+  returns: v.number(),
+  async handler(ctx) {
+    const stalls = await ctx.db.query("stalls").take(1000);
+    let updated = 0;
+    for (const stall of stalls) {
+      if (stall.verification.status === "verified" && !stall.verification.idNumber) continue;
+      await ctx.db.patch("stalls", stall._id, {
+        verification: { status: "verified", idType: "", idNumber: "" },
+        updatedAt: new Date().toISOString(),
+      });
+      updated++;
+    }
+    return updated;
   },
 });

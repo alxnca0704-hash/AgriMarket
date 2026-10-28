@@ -121,7 +121,8 @@ export interface StallFinanceOrder {
   paymentMethod: 'cod' | 'gcash';
   itemsSubtotal: number;
   deliveryFee: number;
-  commission: number;
+  commissionAmount: number;
+  netPayoutAmount: number | null;
   status: OrderStatus;
   invoiceNumber: string | null;
   payoutReference: string | null;

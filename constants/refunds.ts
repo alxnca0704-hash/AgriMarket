@@ -3,7 +3,6 @@ export const RETURN_REQUEST_WINDOW_MS = 24 * 60 * 60 * 1000;
 export const RETURN_WINDOW_CLOSED_MESSAGE =
   'The 24-hour return window for this order has closed.';
 
-export const COD_REFUND_SELLER_RESPONSE_MS = 2 * 24 * 60 * 60 * 1000;
 export const COD_REFUND_BUYER_SHIP_MS = 3 * 24 * 60 * 60 * 1000;
 export const COD_REFUND_REPAYMENT_DEADLINE_MS = 3 * 24 * 60 * 60 * 1000;
 export const COD_REFUND_BUYER_RESPONSE_MS = 3 * 24 * 60 * 60 * 1000;

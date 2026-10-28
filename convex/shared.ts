@@ -66,8 +66,6 @@ export const stallInputValidator = v.object({
   location: stallLocationValidator,
   deliveryFeePeso: v.number(),
   pickupAvailable: v.boolean(),
-  idType: v.string(),
-  idNumber: v.string(),
 });
 
 export const deliveryAddressValidator = addressValidator.omit("isDefault");

@@ -188,7 +188,7 @@ export const approveCodReturn = mutation({
       refundBuyerShipDueAt: Date.now() + COD_REFUND_BUYER_SHIP_MS,
       refundEvents: [
         ...(order.refundEvents ?? []),
-        makeRefundEvent("seller-approved", "Seller approved the return and provided the return address.", "seller", now),
+        makeRefundEvent("seller-approved", "Seller approved the return; the buyer will ship to the stall address.", "seller", now),
       ],
       events: [...order.events, { status: "return-approved", label: "Seller approved the return", at: now }],
       updatedAt: now,
@@ -476,6 +476,48 @@ export const updateCodRefundNumber = mutation({
   },
 });
 
+async function finalizeCodRefund(
+  ctx: MutationCtx,
+  order: Doc<"orders">,
+  options: { recordedBy: string; eventLabel: string; includeBuyerConfirmation: boolean }
+) {
+  const reference = normalizedReference(order.refundRepaymentReference ?? "");
+  if (!reference) throw new Error("The seller's refund reference is missing.");
+  if (!order.refundRepaymentProofUrl) throw new Error("The seller's refund proof is missing.");
+  const now = new Date().toISOString();
+  const refundEvents = [...(order.refundEvents ?? [])];
+  const events = [...order.events];
+  if (options.includeBuyerConfirmation) {
+    refundEvents.push(makeRefundEvent("buyer-confirmed", "Buyer confirmed receiving the refund.", "buyer", now));
+    events.push({ status: "buyer-confirmed", label: "Buyer confirmed the refund was received", at: now });
+  }
+  refundEvents.push(makeRefundEvent("refund-recorded", options.eventLabel, "system", now));
+  events.push({ status: "refunded", label: `Refund recorded · ${COD_REFUND_METHOD_LABEL}`, at: now });
+  await ctx.db.patch("orders", order._id, {
+    status: "refunded",
+    refundPayoutHold: false,
+    refundConfirmedAt: now,
+    refundMethod: "seller-gcash",
+    refundFundedBy: "seller",
+    refundAffectsPlatformGcash: false,
+    refundReference: reference,
+    refundAmount: order.total,
+    refundRecordedBy: options.recordedBy,
+    refundRecordedAt: now,
+    refundBuyerConfirmedAt: order.refundBuyerConfirmedAt ?? now,
+    refundBuyerResponse: "received",
+    refundBuyerResponseAt: order.refundBuyerResponseAt ?? now,
+    refundBuyerResponseDueAt: undefined,
+    refundBuyerDidNotRespond: false,
+    refundOverdue: false,
+    refundEvents,
+    events,
+    updatedAt: now,
+  });
+  await ctx.runMutation(waiveRefundedOrderRef, { orderId: order._id });
+  return now;
+}
+
 export const confirmCodRefundReceived = mutation({
   args: { orderId: v.id("orders") },
   returns: v.null(),
@@ -483,37 +525,47 @@ export const confirmCodRefundReceived = mutation({
     const order = await getBuyerOwnedOrder(ctx, args.orderId);
     if (order.paymentMethod !== "cod") throw new Error("COD refund not found.");
     assertStatus(order, "repayment-submitted");
-    const now = new Date().toISOString();
-    await ctx.db.patch("orders", order._id, {
-      status: "buyer-confirmed",
-      refundBuyerConfirmedAt: now,
-      refundBuyerResponse: "received",
-      refundBuyerResponseAt: now,
-      refundBuyerResponseDueAt: undefined,
-      refundBuyerDidNotRespond: false,
-      refundEvents: [
-        ...(order.refundEvents ?? []),
-        makeRefundEvent("buyer-confirmed", "Buyer confirmed receiving the refund.", "buyer", now),
-      ],
-      events: [...order.events, { status: "buyer-confirmed", label: "Buyer confirmed the refund was received", at: now }],
-      updatedAt: now,
+    await finalizeCodRefund(ctx, order, {
+      recordedBy: "buyer-confirmation",
+      eventLabel: "Refund recorded automatically after buyer confirmation.",
+      includeBuyerConfirmation: true,
     });
     await createNotification(ctx, {
       userId: order.sellerId,
       role: "seller",
       orderId: order._id,
       type: "cod_refund_buyer_confirmed",
-      title: "Buyer confirmed the refund",
-      body: `The buyer confirmed receiving your refund for order ${orderLabel(order._id)}. The admin will record it.`,
+      title: "Refund completed",
+      body: `The buyer confirmed receiving your refund for order ${orderLabel(order._id)}. The return and refund are now closed.`,
     });
     await notifyAdmin(
       ctx,
       "cod_refund_buyer_confirmed",
-      "Buyer confirmed refund",
-      `Buyer confirmed the refund for order ${orderLabel(order._id)}. It can now be recorded.`,
+      "COD refund completed",
+      `Buyer confirmed the refund for order ${orderLabel(order._id)}; the refund was recorded automatically.`,
       order._id
     );
     return null;
+  },
+});
+
+export const finalizeConfirmedCodRefunds = internalMutation({
+  args: {},
+  returns: v.number(),
+  async handler(ctx) {
+    const orders = await ctx.db.query("orders").collect();
+    let finalized = 0;
+    for (const order of orders) {
+      if (order.paymentMethod !== "cod" || order.status !== "buyer-confirmed") continue;
+      if (!order.refundRepaymentReference || !order.refundRepaymentProofUrl) continue;
+      await finalizeCodRefund(ctx, order, {
+        recordedBy: "buyer-confirmation-migration",
+        eventLabel: "Refund recorded from the buyer's confirmation.",
+        includeBuyerConfirmation: false,
+      });
+      finalized++;
+    }
+    return finalized;
   },
 });
 
@@ -1035,45 +1087,6 @@ export const processCodRefundDeadlines = internalMutation({
     const at = new Date(now).toISOString();
     const byStatus = async (status: Doc<"orders">["status"]) =>
       ctx.db.query("orders").withIndex("by_status", (q) => q.eq("status", status)).take(500);
-
-    for (const order of (await byStatus("refund-requested")).filter((item) => item.paymentMethod === "cod")) {
-      const dueAt = order.refundSellerResponseDueAt;
-      if (!dueAt) continue;
-      if (now > dueAt) {
-        const events = [
-          ...(order.refundEvents ?? []),
-          makeRefundEvent("seller-did-not-respond", "Seller did not respond in time; request escalated to admin.", "system", at),
-        ];
-        await ctx.db.patch("orders", order._id, {
-          status: "escalated",
-          refundSellerDidNotRespond: true,
-          refundEscalatedAt: at,
-          refundSellerResponseDueAt: undefined,
-          refundEvents: events,
-          events: [...order.events, { status: "escalated", label: "Seller did not respond; escalated to admin", at }],
-          updatedAt: at,
-        });
-        await notifyAdmin(ctx, "cod_refund_seller_no_response", "Seller did not respond", `Seller did not respond to the refund for order ${orderLabel(order._id)}.`, order._id);
-        await createNotification(ctx, {
-          userId: order.buyerId,
-          role: "buyer",
-          orderId: order._id,
-          type: "cod_refund_escalated",
-          title: "Refund escalated to admin",
-          body: `The seller did not respond to your return for order ${orderLabel(order._id)}. The admin will review it.`,
-        });
-      } else if (dueAt - now <= COD_REFUND_REMINDER_LEAD_MS && !order.refundSellerReminderSentAt) {
-        await ctx.db.patch("orders", order._id, { refundSellerReminderSentAt: at, updatedAt: at });
-        await createNotification(ctx, {
-          userId: order.sellerId,
-          role: "seller",
-          orderId: order._id,
-          type: "cod_refund_response_reminder",
-          title: "Refund request due tomorrow",
-          body: `Respond to the return for order ${orderLabel(order._id)} within 1 day or it will be escalated to the admin.`,
-        });
-      }
-    }
 
     for (const order of (await byStatus("return-approved")).filter((item) => item.paymentMethod === "cod")) {
       const dueAt = order.refundBuyerShipDueAt;

@@ -193,7 +193,7 @@ export function AdminStallsView() {
                 <div className="min-w-0">
                   <p className="font-medium text-stone-900 whitespace-nowrap truncate">{row.stallName}</p>
                   <p className="mt-1 text-xs text-stone-500 whitespace-nowrap truncate">
-                    {row.sellerName} · {row.verificationStatus}
+                    {row.sellerName}
                   </p>
                 </div>
                 <div>
@@ -257,7 +257,7 @@ export function AdminStallsView() {
                   <div className="min-w-0">
                     <p className="font-medium text-stone-900">{row.stallName}</p>
                     <p className="mt-1 text-xs text-stone-500">
-                      {row.sellerName} · {row.verificationStatus}
+                      {row.sellerName}
                     </p>
                   </div>
                   <RightOutlined className="mt-1 text-stone-400" />

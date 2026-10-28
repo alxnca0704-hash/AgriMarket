@@ -9,23 +9,36 @@ Feature-complete MVP. Buyer, seller, COD, GCash payments, payouts, refunds, comm
 ## Current Goal
 
 Verify the COD seller-funded refund workflow with authenticated buyer, seller,
-and admin sessions, including deadline reminders, masked-number reveal,
+and admin sessions, including buyer shipping and repayment deadlines,
+masked-number reveal,
 repayment proof and duplicates, admin method correction, commission credits,
 and payout blocking. The `ys8gxfew` correction is blocked because no matching
-order/refund exists in dev or prod. Completing and verifying Stall Accounts,
-then seller verification, follows. Keep the legacy finance, receivables, and
-sales page components and shared queries until parity is verified.
+order/refund exists in dev or prod. Completing and verifying Stall Accounts
+follows. Stalls are auto-verified; seller ID collection and admin verification
+were removed. Keep the legacy finance, receivables, and sales page components
+and shared queries until parity is verified.
 
 ## Just Completed
+
+- Fixed admin stall order history GCash net payouts to include delivery fee via shared `getGcashNetToSeller`; rows and the GCash balance card now match.
+
+### Stall verification
+
+- New stalls are auto-verified. Seller onboarding no longer collects or submits
+  an ID, existing stalls were migrated to verified, and the pending-ID admin
+  surfaces, payout ID details, route, and navigation entry were removed.
 
 ### COD seller-funded refunds
 
 - Buyer COD refund requests collect the refund GCash name/number and move
-  through seller approval, return shipping, goods receipt, seller repayment
-  with proof, and buyer confirmation or dispute, ending in `refunded`.
-- Deadlines and hourly reminders cover seller response, buyer shipping,
-  seller repayment, and buyer response. Late repayment is accepted and
-  flagged as overdue.
+  through seller approval, return shipping, goods receipt, and seller repayment
+  with proof. Buyer confirmation immediately records the refund and closes the
+  order as `refunded`; disputes and buyer non-response still require admin review.
+- Seller review has no deadline or escalation. Approval uses the stall
+  address automatically, then the buyer chooses the courier and ships the
+  return. Deadlines and hourly reminders cover buyer shipping, seller
+  repayment, and buyer response. Late repayment is accepted and flagged as
+  overdue.
 - Sellers see only a masked GCash number; the full number is revealed only
   after goods are received, with a refund event recorded.
 - Admin review gained a COD tab with escalation/dispute resolution,
@@ -34,9 +47,10 @@ sales page components and shared queries until parity is verified.
 - COD refunds record `seller-gcash` / `seller` / platform-GCash `false`.
   Overdue refunds block payout requests, and the seller surfaces show the
   blocking amount.
-- Refunded paid GCash invoices create commission credits applied before the
-  next invoice; the Platform tab shows available credit and per-invoice
-  credit applied.
+- COD commission is waived when the buyer confirms receiving the refund, and
+  that confirmation records the refund without an extra admin step. Refunded
+  paid GCash invoices create commission credits applied before the next invoice;
+  the Platform tab shows available credit and per-invoice credit applied.
 - TypeScript, lint (existing warnings), and build pass. The `ys8gxfew`
   correction remains pending because no matching order/refund exists in dev
   or prod.
@@ -161,8 +175,7 @@ sales page components and shared queries until parity is verified.
    seller-ownership walkthrough, then remove and redirect replaced routes.
 3. Walk through deposit signup, partial top-up, rejection/resubmission,
    duplicate override, over-remaining rejection, and overdue behavior.
-4. Continue seller verification work from `context/progress-tracker.md`.
-5. Restore or reseed the dev COD fixture and verify the Platform Unbilled
+4. Restore or reseed the dev COD fixture and verify the Platform Unbilled
    figure against the actual `finance:getSellerFinance` and
    `commissions:getSellerCommissions` responses.
 

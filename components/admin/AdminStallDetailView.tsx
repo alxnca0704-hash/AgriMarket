@@ -6,6 +6,7 @@ import { ArrowLeftOutlined } from '@ant-design/icons';
 import { APP_ROUTES } from '@/constants/routes';
 import { useAdminStallDetail } from '@/hooks/useAdminStallDetail';
 import { formatPrice } from '@/lib/format';
+import { getGcashNetToSeller } from '@/lib/orderMoney';
 import { useAdminStalls } from '@/hooks/useAdminStalls';
 import type { StallFinanceOrder } from '@/types/finance';
 
@@ -33,7 +34,9 @@ export function AdminStallDetailView({ stallId }: { stallId: string }) {
     );
   }
 
-  const gcashBalance = stallRow?.gcashOwed ?? 0;
+  const gcashBalance = (data?.orders ?? [])
+    .filter((order) => order.paymentMethod === 'gcash' && order.status === 'completed' && !order.payoutReference)
+    .reduce((total, order) => total + getGcashNetToSeller(order), 0);
   const codOwed = stallRow?.codOwed ?? 0;
   const codOverdue = stallRow?.codOverdue ?? 0;
   const depositPaid = stallRow?.depositPaid ?? 0;
@@ -67,11 +70,7 @@ export function AdminStallDetailView({ stallId }: { stallId: string }) {
 
       <header className="space-y-1.5">
         <h1 className="text-2xl font-semibold text-stone-900 sm:text-3xl">{data?.stallName ?? 'Stall details'}</h1>
-        <div className="flex flex-wrap items-center gap-2 text-sm text-stone-500">
-          <span>{stallRow?.sellerName ?? 'Seller'}</span>
-          <span>·</span>
-          <Tag className="m-0">{stallRow?.verificationStatus ?? '—'}</Tag>
-        </div>
+        <p className="text-sm text-stone-500">{stallRow?.sellerName ?? 'Seller'}</p>
       </header>
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -131,7 +130,7 @@ export function AdminStallDetailView({ stallId }: { stallId: string }) {
               { title: 'Total items', dataIndex: 'itemsSubtotal', align: 'right' as const, render: (value: number) => <span className="tabular-nums">{formatPrice(value)}</span> },
               { title: 'Delivery fee', dataIndex: 'deliveryFee', align: 'right' as const, render: (value: number) => <span className="tabular-nums">{formatPrice(value)}</span> },
               { title: 'Amount', align: 'right' as const, render: (_: unknown, row: StallFinanceOrder) => <span className="tabular-nums font-medium">{formatPrice(row.itemsSubtotal + row.deliveryFee)}</span> },
-              { title: 'We owe seller / Owe platform', align: 'right' as const, render: (_: unknown, row: StallFinanceOrder) => <span className="tabular-nums">{row.status === 'refunded' ? 'Refunded' : row.paymentMethod === 'gcash' ? formatPrice(row.itemsSubtotal - row.commission) : formatPrice(row.commission)}</span> },
+              { title: 'We owe seller / Owe platform', align: 'right' as const, render: (_: unknown, row: StallFinanceOrder) => <span className="tabular-nums">{row.status === 'refunded' ? 'Refunded' : row.paymentMethod === 'gcash' ? row.payoutReference ? 'Paid out' : formatPrice(getGcashNetToSeller(row)) : formatPrice(row.commissionAmount)}</span> },
               { title: 'Refund record', render: (_: unknown, row: StallFinanceOrder) => row.status === 'refunded' ? <span className="text-xs">{formatPrice(row.refundAmount ?? row.itemsSubtotal + row.deliveryFee)} · {row.refundMethod?.toUpperCase() ?? 'Recorded'}</span> : '—' },
               { title: 'Status', dataIndex: 'status' },
             ]}
