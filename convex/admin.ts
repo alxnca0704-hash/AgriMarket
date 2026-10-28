@@ -56,7 +56,7 @@ const recordedRefundValidator = v.array(v.object({
   buyerName: v.string(),
   sellerName: v.string(),
   paymentMethod: v.union(v.literal("cod"), v.literal("gcash")),
-  refundMethod: v.union(v.literal("gcash"), v.literal("cash"), v.null()),
+  refundMethod: v.union(v.literal("gcash"), v.literal("cash"), v.literal("seller-gcash"), v.null()),
   refundReference: v.string(),
   refundAmount: v.number(),
   refundedAt: v.string(),
@@ -271,6 +271,9 @@ export const completeReturnRefund = mutation({
     const actorEmail = await requireAdminEmail(ctx);
     const order = await ctx.db.get("orders", args.orderId);
     if (!order || order.status !== "return-received") throw new Error("The seller must confirm receipt before the refund can be completed.");
+    if (order.paymentMethod === "cod") {
+      throw new Error("COD refunds are seller-funded. Use the COD refund review workflow so the seller repays the buyer first.");
+    }
     const refundReference = args.refundReference.trim();
     if (refundReference.length < 3 || refundReference.length > 100) throw new Error("Enter a refund transaction or cash receipt reference between 3 and 100 characters.");
     const buyer = await ctx.db.get("users", order.buyerId);

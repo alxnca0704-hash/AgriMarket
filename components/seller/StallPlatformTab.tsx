@@ -35,6 +35,7 @@ export function StallPlatformTab({ page }: StallPlatformTabProps) {
   const unbilledOrders = commissions.data?.unbilledOrders ?? [];
   const gcash = commissions.data?.gcash ?? null;
   const cod = finance.finance?.cod;
+  const creditsAvailable = commissions.data?.credits.available ?? 0;
   const unbilled = unbilledOrders.reduce((total, order) => total + order.amount, 0);
   const overdue = cod?.overdue ?? 0;
   const amountDueNow = Math.max(0, (cod?.invoiced ?? 0) + overdue);
@@ -82,7 +83,7 @@ export function StallPlatformTab({ page }: StallPlatformTabProps) {
         <p className="mt-1 text-sm text-stone-500">What you owe the platform: COD commission invoices and payments.</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StallStatCard
           label="Unbilled"
           value={formatPrice(unbilled)}
@@ -99,6 +100,12 @@ export function StallPlatformTab({ page }: StallPlatformTabProps) {
           value={formatPrice(overdue)}
           note={overdue > 0 ? 'Past the invoice due date' : 'Nothing past due'}
           tone={overdue > 0 ? 'error' : 'default'}
+        />
+        <StallStatCard
+          label="Refund credit"
+          value={formatPrice(creditsAvailable)}
+          note="Applied to your next invoice"
+          tone={creditsAvailable > 0 ? 'sage' : 'default'}
         />
       </div>
 
@@ -188,6 +195,9 @@ export function StallPlatformTab({ page }: StallPlatformTabProps) {
               <div className="mt-4 space-y-1.5">
                 <div className="flex justify-between gap-3"><span>Invoice amount</span><span className="tabular-nums">{formatPrice(selectedInvoice.amount)}</span></div>
                 <div className="flex justify-between gap-3"><span>Paid to date</span><span className="tabular-nums">{formatPrice(selectedInvoice.paidAmount)}</span></div>
+                {selectedInvoice.creditApplied > 0 && (
+                  <div className="flex justify-between gap-3 text-[#2D6A4F]"><span>Credit applied</span><span className="tabular-nums">-{formatPrice(selectedInvoice.creditApplied)}</span></div>
+                )}
                 <div className="flex justify-between gap-3 font-semibold text-stone-900"><span>Remaining</span><span className="tabular-nums">{formatPrice(selectedInvoice.remaining)}</span></div>
               </div>
             </div>

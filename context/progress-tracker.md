@@ -9,14 +9,43 @@ full Cash-on-Delivery order lifecycle are built and wired to Convex.
 
 ## Current Goal
 
-Implement and verify the Stall Accounts replacement across the admin finance
-surfaces. Initial read-only list/detail routes and a server aggregation are in
-progress. Finish list filters, summary cards, server pagination/sorting,
-reconciliation and exports, the detail tabs, seller parity checks, and the
-authenticated walkthrough before removing old admin routes. Seller
-verification follows.
+Verify the COD seller-funded refund workflow end-to-end with authenticated
+buyer, seller, and admin sessions, including deadlines, masked-number reveal,
+repayment proof, admin correction, commission credits, and payout blocking.
+The `ys8gxfew` refund-method correction is pending because no matching order
+exists in the dev or prod deployment. Stall Accounts replacement verification
+and seller verification follow.
 
 ## Completed
+
+### COD seller-funded refunds
+
+- Buyer COD refunds now require a GCash account name/number and use a
+  seller-funded return workflow: `refund-requested`, seller approve/reject,
+  `escalated`, `return-approved`, `return-in-transit`, `return-received`,
+  `repayment-submitted`, `buyer-confirmed`/`buyer-disputed`, then `refunded`.
+- Added deadline enforcement and hourly reminders for seller response, buyer
+  shipping, seller repayment, and buyer confirmation/dispute. Late repayment
+  submissions are accepted and flagged as overdue.
+- Seller order queries expose only a masked GCash number. Sellers reveal the
+  full number only at `return-received`, which writes a refund event. Buyer,
+  seller, and admin panels show the timeline and required actions.
+- Sellers submit a repayment reference and proof. Duplicate references block
+  submission unless an admin supplies an override reason.
+- Admin refund review gained a COD tab, escalation/dispute decisions,
+  repayment rejection, refund recording, and an audited method-correction
+  action. Legacy `completeReturnRefund` now refuses COD orders.
+- COD refunds set `refundMethod: "seller-gcash"`, `refundFundedBy: "seller"`,
+  and `refundAffectsPlatformGcash: false`.
+- Payout requests are blocked while a COD refund is overdue; seller payout
+  and attention surfaces show the blocking amount.
+- Refunded paid GCash invoices create `commissionCredits`; credits are applied
+  before the next invoice is issued, and the seller Platform tab shows
+  available refund credit and per-invoice credit applied.
+- `npx tsc --noEmit`, `npm run lint` (existing warnings only), and
+  `npm run build` pass. The requested `ys8gxfew` correction could not be
+  applied because no matching order/refund exists in the dev or prod
+  deployment.
 
 ### Seller Platform tab and COD accrual consistency
 

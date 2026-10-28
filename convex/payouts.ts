@@ -6,6 +6,7 @@ import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { orderStatusValidator } from "./shared";
 import { BLOCK_PAYOUT_WHEN_OVERDUE } from "../constants/commissions";
 import { COMMISSION_RATE } from "../constants/commissions";
+import { isCodRefundOverdue } from "./orderMoney";
 
 const payoutValidator = v.object({
   _id: v.id("payoutRequests"),
@@ -95,6 +96,8 @@ export const getSellerPayouts = query({
   returns: v.union(v.null(), v.object({
     eligibleAmount: v.number(),
     eligibleOrderCount: v.number(),
+    codRefundBlocked: v.boolean(),
+    codRefundOverdueAmount: v.number(),
     orders: v.array(sellerOrderValidator),
     requests: v.array(payoutValidator),
   })),
@@ -140,9 +143,12 @@ export const getSellerPayouts = query({
       };
     });
     const eligible = sellerOrders.filter((order) => order.payoutStatus === "ready");
+    const overdueCodRefunds = orders.filter((order) => isCodRefundOverdue(order));
     return {
       eligibleAmount: eligible.reduce((total, order) => total + order.amount, 0),
       eligibleOrderCount: eligible.length,
+      codRefundBlocked: overdueCodRefunds.length > 0,
+      codRefundOverdueAmount: overdueCodRefunds.reduce((total, order) => total + (order.refundAmount ?? order.total), 0),
       orders: sellerOrders,
       requests: requests.map((request) => ({
         _id: request._id,
@@ -201,6 +207,12 @@ export const requestPayout = mutation({
       const invoices = await ctx.db.query("commissionInvoices").withIndex("by_stallId", q => q.eq("stallId", stall._id)).take(200);
       if (invoices.some(invoice => invoice.amount > invoice.paidAmount && invoice.dueAt <= Date.now())) throw new Error("Payout requests are unavailable while a commission invoice is overdue.");
     }
+    const sellerOrders = await ctx.db.query("orders")
+      .withIndex("by_sellerId", (q) => q.eq("sellerId", user._id))
+      .take(500);
+    if (sellerOrders.some((order) => isCodRefundOverdue(order))) {
+      throw new Error("Payout requests are unavailable while you have an overdue COD refund. Send the refund and submit proof first.");
+    }
     const gcashName = args.gcashName.trim();
     const gcashNumber = args.gcashNumber.trim();
     const normalizedNumber = gcashNumber.replace(/[\s-]/g, "");
@@ -208,10 +220,7 @@ export const requestPayout = mutation({
     if (!/^(\+?63|0)?9\d{9}$/.test(normalizedNumber)) throw new Error("Enter a valid Philippine GCash mobile number.");
     if (args.orderIds.length < 1 || args.orderIds.length > 100) throw new Error("Select between 1 and 100 orders for this payout request.");
     if (new Set(args.orderIds).size !== args.orderIds.length) throw new Error("An order can only appear once in a payout request.");
-    const orders = await ctx.db.query("orders")
-      .withIndex("by_sellerId", (q) => q.eq("sellerId", user._id))
-      .take(500);
-    const selected = args.orderIds.map((orderId) => orders.find((order) => order._id === orderId));
+    const selected = args.orderIds.map((orderId) => sellerOrders.find((order) => order._id === orderId));
     if (selected.some((order) => !order || !isPayoutEligible(order, Date.now()))) {
       throw new Error("One or more selected orders are no longer eligible for payout.");
     }
@@ -328,6 +337,12 @@ export const recordPayoutSent = mutation({
     if (!request || request.status !== "pending") throw new Error("This payout request is no longer awaiting review.");
     const stall = await ctx.db.get("stalls", request.stallId);
     if (!stall) throw new Error("The seller's stall information is unavailable.");
+    const sellerOrders = await ctx.db.query("orders")
+      .withIndex("by_sellerId", (q) => q.eq("sellerId", request.sellerId))
+      .take(500);
+    if (sellerOrders.some((order) => isCodRefundOverdue(order))) {
+      throw new Error("This payout is blocked because the seller has an overdue COD refund.");
+    }
     const reference = args.transferReference.trim();
     if (reference.length < 3 || reference.length > 100) throw new Error("Enter a GCash transfer reference between 3 and 100 characters.");
     let verifiedTotal = 0;

@@ -38,10 +38,20 @@ const sellerCommissionDataValidator = v.union(v.null(), v.object({
   unbilledOrders: v.array(commissionOrderValidator),
   invoices: v.array(v.object({
     _id: v.id("commissionInvoices"), periodStart: v.string(), periodEnd: v.string(), amount: v.number(), paidAmount: v.number(), remaining: v.number(),
-    dueAt: v.number(), status: invoiceStatusValidator, pending: v.boolean(), canResubmit: v.boolean(),
+    creditApplied: v.number(), dueAt: v.number(), status: invoiceStatusValidator, pending: v.boolean(), canResubmit: v.boolean(),
     orders: v.array(commissionOrderValidator), payments: v.array(commissionPaymentValidator),
   })),
   gcash: v.union(v.null(), v.object({ qrUrl: v.string(), number: v.string() })),
+  credits: v.object({
+    available: v.number(),
+    entries: v.array(v.object({
+      _id: v.id("commissionCredits"),
+      sourceOrderId: v.id("orders"),
+      amount: v.number(),
+      remainingAmount: v.number(),
+      createdAt: v.string(),
+    })),
+  }),
 }));
 
 export const getSellerCommissions = query({
@@ -51,6 +61,8 @@ export const getSellerCommissions = query({
     const stall = await ctx.db.query("stalls").withIndex("by_ownerId", q => q.eq("ownerId", user._id)).first(); if (!stall) return null;
     const accruals = await ctx.db.query("commissionAccruals").withIndex("by_stallId_and_status", q => q.eq("stallId", stall._id).eq("status", "accrued")).take(500);
     const invoices = await ctx.db.query("commissionInvoices").withIndex("by_stallId", q => q.eq("stallId", stall._id)).order("desc").take(100);
+    const creditRows = await ctx.db.query("commissionCredits").withIndex("by_stallId", q => q.eq("stallId", stall._id)).take(500);
+    const credits = creditRows.filter(credit => credit.remainingAmount > 0).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     const gcash = await ctx.db.query("gcashSettings").withIndex("by_key", q => q.eq("key", "primary")).first();
     const unbilledPairs = (await resolveCodCommissionAccruals(ctx, accruals)).filter(pair => pair.eligible);
     const unbilledOrders = unbilledPairs
@@ -69,6 +81,7 @@ export const getSellerCommissions = query({
       const pending = payments.some(payment => payment.status === "pending");
       return {
         _id: invoice._id, periodStart: invoice.periodStart, periodEnd: invoice.periodEnd, amount: invoice.amount, paidAmount: invoice.paidAmount, dueAt: invoice.dueAt,
+        creditApplied: roundMoney(invoice.events.filter(event => event.type === "credit_applied").reduce((total, event) => total + (event.amount ?? 0), 0)),
         status: currentStatus, remaining: invoiceRemaining(invoice), orders: items.filter((item): item is NonNullable<typeof item> => item !== null),
         payments: payments.map(payment => ({
           _id: payment._id, amount: payment.amount, referenceNumber: payment.referenceNumber, status: payment.status,
@@ -83,6 +96,16 @@ export const getSellerCommissions = query({
       unbilledOrders,
       invoices: hydrated,
       gcash: gcash ? { qrUrl: gcash.qrUrl, number: gcash.number } : null,
+      credits: {
+        available: roundMoney(credits.reduce((total, credit) => total + credit.remainingAmount, 0)),
+        entries: credits.map(credit => ({
+          _id: credit._id,
+          sourceOrderId: credit.sourceOrderId,
+          amount: credit.amount,
+          remainingAmount: credit.remainingAmount,
+          createdAt: credit.createdAt,
+        })),
+      },
     };
   },
 });
@@ -170,11 +193,53 @@ export const issueWeeklyInvoices = internalMutation({ args: {}, returns: v.null(
   for (const stall of stalls) {
     const accruals = await ctx.db.query("commissionAccruals").withIndex("by_stallId_and_status", q => q.eq("stallId", stall._id).eq("status", "accrued")).take(500);
     const pairs = (await resolveCodCommissionAccruals(ctx, accruals)).filter(pair => pair.eligible && pair.accrual.status === "accrued");
-    const amount = roundMoney(pairs.reduce((sum, pair) => sum + pair.amount, 0)); if (amount < MIN_INVOICE_AMOUNT) continue;
+    const grossAmount = roundMoney(pairs.reduce((sum, pair) => sum + pair.amount, 0)); if (grossAmount < MIN_INVOICE_AMOUNT) continue;
+    const creditRows = (await ctx.db.query("commissionCredits").withIndex("by_stallId", q => q.eq("stallId", stall._id)).take(500))
+      .filter(credit => credit.remainingAmount > 0)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || String(a._id).localeCompare(String(b._id)));
+    const applications: Array<{ credit: typeof creditRows[number]; applied: number }> = [];
+    let amount = grossAmount;
+    for (const credit of creditRows) {
+      if (amount <= 0) break;
+      const applied = roundMoney(Math.min(credit.remainingAmount, amount));
+      if (applied <= 0) continue;
+      applications.push({ credit, applied });
+      amount = roundMoney(amount - applied);
+    }
     const createdAt = new Date(now).toISOString(); const dueAt = now + INVOICE_DUE_MS;
-    const invoiceId = await ctx.db.insert("commissionInvoices", { stallId: stall._id, sellerId: stall.ownerId, periodStart: periodStart.toISOString(), periodEnd: periodEnd.toISOString(), amount, paidAmount: 0, status: "issued", dueAt, accrualIds: pairs.map(pair => pair.accrual._id), events: [{ type: "issued", label: "Weekly invoice issued", at: createdAt }], createdAt });
+    if (amount > 0 && amount < MIN_INVOICE_AMOUNT) continue;
+    if (amount === 0) {
+      for (const pair of pairs) await ctx.db.patch("commissionAccruals", pair.accrual._id, { status: "waived" });
+      for (const application of applications) {
+        await ctx.db.patch("commissionCredits", application.credit._id, {
+          remainingAmount: roundMoney(application.credit.remainingAmount - application.applied),
+          appliedAt: createdAt,
+        });
+      }
+      const remainingCredit = roundMoney(applications.reduce((sum, item) => sum + item.credit.remainingAmount - item.applied, 0));
+      await createNotification(ctx, {
+        userId: stall.ownerId,
+        role: "seller",
+        type: "commission_credit_applied",
+        title: "Commission credit covered this week",
+        body: `Your commission credit covered the ${pairs.length} COD orders due this week. Remaining credit: ₱${remainingCredit.toFixed(2)}. Open ${APP_ROUTES.sellerStallTab("platform")} to view it.`,
+      });
+      continue;
+    }
+    const invoiceEvents: Array<{ type: string; label: string; at: string; amount?: number }> = [{ type: "issued", label: "Weekly invoice issued", at: createdAt }];
+    for (const application of applications) invoiceEvents.push({ type: "credit_applied", label: "Commission credit applied", at: createdAt, amount: application.applied });
+    const invoiceId = await ctx.db.insert("commissionInvoices", { stallId: stall._id, sellerId: stall.ownerId, periodStart: periodStart.toISOString(), periodEnd: periodEnd.toISOString(), amount, paidAmount: 0, status: "issued", dueAt, accrualIds: pairs.map(pair => pair.accrual._id), events: invoiceEvents, createdAt });
     for (const pair of pairs) await ctx.db.patch("commissionAccruals", pair.accrual._id, { status: "invoiced", invoiceId });
-    await createNotification(ctx, { userId: stall.ownerId, role: "seller", refId: invoiceId, type: "commission_invoice_issued", title: "Weekly commission invoice", body: `Your ₱${amount.toFixed(2)} invoice covers ${pairs.length} orders and is due ${new Date(dueAt).toLocaleDateString("en-PH")}. Open ${APP_ROUTES.sellerStallTab("platform")} to pay.` });
+    for (const application of applications) {
+      await ctx.db.patch("commissionCredits", application.credit._id, {
+        remainingAmount: roundMoney(application.credit.remainingAmount - application.applied),
+        appliedInvoiceId: invoiceId,
+        appliedAt: createdAt,
+      });
+    }
+    const appliedTotal = roundMoney(applications.reduce((sum, item) => sum + item.applied, 0));
+    const creditNote = appliedTotal > 0 ? ` A credit of ₱${appliedTotal.toFixed(2)} was applied.` : "";
+    await createNotification(ctx, { userId: stall.ownerId, role: "seller", refId: invoiceId, type: "commission_invoice_issued", title: "Weekly commission invoice", body: `Your ₱${amount.toFixed(2)} invoice covers ${pairs.length} orders and is due ${new Date(dueAt).toLocaleDateString("en-PH")}.${creditNote} Open ${APP_ROUTES.sellerStallTab("platform")} to pay.` });
   }
   return null;
 } });
@@ -261,12 +326,51 @@ export const waiveRefundedOrder = internalMutation({ args: { orderId: v.id("orde
   if (!accrual || accrual.status === "waived") return null;
   const now = new Date().toISOString();
   if (accrual.status === "accrued") { await ctx.db.patch("commissionAccruals", accrual._id, { status: "waived" }); return null; }
-  if (!accrual.invoiceId) return null; const invoice = await ctx.db.get("commissionInvoices", accrual.invoiceId); if (!invoice) return null;
-  const newAmount = roundMoney(Math.max(0, invoice.amount - accrual.amount)); const paidAmount = invoice.paidAmount;
+  if (!accrual.invoiceId) {
+    await ctx.db.patch("commissionAccruals", accrual._id, { status: "waived" });
+    return null;
+  }
+  const invoice = await ctx.db.get("commissionInvoices", accrual.invoiceId);
+  if (!invoice) {
+    await ctx.db.patch("commissionAccruals", accrual._id, { status: "waived" });
+    return null;
+  }
+  const newAmount = roundMoney(Math.max(0, invoice.amount - accrual.amount));
+  const creditAmount = roundMoney(Math.max(0, invoice.paidAmount - newAmount));
+  const paidAmount = roundMoney(invoice.paidAmount - creditAmount);
   const status = paidAmount >= newAmount ? "paid" : invoice.dueAt <= Date.now() ? "overdue" : paidAmount > 0 ? "partial" : "issued";
   await ctx.db.patch("commissionAccruals", accrual._id, { status: "waived" });
-  await ctx.db.patch("commissionInvoices", invoice._id, { amount: newAmount, paidAmount, status, events: [...invoice.events, { type: "accrual_waived", label: "Refunded order commission waived", at: now, amount: accrual.amount }] });
-  await createNotification(ctx, { userId: accrual.sellerId, role: "seller", refId: invoice._id, type: "commission_waived", title: "Commission waived", body: `₱${accrual.amount.toFixed(2)} commission was removed from your invoice after the order refund.` });
+  const invoiceEvents: Array<{ type: string; label: string; at: string; amount?: number }> = [
+    ...invoice.events,
+    { type: "accrual_waived", label: "Refunded order commission waived", at: now, amount: accrual.amount },
+  ];
+  if (creditAmount > 0) invoiceEvents.push({ type: "credit_created", label: "Overpaid commission moved to credit", at: now, amount: creditAmount });
+  await ctx.db.patch("commissionInvoices", invoice._id, { amount: newAmount, paidAmount, status, events: invoiceEvents });
+  if (creditAmount > 0) {
+    const existing = await ctx.db.query("commissionCredits").withIndex("by_sourceOrderId", q => q.eq("sourceOrderId", args.orderId)).first();
+    if (existing) {
+      await ctx.db.patch("commissionCredits", existing._id, { amount: roundMoney(existing.amount + creditAmount), remainingAmount: roundMoney(existing.remainingAmount + creditAmount) });
+    } else {
+      await ctx.db.insert("commissionCredits", {
+        stallId: accrual.stallId,
+        sellerId: accrual.sellerId,
+        sourceOrderId: args.orderId,
+        amount: creditAmount,
+        remainingAmount: creditAmount,
+        createdAt: now,
+      });
+    }
+  }
+  await createNotification(ctx, {
+    userId: accrual.sellerId,
+    role: "seller",
+    refId: invoice._id,
+    type: creditAmount > 0 ? "commission_credit_created" : "commission_waived",
+    title: creditAmount > 0 ? "Commission credit created" : "Commission waived",
+    body: creditAmount > 0
+      ? `You already paid ₱${accrual.amount.toFixed(2)} commission for this refunded order. A ₱${creditAmount.toFixed(2)} credit will be applied to your next unpaid invoice.`
+      : `₱${accrual.amount.toFixed(2)} commission was removed from your invoice after the order refund.`,
+  });
   return null;
 } });
 

@@ -140,11 +140,63 @@ export default defineSchema({
     returnShippedAt: v.optional(v.string()),
     returnReceivedAt: v.optional(v.string()),
     refundConfirmedAt: v.optional(v.string()),
-    refundMethod: v.optional(v.union(v.literal("gcash"), v.literal("cash"))),
+    refundMethod: v.optional(v.union(v.literal("gcash"), v.literal("cash"), v.literal("seller-gcash"))),
+    refundFundedBy: v.optional(v.union(v.literal("seller"), v.literal("admin"))),
+    refundAffectsPlatformGcash: v.optional(v.boolean()),
     refundReference: v.optional(v.string()),
     refundAmount: v.optional(v.number()),
     refundRejectedAt: v.optional(v.string()),
     refundRejectReason: v.optional(v.string()),
+    refundGcashNumber: v.optional(v.string()),
+    refundGcashName: v.optional(v.string()),
+    refundSellerResponseDueAt: v.optional(v.number()),
+    refundBuyerShipDueAt: v.optional(v.number()),
+    refundRepaymentDueAt: v.optional(v.number()),
+    refundRepaymentRemainingMs: v.optional(v.number()),
+    refundBuyerResponseDueAt: v.optional(v.number()),
+    refundNumberIssue: v.optional(v.boolean()),
+    refundNumberIssueReason: v.optional(v.string()),
+    refundNumberIssueReportedAt: v.optional(v.string()),
+    refundSellerApprovedAt: v.optional(v.string()),
+    refundSellerRejectedAt: v.optional(v.string()),
+    refundSellerRejectReason: v.optional(v.string()),
+    refundEscalatedAt: v.optional(v.string()),
+    refundBuyerEscalatedAt: v.optional(v.string()),
+    refundEscalationDecision: v.optional(v.union(v.literal("approved"), v.literal("upheld"))),
+    refundEscalationReason: v.optional(v.string()),
+    refundRepaymentReference: v.optional(v.string()),
+    refundRepaymentProofUrl: v.optional(v.string()),
+    refundRepaymentSubmittedAt: v.optional(v.string()),
+    refundRepaymentRejectedAt: v.optional(v.string()),
+    refundRepaymentRejectReason: v.optional(v.string()),
+    refundBuyerConfirmedAt: v.optional(v.string()),
+    refundBuyerDisputedAt: v.optional(v.string()),
+    refundBuyerDisputeReason: v.optional(v.string()),
+    refundBuyerResponse: v.optional(v.union(v.literal("received"), v.literal("not-received"))),
+    refundBuyerResponseAt: v.optional(v.string()),
+    refundBuyerDidNotRespond: v.optional(v.boolean()),
+    refundSellerDidNotRespond: v.optional(v.boolean()),
+    refundDisputeCount: v.optional(v.number()),
+    refundOverdue: v.optional(v.boolean()),
+    refundOverdueAt: v.optional(v.string()),
+    refundClosedAt: v.optional(v.string()),
+    refundCloseReason: v.optional(v.string()),
+    refundSellerReminderSentAt: v.optional(v.string()),
+    refundRepaymentReminderSentAt: v.optional(v.string()),
+    refundBuyerReminderSentAt: v.optional(v.string()),
+    refundBuyerResponseReminderSentAt: v.optional(v.string()),
+    refundOverdueNotifiedAt: v.optional(v.string()),
+    refundReturnIssue: v.optional(v.string()),
+    refundAdminDecisionReason: v.optional(v.string()),
+    refundRecordedBy: v.optional(v.string()),
+    refundRecordedAt: v.optional(v.string()),
+    refundEvents: v.optional(v.array(v.object({
+      type: v.string(),
+      label: v.string(),
+      actorRole: v.union(v.literal("buyer"), v.literal("seller"), v.literal("admin"), v.literal("system")),
+      at: v.string(),
+      reason: v.optional(v.string()),
+    }))),
     payoutRequestId: v.optional(v.id("payoutRequests")),
     updatedAt: v.string(),
   })
@@ -159,7 +211,8 @@ export default defineSchema({
     .index("by_completedAt", ["completedAt"])
     .index("by_stallId_and_completedAt", ["stallId", "completedAt"])
     .index("by_paymentMethod_and_completedAt", ["paymentMethod", "completedAt"])
-    .index("by_status", ["status"]),
+    .index("by_status", ["status"])
+    .index("by_refundRepaymentReference", ["refundRepaymentReference"]),
 
   reviews: defineTable({
     orderId: v.id("orders"),
@@ -307,6 +360,20 @@ export default defineSchema({
     rejectionReason: v.optional(v.string()), reviewedBy: v.optional(v.string()), reviewedAt: v.optional(v.string()), createdAt: v.string(),
   }).index("by_invoiceId", ["invoiceId"]).index("by_status", ["status"]).index("by_referenceNumber", ["referenceNumber"]),
 
+  commissionCredits: defineTable({
+    stallId: v.id("stalls"),
+    sellerId: v.id("users"),
+    sourceOrderId: v.id("orders"),
+    amount: v.number(),
+    remainingAmount: v.number(),
+    appliedInvoiceId: v.optional(v.id("commissionInvoices")),
+    appliedAt: v.optional(v.string()),
+    createdAt: v.string(),
+  })
+    .index("by_stallId", ["stallId"])
+    .index("by_sourceOrderId", ["sourceOrderId"])
+    .index("by_stallId_and_createdAt", ["stallId", "createdAt"]),
+
   financeReconciliations: defineTable({
     actualBalance: v.number(),
     expectedBalance: v.number(),
@@ -329,7 +396,10 @@ export default defineSchema({
       v.literal("deposit_approved"),
       v.literal("deposit_rejected")
       ,v.literal("commission_payment_approved"), v.literal("commission_payment_rejected"), v.literal("commission_accrual_removed"),
-      v.literal("gcash_payment_approved"), v.literal("gcash_payment_rejected")
+      v.literal("gcash_payment_approved"), v.literal("gcash_payment_rejected"),
+      v.literal("cod_refund_escalation_approved"), v.literal("cod_refund_escalation_upheld"),
+      v.literal("cod_refund_repayment_rejected"), v.literal("cod_refund_recorded"),
+      v.literal("cod_refund_method_corrected"), v.literal("cod_refund_admin_decided")
     ),
     orderId: v.optional(v.id("orders")),
     commissionAccrualId: v.optional(v.id("commissionAccruals")),
@@ -337,7 +407,7 @@ export default defineSchema({
     paymentReference: v.optional(v.string()),
     refundReference: v.optional(v.string()),
     payoutReference: v.optional(v.string()),
-    refundMethod: v.optional(v.union(v.literal("gcash"), v.literal("cash"))),
+    refundMethod: v.optional(v.union(v.literal("gcash"), v.literal("cash"), v.literal("seller-gcash"))),
     refundAmount: v.optional(v.number()),
     payoutAmount: v.optional(v.number()),
     depositId: v.optional(v.id("stallDeposits")),

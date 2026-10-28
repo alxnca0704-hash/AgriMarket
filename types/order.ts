@@ -8,9 +8,14 @@ export type OrderStatus =
   | 'completed'
   | 'cancelled'
   | 'refund-requested'
+  | 'seller-rejected'
+  | 'escalated'
   | 'return-approved'
   | 'return-in-transit'
   | 'return-received'
+  | 'repayment-submitted'
+  | 'buyer-confirmed'
+  | 'buyer-disputed'
   | 'refunded';
 
 export type PaymentStatus = 'unpaid' | 'pending' | 'paid' | 'rejected';
@@ -38,6 +43,14 @@ export interface OrderEvent {
   status: OrderStatus | 'placed' | 'refund-rejected';
   label: string;
   at: string;
+}
+
+export interface RefundEvent {
+  type: string;
+  label: string;
+  actorRole: 'buyer' | 'seller' | 'admin' | 'system';
+  at: string;
+  reason?: string;
 }
 
 export interface Order {
@@ -90,11 +103,57 @@ export interface Order {
   returnShippedAt?: string;
   returnReceivedAt?: string;
   refundConfirmedAt?: string;
-  refundMethod?: 'gcash' | 'cash';
+  refundMethod?: 'gcash' | 'cash' | 'seller-gcash';
+  refundFundedBy?: 'seller' | 'admin';
+  refundAffectsPlatformGcash?: boolean;
   refundReference?: string;
   refundAmount?: number;
   refundRejectedAt?: string;
   refundRejectReason?: string;
+  refundGcashNumber?: string;
+  refundGcashName?: string;
+  refundSellerResponseDueAt?: number;
+  refundBuyerShipDueAt?: number;
+  refundRepaymentDueAt?: number;
+  refundRepaymentRemainingMs?: number;
+  refundBuyerResponseDueAt?: number;
+  refundNumberIssue?: boolean;
+  refundNumberIssueReason?: string;
+  refundNumberIssueReportedAt?: string;
+  refundSellerApprovedAt?: string;
+  refundSellerRejectedAt?: string;
+  refundSellerRejectReason?: string;
+  refundEscalatedAt?: string;
+  refundBuyerEscalatedAt?: string;
+  refundEscalationDecision?: 'approved' | 'upheld';
+  refundEscalationReason?: string;
+  refundRepaymentReference?: string;
+  refundRepaymentProofUrl?: string;
+  refundRepaymentSubmittedAt?: string;
+  refundRepaymentRejectedAt?: string;
+  refundRepaymentRejectReason?: string;
+  refundBuyerConfirmedAt?: string;
+  refundBuyerDisputedAt?: string;
+  refundBuyerDisputeReason?: string;
+  refundBuyerResponse?: 'received' | 'not-received';
+  refundBuyerResponseAt?: string;
+  refundBuyerDidNotRespond?: boolean;
+  refundSellerDidNotRespond?: boolean;
+  refundDisputeCount?: number;
+  refundOverdue?: boolean;
+  refundOverdueAt?: string;
+  refundClosedAt?: string;
+  refundCloseReason?: string;
+  refundSellerReminderSentAt?: string;
+  refundRepaymentReminderSentAt?: string;
+  refundBuyerReminderSentAt?: string;
+  refundBuyerResponseReminderSentAt?: string;
+  refundOverdueNotifiedAt?: string;
+  refundReturnIssue?: string;
+  refundAdminDecisionReason?: string;
+  refundRecordedBy?: string;
+  refundRecordedAt?: string;
+  refundEvents?: RefundEvent[];
   payoutRequestId?: string;
 }
 

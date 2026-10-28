@@ -8,14 +8,38 @@ Feature-complete MVP. Buyer, seller, COD, GCash payments, payouts, refunds, comm
 
 ## Current Goal
 
-Implement and verify Stall Accounts. The initial read-only list/detail routes
-and server aggregation are in progress; filters, summary cards, pagination,
-reconciliation form, exports, full detail tabs, seller parity, and the
-authenticated walkthrough remain. Keep the legacy finance, receivables, and
-sales page components and shared queries until parity is verified. Their
-sidebar/drawer links are removed and old URLs redirect to `/admin/stalls`.
+Verify the COD seller-funded refund workflow with authenticated buyer, seller,
+and admin sessions, including deadline reminders, masked-number reveal,
+repayment proof and duplicates, admin method correction, commission credits,
+and payout blocking. The `ys8gxfew` correction is blocked because no matching
+order/refund exists in dev or prod. Completing and verifying Stall Accounts,
+then seller verification, follows. Keep the legacy finance, receivables, and
+sales page components and shared queries until parity is verified.
 
 ## Just Completed
+
+### COD seller-funded refunds
+
+- Buyer COD refund requests collect the refund GCash name/number and move
+  through seller approval, return shipping, goods receipt, seller repayment
+  with proof, and buyer confirmation or dispute, ending in `refunded`.
+- Deadlines and hourly reminders cover seller response, buyer shipping,
+  seller repayment, and buyer response. Late repayment is accepted and
+  flagged as overdue.
+- Sellers see only a masked GCash number; the full number is revealed only
+  after goods are received, with a refund event recorded.
+- Admin review gained a COD tab with escalation/dispute resolution,
+  repayment rejection, refund recording, and audited method correction.
+  Legacy `completeReturnRefund` now rejects COD orders.
+- COD refunds record `seller-gcash` / `seller` / platform-GCash `false`.
+  Overdue refunds block payout requests, and the seller surfaces show the
+  blocking amount.
+- Refunded paid GCash invoices create commission credits applied before the
+  next invoice; the Platform tab shows available credit and per-invoice
+  credit applied.
+- TypeScript, lint (existing warnings), and build pass. The `ys8gxfew`
+  correction remains pending because no matching order/refund exists in dev
+  or prod.
 
 ### Seller Platform tab and COD accrual consistency
 

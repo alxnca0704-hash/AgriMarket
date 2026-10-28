@@ -16,6 +16,7 @@ import { OrderItems } from '@/components/orders/OrderItems';
 import { OrderProgress } from '@/components/orders/OrderProgress';
 import { OrderStatusBadge } from '@/components/orders/OrderStatusBadge';
 import { SellerOrderActions } from '@/components/seller/SellerOrderActions';
+import { CodRefundPanel } from '@/components/seller/CodRefundPanel';
 import { getSellerOrderGroup } from '@/constants/sellerOrders';
 import { APP_ROUTES } from '@/constants/routes';
 import { formatAddressSummary, formatOrderTime, formatPrice } from '@/lib/format';
@@ -43,6 +44,16 @@ export function SellerOrderDetailView({ orderId }: { orderId: string }) {
     handleDispatch,
     handleComplete,
     handleConfirmReturnReceived,
+    handleApproveCodReturn,
+    handleRejectCodReturn,
+    handleReportCodReturnIssue,
+    handleSubmitCodRepayment,
+    handleReportCodNumberIssue,
+    handleRevealCodRefundNumber,
+    codRefund,
+    codRefundError,
+    revealedNumber,
+    isRevealing,
     isActionPending,
   } = useSellerOrderDetail(orderId);
 
@@ -117,6 +128,26 @@ export function SellerOrderDetailView({ orderId }: { orderId: string }) {
           <OrderProgress order={order} audience="seller" />
         </div>
 
+        {order.payment.method === 'cod'
+          && ['refund-requested', 'seller-rejected', 'escalated', 'return-approved', 'return-in-transit', 'return-received', 'repayment-submitted', 'buyer-confirmed', 'buyer-disputed', 'refunded'].includes(order.status)
+          && (
+            <CodRefundPanel
+              refund={codRefund}
+              error={codRefundError}
+              orderId={order.id}
+              isActionPending={isActionPending}
+              revealedNumber={revealedNumber}
+              isRevealing={isRevealing}
+              onApprove={handleApproveCodReturn}
+              onReject={handleRejectCodReturn}
+              onConfirmReceived={handleConfirmReturnReceived}
+              onReportReturnIssue={handleReportCodReturnIssue}
+              onSubmitRepayment={handleSubmitCodRepayment}
+              onReportNumberIssue={handleReportCodNumberIssue}
+              onRevealNumber={handleRevealCodRefundNumber}
+            />
+          )}
+
         {order.deliveryCourier && order.deliveryTrackingNumber && (
           <Alert className="mt-4" type="info" showIcon title="Delivery details" description={`${order.deliveryCourier} · Tracking ${order.deliveryTrackingNumber}`} />
         )}
@@ -128,22 +159,22 @@ export function SellerOrderDetailView({ orderId }: { orderId: string }) {
           </div>
         )}
 
-        {order.status === 'refund-requested' && (
+        {order.payment.method !== 'cod' && order.status === 'refund-requested' && (
           <div className="mt-4 rounded-xl bg-orange-50 px-4 py-3 text-sm text-orange-800">
             Return request submitted. The admin has been notified and seller payout is on hold.
           </div>
         )}
-        {order.status === 'return-approved' && (
+        {order.payment.method !== 'cod' && order.status === 'return-approved' && (
           <Alert className="mt-4" type="info" showIcon title="Return approved" description="The buyer has been given the return address and may ship the goods back." />
         )}
-        {order.status === 'return-in-transit' && (
+        {order.payment.method !== 'cod' && order.status === 'return-in-transit' && (
           <Alert className="mt-4" type="warning" showIcon title="Return shipment in transit" description={`${order.returnCarrier ?? 'Courier'} · Tracking ${order.returnTrackingNumber ?? 'pending'}. Confirm receipt after the goods arrive and you have inspected them.`} />
         )}
-        {order.status === 'return-received' && (
+        {order.payment.method !== 'cod' && order.status === 'return-received' && (
           <Alert className="mt-4" type="success" showIcon title="Return received" description="The admin is processing the refund. Returned stock is not automatically restored." />
         )}
 
-        {order.status === 'refunded' && (
+        {order.payment.method !== 'cod' && order.status === 'refunded' && (
           <div className="mt-4 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-800">
             <strong className="font-semibold">Refunded</strong>
             {order.refundConfirmedAt ? ` on ${formatOrderTime(order.refundConfirmedAt)}` : ''}{order.refundMethod ? ` · Sent via ${order.refundMethod === 'gcash' ? 'GCash' : 'cash'}` : ''} · Returned goods are not automatically restocked.

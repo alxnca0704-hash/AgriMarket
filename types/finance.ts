@@ -126,7 +126,7 @@ export interface StallFinanceOrder {
   invoiceNumber: string | null;
   payoutReference: string | null;
   refundAmount: number | null;
-  refundMethod: 'gcash' | 'cash' | null;
+  refundMethod: 'gcash' | 'cash' | 'seller-gcash' | null;
   refundReference: string | null;
   refundConfirmedAt: string | null;
 }

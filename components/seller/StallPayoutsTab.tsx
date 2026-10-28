@@ -89,6 +89,15 @@ export function StallPayoutsTab({ page }: StallPayoutsTabProps) {
         </p>
       </div>
 
+      {payoutData?.codRefundBlocked && (
+        <Alert
+          type="error"
+          showIcon
+          title="Payout requests are blocked"
+          description={`A COD refund of ${formatPrice(payoutData.codRefundOverdueAmount)} is overdue. Send the refund and submit the reference before requesting a payout.`}
+        />
+      )}
+
       <div className="rounded-2xl bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -152,7 +161,7 @@ export function StallPayoutsTab({ page }: StallPayoutsTabProps) {
                 type="primary"
                 block
                 className="mt-4"
-                disabled={selectedCount === 0}
+                disabled={selectedCount === 0 || Boolean(payoutData?.codRefundBlocked)}
                 loading={earnings.isRequesting || earnings.isRequestPending}
                 onClick={earnings.openPayout}
               >
@@ -204,7 +213,7 @@ export function StallPayoutsTab({ page }: StallPayoutsTabProps) {
         onOk={() => void earnings.requestPayout()}
         okText="Send request"
         confirmLoading={earnings.isRequesting || earnings.isRequestPending}
-        okButtonProps={{ disabled: selectedCount === 0 }}
+        okButtonProps={{ disabled: selectedCount === 0 || Boolean(payoutData?.codRefundBlocked) }}
         width={520}
         className="max-w-[calc(100vw-24px)]"
       >

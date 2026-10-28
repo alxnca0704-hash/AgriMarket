@@ -23,7 +23,14 @@ export function OrderProgress({ order, audience, compact = false }: OrderProgres
   const currentIndex = FULFILLMENT_STEPS.findIndex(({ status }) => status === order.status);
   const activeStep = FULFILLMENT_STEPS[currentIndex];
   const latestEvent = order.events.at(-1);
-  const isReturn = order.status.startsWith('return-') || order.status === 'refund-requested' || order.status === 'refunded';
+  const isReturn = order.status.startsWith('return-')
+    || order.status === 'refund-requested'
+    || order.status === 'seller-rejected'
+    || order.status === 'escalated'
+    || order.status === 'repayment-submitted'
+    || order.status === 'buyer-confirmed'
+    || order.status === 'buyer-disputed'
+    || order.status === 'refunded';
   const isClosed = order.status === 'cancelled';
 
   if (currentIndex < 0 || isReturn || isClosed) {

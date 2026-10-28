@@ -6,7 +6,7 @@ import type { UploadFile } from 'antd';
 import { CheckCircleOutlined, CloseCircleOutlined, UndoOutlined } from '@ant-design/icons';
 import { Order } from '@/types/order';
 import { ORDER_ACTIONS, OrderAction } from '@/constants/orders';
-import { RETURN_REQUEST_WINDOW_MS, RETURN_WINDOW_CLOSED_MESSAGE } from '@/constants/refunds';
+import { isValidGcashNumber, RETURN_REQUEST_WINDOW_MS, RETURN_WINDOW_CLOSED_MESSAGE } from '@/constants/refunds';
 import { useRefundEvidence } from '@/hooks/useRefundEvidence';
 
 interface OrderActionsProps {
@@ -15,7 +15,12 @@ interface OrderActionsProps {
   isActionPending: (action: OrderAction, orderId: string) => boolean;
   onConfirmDelivery: () => void | Promise<unknown>;
   onCancel: (reason: string) => void | Promise<unknown>;
-  onRequestRefund?: (reason: string, evidenceUrls: string[]) => void | Promise<unknown>;
+  onRequestRefund?: (
+    reason: string,
+    evidenceUrls: string[],
+    refundGcashNumber?: string,
+    refundGcashName?: string
+  ) => void | Promise<unknown>;
 }
 
 export function OrderActions({
@@ -31,6 +36,8 @@ export function OrderActions({
   const [reason, setReason] = useState('');
   const [refundOpen, setRefundOpen] = useState(false);
   const [refundReason, setRefundReason] = useState('');
+  const [refundGcashNumber, setRefundGcashNumber] = useState('');
+  const [refundGcashName, setRefundGcashName] = useState('');
   const [refundWindowOpen, setRefundWindowOpen] = useState<boolean | null>(null);
   const evidence = useRefundEvidence();
 
@@ -60,8 +67,14 @@ export function OrderActions({
     if (result === 'success') setCancelOpen(false);
   };
 
+  const isCod = order.payment.method === 'cod';
+  const refundDetailsValid = !isCod
+    || (isValidGcashNumber(refundGcashNumber) && refundGcashName.trim().length >= 2);
+
   const openRefund = () => {
     setRefundReason('');
+    setRefundGcashNumber('');
+    setRefundGcashName('');
     evidence.setFiles([]);
     setRefundOpen(true);
   };
@@ -75,8 +88,14 @@ export function OrderActions({
     const trimmed = refundReason.trim();
     if (trimmed.length < 10) return;
     if (evidence.files.length < 1 || evidence.files.length > 5) return;
+    if (!refundDetailsValid) return;
     const evidenceUrls = await evidence.upload();
-    const result = await onRequestRefund?.(trimmed, evidenceUrls);
+    const result = await onRequestRefund?.(
+      trimmed,
+      evidenceUrls,
+      isCod ? refundGcashNumber.trim() : undefined,
+      isCod ? refundGcashName.trim() : undefined
+    );
     if (result === 'success') setRefundOpen(false);
   };
 
@@ -187,7 +206,7 @@ export function OrderActions({
         okText="Request refund"
         okButtonProps={{
           loading: refundPending || evidence.isUploading,
-          disabled: refundPending || evidence.isUploading || refundReason.trim().length < 10 || evidence.files.length < 1 || evidence.files.length > 5,
+          disabled: refundPending || evidence.isUploading || refundReason.trim().length < 10 || evidence.files.length < 1 || evidence.files.length > 5 || !refundDetailsValid,
           className: '!rounded-lg',
         }}
         cancelText="Keep order"
@@ -212,6 +231,39 @@ export function OrderActions({
           className="mt-1.5 !rounded-xl"
         />
         <Typography.Text type="secondary" className="mt-4 block text-xs">Photos or video (1–5 files, up to 5 MB each)</Typography.Text>
+        {isCod && (
+          <div className="mt-4 space-y-3 rounded-xl bg-stone-50 p-3">
+            <p className="text-xs leading-relaxed text-stone-500">
+              The seller will send the refund to this GCash account after receiving the returned goods.
+            </p>
+            <div>
+              <Typography.Text type="secondary" className="text-xs">GCash account name (required)</Typography.Text>
+              <Input
+                maxLength={100}
+                autoComplete="name"
+                placeholder="Name on the GCash account"
+                value={refundGcashName}
+                onChange={(event) => setRefundGcashName(event.target.value)}
+                className="mt-1.5 !rounded-xl"
+              />
+            </div>
+            <div>
+              <Typography.Text type="secondary" className="text-xs">GCash mobile number (required)</Typography.Text>
+              <Input
+                maxLength={13}
+                inputMode="tel"
+                autoComplete="tel"
+                placeholder="09XXXXXXXXX"
+                value={refundGcashNumber}
+                onChange={(event) => setRefundGcashNumber(event.target.value)}
+                className="mt-1.5 !rounded-xl"
+              />
+              {refundGcashNumber.trim().length > 0 && !isValidGcashNumber(refundGcashNumber) && (
+                <p className="mt-1 text-xs text-red-600">Enter a valid Philippine mobile number.</p>
+              )}
+            </div>
+          </div>
+        )}
         <Upload
           accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm"
           multiple

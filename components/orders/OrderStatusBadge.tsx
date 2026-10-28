@@ -16,9 +16,14 @@ const STATUS_TONES: Record<OrderStatus, string> = {
   completed: 'bg-stone-100 text-stone-700',
   cancelled: 'bg-stone-100 text-stone-500',
   'refund-requested': 'bg-amber-50 text-amber-800',
+  'seller-rejected': 'bg-red-50 text-red-700',
+  escalated: 'bg-orange-50 text-orange-800',
   'return-approved': 'bg-sage-soft text-sage',
   'return-in-transit': 'bg-amber-50 text-amber-800',
   'return-received': 'bg-sage-soft text-sage',
+  'repayment-submitted': 'bg-blue-50 text-blue-800',
+  'buyer-confirmed': 'bg-sage-soft text-sage',
+  'buyer-disputed': 'bg-red-50 text-red-700',
   refunded: 'bg-stone-100 text-stone-700',
 };
 

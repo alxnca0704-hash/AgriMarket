@@ -6,6 +6,7 @@ import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { Order } from '@/types/order';
+import type { BuyerCodRefund } from '@/types/refund';
 import { Review } from '@/types/review';
 import { ORDER_ACTION_KEYS, OrderAction } from '@/constants/orders';
 import { usePendingAction } from '@/hooks/usePendingAction';
@@ -61,11 +62,19 @@ export function useOrderDetail(orderId: string) {
     api.reviews.getReviewsForOrder,
     skip ? 'skip' : { orderId: orderId as Id<'orders'> }
   );
+  const rawCodRefund = useQuery(
+    api.refunds.getBuyerCodRefund,
+    skip ? 'skip' : { orderId: orderId as Id<'orders'> }
+  );
 
   const cancelMutation = useMutation(api.orders.cancelOrder);
   const confirmDeliveryMutation = useMutation(api.orders.confirmDelivery);
   const requestRefundMutation = useMutation(api.orders.requestRefund);
   const submitReturnShipmentMutation = useMutation(api.orders.submitReturnShipment);
+  const escalateCodRefundMutation = useMutation(api.refunds.escalateCodRefund);
+  const confirmCodRefundMutation = useMutation(api.refunds.confirmCodRefundReceived);
+  const disputeCodRefundMutation = useMutation(api.refunds.disputeCodRefund);
+  const updateCodRefundNumberMutation = useMutation(api.refunds.updateCodRefundNumber);
   const submitReviewMutation = useMutation(api.reviews.submitReview);
   const resubmitPaymentMutation = useMutation(api.orders.resubmitGcashPayment);
   const { run, isPending } = usePendingAction();
@@ -101,6 +110,8 @@ export function useOrderDetail(orderId: string) {
     }
   };
   const notFound = skip || (!isLoading && !order);
+  const codRefund = (rawCodRefund ?? null) as BuyerCodRefund | null;
+  const codRefundError = rawCodRefund instanceof Error ? rawCodRefund.message : null;
   const reviews: Review[] = Array.isArray(rawReviews) ? rawReviews.map(toReview) : [];
   const reviewsByProductId = new Map<string, Review>();
   for (const r of reviews) {
@@ -138,12 +149,64 @@ export function useOrderDetail(orderId: string) {
     );
   };
 
-  const handleRequestRefund = (reason: string, evidenceUrls: string[]) => {
+  const handleRequestRefund = (
+    reason: string,
+    evidenceUrls: string[],
+    refundGcashNumber?: string,
+    refundGcashName?: string
+  ) => {
     if (!order) return Promise.resolve('skipped' as const);
     return run(
       ORDER_ACTION_KEYS.requestRefund(order.id),
-      () => requestRefundMutation({ orderId: order.id as Id<'orders'>, reason, evidenceUrls }),
-      { success: 'Return request sent — the admin has been notified', error: 'Could not request refund' }
+      () => requestRefundMutation({
+        orderId: order.id as Id<'orders'>,
+        reason,
+        evidenceUrls,
+        refundGcashNumber,
+        refundGcashName,
+      }),
+      {
+        success: order.payment.method === 'cod'
+          ? 'Return request sent to the seller'
+          : 'Return request sent �?" the admin has been notified',
+        error: 'Could not request refund',
+      }
+    );
+  };
+
+  const handleEscalateCodRefund = () => {
+    if (!order) return Promise.resolve('skipped' as const);
+    return run(
+      ORDER_ACTION_KEYS.escalateCodRefund(order.id),
+      () => escalateCodRefundMutation({ orderId: order.id as Id<'orders'> }),
+      { success: 'Escalated to the admin', error: 'Could not escalate the request' }
+    );
+  };
+
+  const handleConfirmCodRefundReceived = () => {
+    if (!order) return Promise.resolve('skipped' as const);
+    return run(
+      ORDER_ACTION_KEYS.confirmCodRefundReceived(order.id),
+      () => confirmCodRefundMutation({ orderId: order.id as Id<'orders'> }),
+      { success: 'Refund receipt confirmed', error: 'Could not confirm the refund' }
+    );
+  };
+
+  const handleDisputeCodRefund = (reason: string) => {
+    if (!order) return Promise.resolve('skipped' as const);
+    return run(
+      ORDER_ACTION_KEYS.disputeCodRefund(order.id),
+      () => disputeCodRefundMutation({ orderId: order.id as Id<'orders'>, reason }),
+      { success: 'Dispute sent to the seller and admin', error: 'Could not submit the dispute' }
+    );
+  };
+
+  const handleUpdateCodRefundNumber = (number: string, name: string) => {
+    if (!order) return Promise.resolve('skipped' as const);
+    return run(
+      ORDER_ACTION_KEYS.updateCodRefundNumber(order.id),
+      () => updateCodRefundNumberMutation({ orderId: order.id as Id<'orders'>, number, name }),
+      { success: 'Refund GCash details updated', error: 'Could not update the refund number' }
     );
   };
 
@@ -223,6 +286,12 @@ export function useOrderDetail(orderId: string) {
     handleCancel,
     handleConfirmDelivery,
     handleRequestRefund,
+    handleEscalateCodRefund,
+    handleConfirmCodRefundReceived,
+    handleDisputeCodRefund,
+    handleUpdateCodRefundNumber,
+    codRefund,
+    codRefundError,
     handleSubmitReturnShipment,
     returnCarrier,
     setReturnCarrier,

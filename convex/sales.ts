@@ -29,7 +29,7 @@ const recordValidator = v.object({
   invoiceNumber: v.union(v.string(), v.null()),
   payoutReference: v.union(v.string(), v.null()),
   refundAmount: v.union(v.number(), v.null()),
-  refundMethod: v.union(v.literal('gcash'), v.literal('cash'), v.null()),
+  refundMethod: v.union(v.literal('gcash'), v.literal('cash'), v.literal('seller-gcash'), v.null()),
   refundReference: v.union(v.string(), v.null()),
   refundConfirmedAt: v.union(v.string(), v.null()),
 });

@@ -4,24 +4,39 @@ import { useState } from 'react';
 import { Alert, Button, Drawer, Empty, Image, Input, Modal, Select, Skeleton, Table, Tabs, Tag } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useAdminRefunds } from '@/hooks/useAdminRefunds';
+import { AdminCodRefundsPanel } from '@/components/admin/AdminCodRefundsPanel';
 import type { AdminRefundRequest, RefundDisbursementMethod } from '@/types/admin';
 import { formatOrderTime, formatPrice } from '@/lib/format';
 
 const STATUS_LABELS: Record<AdminRefundRequest['status'], string> = {
   'refund-requested': 'Return requested',
+  'seller-rejected': 'Seller rejected',
+  escalated: 'Escalated',
   'return-approved': 'Return approved',
   'return-in-transit': 'Return in transit',
   'return-received': 'Return received',
+  'repayment-submitted': 'Refund sent',
+  'buyer-confirmed': 'Buyer confirmed',
+  'buyer-disputed': 'Buyer disputed',
 };
 
-export function AdminRefundsView({ initialSection = 'pending' }: { initialSection?: 'pending' | 'recorded' }) {
-  const { refunds, recordedRefunds, visibleRefunds, visibleRecordedRefunds, isLoading, isRecordedLoading, error, recordedError, section, setSection, search, setSearch, approve, reject, completeRefund, selectedOrderId, setSelectedOrderId } = useAdminRefunds(initialSection);
+export function AdminRefundsView({ initialSection = 'pending' }: { initialSection?: 'pending' | 'cod' | 'recorded' }) {
+  const {
+    refunds, recordedRefunds, codRefunds, visibleRefunds, visibleRecordedRefunds, visibleCodRefunds,
+    isLoading, isRecordedLoading, isCodLoading, error, recordedError, codError, section, setSection,
+    search, setSearch, approve, reject, completeRefund, selectedOrderId, setSelectedOrderId,
+    selectedCodOrderId, setSelectedCodOrderId, selectedCodRefund, isCodDetailLoading, codDetailError,
+    decideCodEscalation, rejectCodRepayment, resolveCodDispute, recordCodRefund, correctRefundMethod,
+  } = useAdminRefunds(initialSection);
   const [rejectOrderId, setRejectOrderId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [refundOrderId, setRefundOrderId] = useState<string | null>(null);
   const [refundReference, setRefundReference] = useState('');
-  const [refundMethod, setRefundMethod] = useState<RefundDisbursementMethod>('gcash');
+  const [refundMethod, setRefundMethod] = useState<'gcash' | 'cash'>('gcash');
   const [busyOrderId, setBusyOrderId] = useState<string | null>(null);
+  const [correctOpen, setCorrectOpen] = useState(false);
+  const [correctMethod, setCorrectMethod] = useState<RefundDisbursementMethod>('seller-gcash');
+  const [correctReason, setCorrectReason] = useState('');
   const selected = refunds.find((item) => item.orderId === selectedOrderId);
   const selectedRecord = recordedRefunds.find((item) => item.orderId === selectedOrderId);
 
@@ -67,18 +82,44 @@ export function AdminRefundsView({ initialSection = 'pending' }: { initialSectio
         <p className="text-[11px] font-medium uppercase tracking-wide text-stone-400">Returns</p>
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-3xl font-semibold text-stone-900">Review return requests</h1>
-          <Tag color="gold">{section === 'pending' ? `${refunds.length} pending` : `${recordedRefunds.length} recorded`}</Tag>
+          <Tag color="gold">
+            {section === 'pending'
+              ? `${refunds.length} pending`
+              : section === 'cod'
+                ? `${codRefunds.length} COD`
+                : `${recordedRefunds.length} recorded`}
+          </Tag>
         </div>
         <p className="text-sm text-stone-500">Select a request to review its order, payment reference, buyer evidence, and next step.</p>
       </header>
 
-      <Tabs activeKey={section} onChange={(key) => setSection(key as 'pending' | 'recorded')} items={[
+      <Tabs activeKey={section} onChange={(key) => setSection(key as 'pending' | 'cod' | 'recorded')} items={[
         { key: 'pending', label: `Pending (${refunds.length})` },
+        { key: 'cod', label: `COD refunds (${codRefunds.length})` },
         { key: 'recorded', label: `Refund records (${recordedRefunds.length})` },
       ]} />
-      <Input.Search allowClear value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Order ID, courier tracking, buyer, stall, or reference" className="sm:max-w-lg" />
+      {section !== 'cod' && <Input.Search allowClear value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Order ID, courier tracking, buyer, stall, or reference" className="sm:max-w-lg" />}
+      {section === 'cod' && (
+        <AdminCodRefundsPanel
+          refunds={codRefunds}
+          visibleRefunds={visibleCodRefunds}
+          isLoading={isCodLoading}
+          error={codError}
+          search={search}
+          setSearch={setSearch}
+          selectedOrderId={selectedCodOrderId}
+          setSelectedOrderId={setSelectedCodOrderId}
+          selectedRefund={selectedCodRefund}
+          isDetailLoading={isCodDetailLoading}
+          detailError={codDetailError}
+          onDecideEscalation={decideCodEscalation}
+          onRejectRepayment={rejectCodRepayment}
+          onResolveDispute={resolveCodDispute}
+          onRecordRefund={recordCodRefund}
+        />
+      )}
 
-      {section === 'pending' ? <>
+      {section === 'cod' ? null : section === 'pending' ? <>
         {error && <Alert type="error" showIcon title={error} />}
         {visibleRefunds.length === 0 ? <div className="rounded-2xl bg-white p-8"><Empty description={refunds.length ? 'No pending refunds match this search.' : 'No return requests need review.'} /></div> : <>
           <div className="hidden overflow-x-auto rounded-2xl bg-white p-2 md:block"><Table rowKey="orderId" columns={columns} dataSource={visibleRefunds} pagination={{ pageSize: 20 }} onRow={(record) => ({ onClick: () => setSelectedOrderId(record.orderId), className: 'cursor-pointer' })} scroll={{ x: 920 }} /></div>
@@ -93,7 +134,7 @@ export function AdminRefundsView({ initialSection = 'pending' }: { initialSectio
       </>}
 
       <Drawer title={selectedRecord ? 'Refund record' : 'Return request record'} open={Boolean(selected || selectedRecord)} onClose={() => setSelectedOrderId(null)} size="large">
-        {selectedRecord && <div className="space-y-5"><section className="rounded-2xl bg-stone-50 p-4 sm:p-5"><p className="text-xs text-stone-500">Order ID</p><p className="mt-1 break-all font-mono text-sm font-semibold text-stone-900">{selectedRecord.orderId}</p><div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2"><RecordField label="Buyer" value={selectedRecord.buyerName} /><RecordField label="Seller" value={selectedRecord.sellerName} /><RecordField label="Original payment method" value={selectedRecord.paymentMethod.toUpperCase()} /><RecordField label="Refund sent by" value={selectedRecord.refundMethod?.toUpperCase() ?? 'Not recorded'} /><RecordField label="Refund amount" value={formatPrice(selectedRecord.refundAmount)} /><RecordField label="Refunded at" value={formatOrderTime(selectedRecord.refundedAt)} /><RecordField label="Refund reference" value={selectedRecord.refundReference} mono /><RecordField label="Courier" value={selectedRecord.returnCarrier || 'Not provided'} /><RecordField label="Courier tracking number" value={selectedRecord.returnTrackingNumber || 'Not provided'} mono /></div></section></div>}
+        {selectedRecord && <div className="space-y-5"><section className="rounded-2xl bg-stone-50 p-4 sm:p-5"><p className="text-xs text-stone-500">Order ID</p><p className="mt-1 break-all font-mono text-sm font-semibold text-stone-900">{selectedRecord.orderId}</p><div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2"><RecordField label="Buyer" value={selectedRecord.buyerName} /><RecordField label="Seller" value={selectedRecord.sellerName} /><RecordField label="Original payment method" value={selectedRecord.paymentMethod.toUpperCase()} /><RecordField label="Refund sent by" value={selectedRecord.refundMethod?.toUpperCase() ?? 'Not recorded'} /><RecordField label="Refund amount" value={formatPrice(selectedRecord.refundAmount)} /><RecordField label="Refunded at" value={formatOrderTime(selectedRecord.refundedAt)} /><RecordField label="Refund reference" value={selectedRecord.refundReference} mono /><RecordField label="Courier" value={selectedRecord.returnCarrier || 'Not provided'} /><RecordField label="Courier tracking number" value={selectedRecord.returnTrackingNumber || 'Not provided'} mono /></div><div className="mt-4 flex flex-wrap gap-2"><Button onClick={() => { setCorrectMethod(selectedRecord.refundMethod ?? (selectedRecord.paymentMethod === 'cod' ? 'seller-gcash' : 'gcash')); setCorrectReason(''); setCorrectOpen(true); }}>Correct refund method</Button></div></section></div>}
         {selected && <div className="space-y-5">
           <section className="rounded-2xl bg-stone-50 p-4 sm:p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -119,7 +160,10 @@ export function AdminRefundsView({ initialSection = 'pending' }: { initialSectio
           {selected.status === 'return-in-transit' && <Alert type="warning" showIcon title="Waiting for seller receipt confirmation" description={`${selected.returnCarrier} · Tracking ${selected.returnTrackingNumber}`} />}
 
           {selected.status === 'refund-requested' && <div className="flex flex-wrap gap-2"><Button type="primary" loading={busyOrderId === selected.orderId} onClick={() => void submit(selected.orderId, () => approve(selected.orderId), () => setSelectedOrderId(null))}>Approve return</Button><Button danger loading={busyOrderId === selected.orderId} onClick={() => { setRejectReason(''); setRejectOrderId(selected.orderId); }}>Reject with reason</Button></div>}
-          {selected.status === 'return-received' && <Button type="primary" onClick={() => openRefundForm(selected)}>Record refund</Button>}
+          {selected.status === 'return-received' && selected.paymentMethod === 'cod' && (
+            <Alert type="info" showIcon title="Seller-funded COD refund" description="Review this order in the COD refunds tab. The seller must repay the buyer before the admin records the refund." />
+          )}
+          {selected.status === 'return-received' && selected.paymentMethod !== 'cod' && <Button type="primary" onClick={() => openRefundForm(selected)}>Record refund</Button>}
         </div>}
       </Drawer>
 
@@ -134,12 +178,50 @@ export function AdminRefundsView({ initialSection = 'pending' }: { initialSectio
             <p className="text-sm text-stone-500">Refund amount: <strong className="text-stone-800">{refund ? formatPrice(refund.total) : '—'}</strong></p>
             {refund?.paymentMethod === 'cod' && <Alert type="warning" showIcon title="COD was paid in cash on delivery" description="This refund is a separate outgoing payment. Confirm the refund funds are available before recording it." />}
             <p className="rounded-xl bg-stone-50 px-3 py-2 text-sm text-stone-700">Buyer phone / GCash: {refund?.buyerMobileNumber ? <a className="font-semibold text-stone-900 underline underline-offset-2" href={`tel:${refund.buyerMobileNumber}`}>{refund.buyerMobileNumber}</a> : <strong className="text-amber-800">Not provided — contact the buyer before refunding.</strong>}</p>
-            <Select<RefundDisbursementMethod> className="w-full" value={refundMethod} onChange={setRefundMethod} options={[{ value: 'gcash', label: 'GCash transfer to buyer number' }, { value: 'cash', label: 'Cash handoff to buyer' }]} />
+            <Select<'gcash' | 'cash'> className="w-full" value={refundMethod} onChange={setRefundMethod} options={[{ value: 'gcash', label: 'GCash transfer to buyer number' }, { value: 'cash', label: 'Cash handoff to buyer' }]} />
             <p className="text-xs text-stone-400">Original payment method: {refund?.paymentMethod.toUpperCase()}</p>
             <p className="text-xs text-stone-400">Enter the GCash transaction or cash receipt reference after sending the refund.</p>
             <Input maxLength={100} placeholder="Refund transaction reference" value={refundReference} onChange={(event) => setRefundReference(event.target.value)} />
           </div>;
         })()}
+      </Modal>
+
+      <Modal
+        open={correctOpen}
+        title="Correct refund method"
+        width="min(92%, 460px)"
+        onCancel={() => setCorrectOpen(false)}
+        onOk={() => selectedRecord && void submit(
+          selectedRecord.orderId,
+          () => correctRefundMethod(selectedRecord.orderId, correctMethod, correctReason.trim()),
+          () => setCorrectOpen(false)
+        )}
+        okText="Save correction"
+        okButtonProps={{ disabled: correctReason.trim().length < 10, loading: busyOrderId === selectedRecord?.orderId }}
+        cancelText="Cancel"
+      >
+        <div className="space-y-3">
+          <p className="text-sm text-stone-500">This changes the recorded refund method and creates an audit entry. Use it only to correct a mistaken record.</p>
+          <Select<RefundDisbursementMethod>
+            className="w-full"
+            value={correctMethod}
+            onChange={setCorrectMethod}
+            options={selectedRecord?.paymentMethod === 'cod'
+              ? [{ value: 'seller-gcash', label: "Seller's GCash (COD)" }]
+              : [
+                  { value: 'gcash', label: 'Platform GCash' },
+                  { value: 'cash', label: 'Cash handoff' },
+                ]}
+          />
+          <Input.TextArea
+            rows={4}
+            maxLength={500}
+            showCount
+            placeholder="Explain why the method is being corrected (at least 10 characters)"
+            value={correctReason}
+            onChange={(event) => setCorrectReason(event.target.value)}
+          />
+        </div>
       </Modal>
     </main>
   );

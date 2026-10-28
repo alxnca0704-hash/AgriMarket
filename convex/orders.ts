@@ -5,8 +5,15 @@ import { MutationCtx, QueryCtx } from "./_generated/server";
 import { deliveryAddressValidator } from "./shared";
 import { createNotification } from "./notifications";
 import { makeFunctionReference } from "convex/server";
-import { RETURN_REQUEST_WINDOW_MS, RETURN_WINDOW_CLOSED_MESSAGE } from "../constants/refunds";
+import {
+  COD_REFUND_REPAYMENT_DEADLINE_MS,
+  COD_REFUND_SELLER_RESPONSE_MS,
+  RETURN_REQUEST_WINDOW_MS,
+  RETURN_WINDOW_CLOSED_MESSAGE,
+  maskGcashNumber,
+} from "../constants/refunds";
 import { COMMISSION_RATE } from "../constants/commissions";
+import { makeRefundEvent, notifyAdmin, validateBuyerRefundNumber, validateGcashAccountName } from "./refundHelpers";
 
 const BUYER_ORDER_LIMIT = 100;
 const SELLER_ORDER_LIMIT = 200;
@@ -37,9 +44,14 @@ type OrderStatus =
   | "completed"
   | "cancelled"
   | "refund-requested"
+  | "seller-rejected"
+  | "escalated"
   | "return-approved"
   | "return-in-transit"
   | "return-received"
+  | "repayment-submitted"
+  | "buyer-confirmed"
+  | "buyer-disputed"
   | "refunded";
 
 async function getCurrentUser(
@@ -357,16 +369,24 @@ export const getMyOrder = query({
   },
 });
 
+function sanitizeSellerOrder(order: Doc<"orders">) {
+  return {
+    ...order,
+    refundGcashNumber: order.refundGcashNumber ? maskGcashNumber(order.refundGcashNumber) : undefined,
+  };
+}
+
 export const listSellerOrders = query({
   args: {},
   async handler(ctx) {
     const user = await getCurrentUser(ctx);
     if (user === null) return [];
-    return await ctx.db
+    const orders = await ctx.db
       .query("orders")
       .withIndex("by_sellerId", (q) => q.eq("sellerId", user._id))
       .order("desc")
       .take(SELLER_ORDER_LIMIT);
+    return orders.map(sanitizeSellerOrder);
   },
 });
 
@@ -377,7 +397,7 @@ export const getSellerOrder = query({
     if (user === null) return null;
     const order = await ctx.db.get("orders", args.orderId);
     if (order === null || order.sellerId !== user._id) return null;
-    return order;
+    return sanitizeSellerOrder(order);
   },
 });
 
@@ -615,7 +635,13 @@ export const completeOrder = mutation({
 });
 
 export const requestRefund = mutation({
-  args: { orderId: v.id("orders"), reason: v.string(), evidenceUrls: v.array(v.string()) },
+  args: {
+    orderId: v.id("orders"),
+    reason: v.string(),
+    evidenceUrls: v.array(v.string()),
+    refundGcashNumber: v.optional(v.string()),
+    refundGcashName: v.optional(v.string()),
+  },
   async handler(ctx, args) {
     const user = await requireUser(ctx);
     const order = await getBuyerOrder(ctx, user._id, args.orderId);
@@ -636,14 +662,46 @@ export const requestRefund = mutation({
       throw new Error("Refund evidence must be uploaded before submitting");
     }
 
+    const isCod = order.paymentMethod === "cod";
+    const refundGcashNumber = isCod
+      ? validateBuyerRefundNumber(args.refundGcashNumber ?? "")
+      : undefined;
+    const refundGcashName = isCod
+      ? validateGcashAccountName(args.refundGcashName ?? "")
+      : undefined;
+
     const now = new Date().toISOString();
+    const refundEvent = makeRefundEvent(
+      "requested",
+      isCod ? "Return requested. Waiting for the seller to respond." : "Return requested for admin review.",
+      "buyer",
+      now
+    );
     const patch: Record<string, unknown> = {
       status: "refund-requested",
       refundReason: reason,
       refundEvidenceUrls: args.evidenceUrls,
-      refundPayoutHold: true,
+      refundPayoutHold: isCod ? false : true,
       returnFromStatus: order.status,
       refundRequestedAt: now,
+      ...(isCod ? {
+        refundGcashNumber,
+        refundGcashName,
+        refundSellerResponseDueAt: Date.now() + COD_REFUND_SELLER_RESPONSE_MS,
+        refundBuyerShipDueAt: undefined,
+        refundRepaymentDueAt: undefined,
+        refundBuyerResponseDueAt: undefined,
+        refundNumberIssue: false,
+        refundSellerDidNotRespond: false,
+        refundBuyerDidNotRespond: false,
+        refundOverdue: false,
+        refundDisputeCount: 0,
+        refundSellerReminderSentAt: undefined,
+        refundRepaymentReminderSentAt: undefined,
+        refundBuyerReminderSentAt: undefined,
+        refundOverdueNotifiedAt: undefined,
+      } : {}),
+      refundEvents: [...(order.refundEvents ?? []), refundEvent],
       events: [
         ...order.events,
         { status: "refund-requested", label: "Return requested", at: now },
@@ -659,8 +717,8 @@ export const requestRefund = mutation({
       role: "seller",
       orderId: order._id,
       type: "refund_requested",
-      title: "Return requested",
-      body: `Buyer requested a return for order #${order._id.slice(-6).toUpperCase()}: "${reason}".`,
+      title: "New refund request",
+      body: `Buyer requested a return for order #${order._id.slice(-6).toUpperCase()}: "${reason}". Approve or reject it within 2 days.`,
     });
     await createNotification(ctx, {
       userId: order.buyerId,
@@ -668,7 +726,9 @@ export const requestRefund = mutation({
       orderId: order._id,
       type: "refund_requested",
       title: "Return request submitted",
-      body: `Your return request for order #${order._id.slice(-6).toUpperCase()} was submitted for admin review.`,
+      body: isCod
+        ? `Your return request for order #${order._id.slice(-6).toUpperCase()} was sent to the seller. The seller has 2 days to respond.`
+        : `Your return request for order #${order._id.slice(-6).toUpperCase()} was submitted for admin review.`,
     });
     return null;
   },
@@ -690,12 +750,20 @@ export const submitReturnShipment = mutation({
     if (carrier.length < 2 || carrier.length > 80) throw new Error("Enter a carrier name between 2 and 80 characters");
     if (trackingNumber.length < 3 || trackingNumber.length > 100) throw new Error("Enter a tracking number between 3 and 100 characters");
 
+    if (order.paymentMethod === "cod" && order.refundBuyerShipDueAt !== undefined && Date.now() > order.refundBuyerShipDueAt) {
+      throw new Error("The 3-day window to ship the return has closed.");
+    }
     const now = new Date().toISOString();
     await ctx.db.patch("orders", order._id, {
       status: "return-in-transit",
       returnCarrier: carrier,
       returnTrackingNumber: trackingNumber,
       returnShippedAt: now,
+      refundBuyerShipDueAt: undefined,
+      refundEvents: [
+        ...(order.refundEvents ?? []),
+        makeRefundEvent("shipped", `Buyer shipped the return via ${carrier}.`, "buyer", now),
+      ],
       events: [...order.events, { status: "return-in-transit", label: "Return shipment sent", at: now }],
       updatedAt: now,
     });
@@ -719,9 +787,22 @@ export const confirmReturnReceived = mutation({
     const order = await requireSellerOrder(ctx, user._id, args.orderId);
     assertStatus(order, "return-in-transit");
     const now = new Date().toISOString();
+    const isCod = order.paymentMethod === "cod";
+    const repaymentDueAt = Date.now() + COD_REFUND_REPAYMENT_DEADLINE_MS;
     await ctx.db.patch("orders", order._id, {
       status: "return-received",
       returnReceivedAt: now,
+      ...(isCod ? {
+        refundRepaymentDueAt: repaymentDueAt,
+        refundRepaymentRemainingMs: undefined,
+        refundNumberIssue: false,
+        refundOverdue: false,
+        refundSellerDidNotRespond: false,
+      } : {}),
+      refundEvents: [
+        ...(order.refundEvents ?? []),
+        makeRefundEvent("goods-received", "Seller confirmed the returned goods arrived.", "seller", now),
+      ],
       events: [...order.events, { status: "return-received", label: "Seller received returned goods", at: now }],
       updatedAt: now,
     });
@@ -731,8 +812,21 @@ export const confirmReturnReceived = mutation({
       orderId: order._id,
       type: "return_received",
       title: "Returned items received",
-      body: `${order.sellerName} received your returned items for order #${order._id.slice(-6).toUpperCase()}. Refund will be processed soon.`,
+      body: isCod
+        ? `${order.sellerName} received your returned items. The seller has 3 days to send your refund.`
+        : `${order.sellerName} received your returned items for order #${order._id.slice(-6).toUpperCase()}. Refund will be processed soon.`,
     });
+    if (isCod) {
+      await createNotification(ctx, {
+        userId: order.sellerId,
+        role: "seller",
+        orderId: order._id,
+        type: "cod_refund_repayment_due",
+        title: "Send the buyer's refund",
+        body: `You confirmed the return for order #${order._id.slice(-6).toUpperCase()}. Send ${order.total.toLocaleString("en-PH", { style: "currency", currency: "PHP" })} to the buyer's GCash number and submit the reference and proof by ${new Date(repaymentDueAt).toLocaleString("en-PH", { timeZone: "Asia/Manila" })}.`,
+      });
+      await notifyAdmin(ctx, "cod_refund_repayment_due", "COD refund repayment started", `Seller confirmed the return for order #${order._id.slice(-6).toUpperCase()}. Repayment is due in 3 days.`, order._id);
+    }
     return null;
   },
 });

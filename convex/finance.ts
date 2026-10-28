@@ -30,7 +30,15 @@ function commissionValues(order: Doc<"orders">) {
 }
 
 function isReturnStatus(status: Doc<"orders">["status"]) {
-  return status === "refund-requested" || status === "return-approved" || status === "return-in-transit" || status === "return-received";
+  return status === "refund-requested"
+    || status === "seller-rejected"
+    || status === "escalated"
+    || status === "return-approved"
+    || status === "return-in-transit"
+    || status === "return-received"
+    || status === "repayment-submitted"
+    || status === "buyer-confirmed"
+    || status === "buyer-disputed";
 }
 
 async function requireAdmin(ctx: QueryCtx | MutationCtx) {
@@ -106,7 +114,7 @@ const stallFinanceValidator = v.object({
     orderId: v.id("orders"), date: v.string(), paymentMethod: v.union(v.literal("cod"), v.literal("gcash")),
     itemsSubtotal: v.number(), deliveryFee: v.number(), commission: v.number(), status: orderStatusValidator,
     invoiceNumber: v.union(v.string(), v.null()), payoutReference: v.union(v.string(), v.null()),
-    refundAmount: v.union(v.number(), v.null()), refundMethod: v.union(v.literal("gcash"), v.literal("cash"), v.null()),
+    refundAmount: v.union(v.number(), v.null()), refundMethod: v.union(v.literal("gcash"), v.literal("cash"), v.literal("seller-gcash"), v.null()),
     refundReference: v.union(v.string(), v.null()), refundConfirmedAt: v.union(v.string(), v.null()),
   })),
 });
@@ -469,7 +477,7 @@ export const getAdminDashboard = query({
     const expected = roundMoney(buyerPayments + deposited + codCollected - paidOut - refundsOut);
     const sellerOwed = roundMoney(currentFinance.gcash.owedToSellers);
     const heldDeposits = deposited;
-    const activeRefundStatuses = ["refund-requested", "return-approved", "return-in-transit", "return-received"];
+    const activeRefundStatuses = ["refund-requested", "seller-rejected", "escalated", "return-approved", "return-in-transit", "return-received", "repayment-submitted", "buyer-confirmed", "buyer-disputed"];
     const buyerRefundsOwed = orders.filter(o =>
       (o.status === "cancelled" && o.paymentStatus === "paid") ||
       o.refundPayoutHold === true ||
@@ -496,7 +504,7 @@ export const getAdminDashboard = query({
     const topPlatform = [...currentFinance.stalls].sort((a, b) => b.codOwed - a.codOwed).slice(0, 5);
     const pendingPayments = new Set(orders.filter(o => o.paymentMethod === "gcash" && o.paymentStatus === "pending").map(o => o.paymentNote).filter((note): note is string => note !== undefined)).size;
     const pendingPayouts = payouts.filter(p => p.status === "pending").length;
-    const pendingReturns = orders.filter(o => ["refund-requested", "return-received"].includes(o.status)).length;
+    const pendingReturns = orders.filter(o => ["refund-requested", "escalated", "return-received", "repayment-submitted", "buyer-disputed"].includes(o.status)).length;
     const pendingRefunds = orders.filter(o => o.paymentStatus === "paid" && o.status === "cancelled").length;
     const activity = audit.filter(a => ["gcash_payment_approved", "payout_paid", "deposit_approved", "commission_payment_approved", "return_refunded"].includes(a.action)).slice(0, 10).map(a => ({ action: a.action, date: a.createdAt, orderId: a.orderId ? String(a.orderId) : null, payoutId: a.payoutRequestId ? String(a.payoutRequestId) : null, depositId: a.depositId ? String(a.depositId) : null, commissionPaymentId: a.commissionPaymentId ? String(a.commissionPaymentId) : null }));
     const reconciliationRows = reconciliations.map(item => ({ _id: item._id, actualBalance: item.actualBalance, expectedBalance: item.expectedBalance, difference: item.difference, from: item.from, to: item.to, adminEmail: item.adminEmail, createdAt: item.createdAt }));

@@ -80,9 +80,14 @@ export const orderStatusValidator = v.union(
   v.literal("completed"),
   v.literal("cancelled"),
   v.literal("refund-requested"),
+  v.literal("seller-rejected"),
+  v.literal("escalated"),
   v.literal("return-approved"),
   v.literal("return-in-transit"),
   v.literal("return-received"),
+  v.literal("repayment-submitted"),
+  v.literal("buyer-confirmed"),
+  v.literal("buyer-disputed"),
   v.literal("refunded")
 );
 
@@ -105,9 +110,14 @@ export const orderEventValidator = v.object({
     v.literal("completed"),
     v.literal("cancelled"),
     v.literal("refund-requested"),
+    v.literal("seller-rejected"),
+    v.literal("escalated"),
     v.literal("return-approved"),
     v.literal("return-in-transit"),
     v.literal("return-received"),
+    v.literal("repayment-submitted"),
+    v.literal("buyer-confirmed"),
+    v.literal("buyer-disputed"),
     v.literal("refunded"),
     v.literal("refund-rejected")
   ),

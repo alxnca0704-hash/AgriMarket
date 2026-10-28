@@ -107,6 +107,12 @@ export function useSellerStallPage(): SellerStallPageResult {
   );
   const cod = finance.finance?.cod;
   const gcash = finance.finance?.gcash;
+  const codRefundBlocked = earnings.payoutData && 'codRefundBlocked' in earnings.payoutData
+    ? earnings.payoutData.codRefundBlocked
+    : false;
+  const codRefundOverdueAmount = earnings.payoutData && 'codRefundOverdueAmount' in earnings.payoutData
+    ? earnings.payoutData.codRefundOverdueAmount
+    : 0;
   const unpaidInvoices = payableInvoices.length;
   const payoutReady = gcash?.payoutReady ?? 0;
   const depositRemaining = deposit.remaining;
@@ -184,7 +190,15 @@ export function useSellerStallPage(): SellerStallPageResult {
         tone: 'info',
       });
     }
-    if (payoutReady > 0) {
+    if (codRefundBlocked) {
+      rows.push({
+        key: 'cod-refund-overdue',
+        title: 'COD refund overdue',
+        detail: `${formatPrice(codRefundOverdueAmount)} must be refunded to unblock payouts`,
+        tab: 'payouts',
+        tone: 'error',
+      });
+    } else if (payoutReady > 0) {
       rows.push({
         key: 'payout-ready',
         title: 'GCash earnings ready',
@@ -203,7 +217,7 @@ export function useSellerStallPage(): SellerStallPageResult {
       });
     }
     return rows.slice(0, 5);
-  }, [cod?.overdue, cod?.unbilled, deposit.deadlineDaysLeft, depositNeedsAction, depositRemaining, payableInvoices, payoutReady, unpaidInvoices]);
+  }, [cod?.overdue, cod?.unbilled, codRefundBlocked, codRefundOverdueAmount, deposit.deadlineDaysLeft, depositNeedsAction, depositRemaining, payableInvoices, payoutReady, unpaidInvoices]);
 
   const error = stall.error
     ?? finance.financeError
@@ -237,9 +251,9 @@ export function useSellerStallPage(): SellerStallPageResult {
       unpaidInvoices,
       payoutReady,
       depositRemaining: depositNeedsAction ? 1 : 0,
-      actionCount: (unpaidInvoices > 0 ? 1 : 0) + (payoutReady > 0 ? 1 : 0) + (depositNeedsAction ? 1 : 0),
+      actionCount: (unpaidInvoices > 0 ? 1 : 0) + (payoutReady > 0 || codRefundBlocked ? 1 : 0) + (depositNeedsAction ? 1 : 0),
       sales: 0,
-      payouts: payoutReady > 0 ? 1 : 0,
+      payouts: payoutReady > 0 || codRefundBlocked ? 1 : 0,
       platform: unpaidInvoices,
       deposit: depositNeedsAction ? 1 : 0,
     },

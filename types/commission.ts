@@ -18,6 +18,7 @@ export interface CommissionInvoice {
   amount: number;
   paidAmount: number;
   remaining: number;
+  creditApplied: number;
   dueAt: number;
   status: CommissionInvoiceStatus;
   pending: boolean;
@@ -30,4 +31,14 @@ export interface SellerCommissionData {
   unbilledOrders: CommissionOrder[];
   invoices: CommissionInvoice[];
   gcash: { qrUrl: string; number: string } | null;
+  credits: {
+    available: number;
+    entries: Array<{
+      _id: string;
+      sourceOrderId: string;
+      amount: number;
+      remainingAmount: number;
+      createdAt: string;
+    }>;
+  };
 }

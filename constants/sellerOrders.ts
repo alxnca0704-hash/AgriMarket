@@ -20,10 +20,15 @@ export const SELLER_ORDER_TAG_COLORS: Record<OrderStatus, string> = {
   completed: 'success',
   cancelled: 'default',
   'refund-requested': 'orange',
+  'seller-rejected': 'red',
+  escalated: 'volcano',
   'return-approved': 'blue',
   'return-in-transit': 'processing',
   'return-received': 'cyan',
-  refunded: 'red',
+  'repayment-submitted': 'geekblue',
+  'buyer-confirmed': 'cyan',
+  'buyer-disputed': 'red',
+  refunded: 'success',
 };
 
 export function getSellerOrderGroup(order: Order): OrderStatus {
