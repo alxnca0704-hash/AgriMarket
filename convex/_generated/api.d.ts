@@ -18,6 +18,7 @@ import type * as deposits from "../deposits.js";
 import type * as finance from "../finance.js";
 import type * as market from "../market.js";
 import type * as messages from "../messages.js";
+import type * as migrations from "../migrations.js";
 import type * as notifications from "../notifications.js";
 import type * as orderMoney from "../orderMoney.js";
 import type * as orders from "../orders.js";
@@ -49,6 +50,7 @@ declare const fullApi: ApiFromModules<{
   finance: typeof finance;
   market: typeof market;
   messages: typeof messages;
+  migrations: typeof migrations;
   notifications: typeof notifications;
   orderMoney: typeof orderMoney;
   orders: typeof orders;
@@ -90,4 +92,6 @@ export declare const internal: FilterApi<
   FunctionReference<any, "internal">
 >;
 
-export declare const components: {};
+export declare const components: {
+  migrations: import("@convex-dev/migrations/_generated/component.js").ComponentApi<"migrations">;
+};

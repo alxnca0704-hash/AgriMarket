@@ -17,15 +17,15 @@ interface CartContextValue {
   subtotal: number;
   deliveryFee: number;
   total: number;
-  selectedProductIds: string[];
+  selectedLines: Array<{ productId: string; variantId: string }>;
   allSelected: boolean;
-  isProductSelected: (productId: string) => boolean;
-  toggleProduct: (productId: string) => void;
+  isProductSelected: (productId: string, variantId: string) => boolean;
+  toggleProduct: (productId: string, variantId: string) => void;
   setGroupSelected: (sellerId: string, selected: boolean) => void;
   setAllSelected: (selected: boolean) => void;
-  addItem: (productId: string, qty?: number) => Promise<void>;
-  updateQty: (productId: string, qty: number) => void;
-  removeItem: (productId: string) => void;
+  addItem: (productId: string, variantId: string, qty?: number) => Promise<void>;
+  updateQty: (productId: string, variantId: string, qty: number) => void;
+  removeItem: (productId: string, variantId: string) => void;
   clearCart: () => Promise<void>;
 }
 
@@ -87,6 +87,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           if (!productById.has(item.productId)) return;
           addItemMutation({
             productId: item.productId as Id<'products'>,
+            variantId: productById.get(item.productId)?.variants?.find((variant) => !variant.archived)?.id ?? `legacy-${item.productId}`,
             qty: item.qty,
           }).catch(() => {});
         });
@@ -103,8 +104,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       if (!product) continue;
       next.push({
         productId: row.productId,
+        variantId: row.variantId ?? `legacy-${row.productId}`,
+        priceAtAdd: row.priceAtAdd,
         sellerId: row.stallId,
-        qty: Math.min(row.qty, Math.max(1, product.stockQty)),
+        qty: row.qty,
       });
     }
     return next;
@@ -118,20 +121,21 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   );
 
   const selectedItems = useMemo(
-    () => items.filter((i) => !deselectedIds.has(i.productId)),
+    () => items.filter((i) => !deselectedIds.has(`${i.productId}:${i.variantId}`)),
     [items, deselectedIds]
   );
 
   const isProductSelected = useCallback(
-    (productId: string) => !deselectedIds.has(productId),
+    (productId: string, variantId: string) => !deselectedIds.has(`${productId}:${variantId}`),
     [deselectedIds]
   );
 
-  const toggleProduct = useCallback((productId: string) => {
+  const toggleProduct = useCallback((productId: string, variantId: string) => {
+    const key = `${productId}:${variantId}`;
     setDeselectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(productId)) next.delete(productId);
-      else next.add(productId);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   }, []);
@@ -142,8 +146,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         const next = new Set(prev);
         for (const item of items) {
           if (item.sellerId !== sellerId) continue;
-          if (selected) next.delete(item.productId);
-          else next.add(item.productId);
+          const key = `${item.productId}:${item.variantId}`;
+          if (selected) next.delete(key);
+          else next.add(key);
         }
         return next;
       });
@@ -157,29 +162,30 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         setDeselectedIds(new Set<string>());
         return;
       }
-      setDeselectedIds(new Set(items.map((i) => i.productId)));
+      setDeselectedIds(new Set(items.map((i) => `${i.productId}:${i.variantId}`)));
     },
     [items]
   );
 
-  const addItem = async (productId: string, qty = 1) => {
+  const addItem = async (productId: string, variantId: string, qty = 1) => {
     try {
-      await addItemMutation({ productId: productId as Id<'products'>, qty });
+      await addItemMutation({ productId: productId as Id<'products'>, variantId, qty });
     } catch {
       message.error('Could not add to cart. Please sign in and try again.');
     }
   };
 
-  const updateQty = (productId: string, qty: number) => {
+  const updateQty = (productId: string, variantId: string, qty: number) => {
     const product = productById.get(productId);
-    const clamped = Math.min(Math.max(1, qty), product?.stockQty ?? qty);
-    updateQtyMutation({ productId: productId as Id<'products'>, qty: clamped }).catch(() => {
+    const variant = product?.variants?.find((candidate) => candidate.id === variantId);
+    const clamped = Math.min(Math.max(1, qty), variant?.stock ?? qty);
+    updateQtyMutation({ productId: productId as Id<'products'>, variantId, qty: clamped }).catch(() => {
       message.error('Could not update your cart. Please try again.');
     });
   };
 
-  const removeItem = (productId: string) => {
-    removeItemMutation({ productId: productId as Id<'products'> }).catch(() => {
+  const removeItem = (productId: string, variantId: string) => {
+    removeItemMutation({ productId: productId as Id<'products'>, variantId }).catch(() => {
       message.error('Could not remove the item. Please try again.');
     });
   };
@@ -194,7 +200,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const subtotal = selectedItems.reduce((sum, i) => {
     const product = productById.get(i.productId);
-    return sum + (product ? product.price * i.qty : 0);
+    const variant = product?.variants?.find((candidate) => candidate.id === i.variantId);
+    return sum + (variant ? variant.price * i.qty : 0);
   }, 0);
 
   const sellerIds = useMemo(
@@ -207,8 +214,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     return sum + (seller ? seller.deliveryFeePeso : 0);
   }, 0);
 
-  const selectedProductIds = useMemo(
-    () => selectedItems.map((i) => i.productId),
+  const selectedLines = useMemo(
+    () => selectedItems.map(({ productId, variantId }) => ({ productId, variantId })),
     [selectedItems]
   );
 
@@ -224,7 +231,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         subtotal,
         deliveryFee,
         total: subtotal + deliveryFee,
-        selectedProductIds,
+        selectedLines,
         allSelected,
         isProductSelected,
         toggleProduct,

@@ -370,11 +370,11 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
                   const reviewed = reviewsByProductId.get(item.productId);
                   return (
                     <div
-                      key={item.productId}
+                      key={`${item.productId}:${item.variantId ?? ''}`}
                       className="rounded-xl bg-stone-50/70 p-3 flex flex-col gap-2"
                     >
                       <div className="flex items-center justify-between gap-3 flex-wrap">
-                        <p className="text-sm font-medium text-stone-800 truncate">{item.name}</p>
+                        <p className="text-sm font-medium text-stone-800 truncate">{item.name} - {item.variantName ?? item.unit} x {item.qty}</p>
                         {reviewed ? (
                           <Rate disabled value={reviewed.rating} className="!text-xs shrink-0" />
                         ) : canReviewProduct(item.productId) ? (

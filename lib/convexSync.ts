@@ -66,18 +66,19 @@ export function toSessionUser(
 }
 
 export function toSellerListing(product: ProductDoc): SellerListing {
+  const variants = product.variants ?? [{ id: `legacy-${product._id}`, name: product.unit || 'Standard', price: product.price, stock: product.stockQty, sortOrder: 0 }];
+  const activeVariants = variants.filter((variant) => !variant.archived).sort((a, b) => a.sortOrder - b.sortOrder);
   return {
     id: product._id,
     name: product.name,
     category: product.category,
-    price: product.price,
+    price: activeVariants.length > 0 ? Math.min(...activeVariants.map((variant) => variant.price)) : product.price,
     unit: product.unit,
     imageUrl: product.imageUrl,
     imageUrls: product.imageUrls,
-    stockQty: product.stockQty,
+    stockQty: activeVariants.reduce((sum, variant) => sum + variant.stock, 0),
+    variants,
     soldCount: product.soldCount,
-    harvestDate: product.harvestDate,
-    expiryDate: product.expiryDate,
     description: product.description,
     isActive: product.isActive,
     createdAt: new Date(product._creationTime).toISOString(),
@@ -133,18 +134,21 @@ export function toBuyerSeller(stall: StallDoc, ownerName: string | null): Seller
 }
 
 export function toBuyerProduct(product: ProductDoc, stall: StallDoc): Product {
+  const variants = product.variants ?? [{ id: `legacy-${product._id}`, name: product.unit || 'Standard', price: product.price, stock: product.stockQty, sortOrder: 0 }];
+  const activeVariants = variants.filter((variant) => !variant.archived).sort((a, b) => a.sortOrder - b.sortOrder);
   return {
     id: product._id,
     sellerId: product.stallId,
     name: product.name,
     category: product.category,
-    price: product.price,
+    price: activeVariants.length > 0 ? Math.min(...activeVariants.map((variant) => variant.price)) : product.price,
     unit: product.unit,
     images: product.imageUrls.length > 0 ? product.imageUrls : [product.imageUrl],
     imageUrl: product.imageUrl,
-    stockQty: product.stockQty,
+    stockQty: activeVariants.reduce((sum, variant) => sum + variant.stock, 0),
     soldCount: product.soldCount,
-    harvestDate: product.harvestDate,
+    harvestDate: '',
+    variants,
     origin: stall.location.cityMunicipality,
     storageTips: 'Keep in a cool, dry place away from direct sunlight.',
     description: product.description,
@@ -165,6 +169,8 @@ export function toOrder(order: OrderDoc): Order {
     deliveryFeePeso: order.deliveryFeePeso,
     items: order.items.map((item) => ({
       productId: item.productId,
+      variantId: item.variantId,
+      variantName: item.variantName,
       name: item.name,
       price: item.price,
       unit: item.unit,

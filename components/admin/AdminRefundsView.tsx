@@ -141,6 +141,7 @@ export function AdminRefundsView({ initialSection = 'pending' }: { initialSectio
               <div><p className="text-xs text-stone-500">Order ID</p><p className="mt-1 break-all font-mono text-sm font-semibold text-stone-900">{selected.orderId}</p></div>
               <Tag className="m-0 border-0 bg-white text-stone-700">{STATUS_LABELS[selected.status]}</Tag>
             </div>
+            <section className="rounded-xl bg-white p-3 text-sm text-stone-700">{selected.items.map((item) => <p key={`${item.productId}:${item.variantId ?? ''}`}>{item.name} - {item.variantName ?? item.unit} x {item.qty}</p>)}</section>
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <RecordField label="Buyer" value={selected.buyerName} />
               <RecordField label="Seller" value={selected.sellerName} />

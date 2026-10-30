@@ -79,10 +79,7 @@ export function useHome() {
         sorted.sort((a, b) => b.rating - a.rating);
         break;
       case 'freshness':
-        sorted.sort(
-          (a, b) =>
-            new Date(b.harvestDate).getTime() - new Date(a.harvestDate).getTime()
-        );
+        sorted.sort((a, b) => a.price - b.price);
         break;
       default:
         break;

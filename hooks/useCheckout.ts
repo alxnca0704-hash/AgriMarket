@@ -74,6 +74,7 @@ export function useCheckout() {
   const cart = useCartContext();
   const { user, selectedGroups } = useCart();
   const groups = selectedGroups;
+  const hasUnavailableItems = groups.some((group) => group.lines.some((line) => line.unavailable));
   const { message } = App.useApp();
   const placeOrdersMutation = useMutation(api.orders.placeOrders);
   const gcashSettings = useQuery(api.orders.getPublicGcashSettings, {});
@@ -491,7 +492,7 @@ export function useCheckout() {
       const created = await placeOrdersMutation({
         address: { ...selectedAddress, label: selectedAddress.label ?? 'Home' },
         notes: trimmedNotes,
-        productIds: cart.selectedProductIds.map((id) => id as Id<'products'>),
+        selectedLines: cart.selectedLines.map(({ productId, variantId }) => ({ productId: productId as Id<'products'>, variantId })),
         paymentMethod,
         ...(paymentMethod === 'gcash' ? {
           paymentReference: paymentReference.trim(),
@@ -522,6 +523,7 @@ export function useCheckout() {
     deliveryFee: cart.deliveryFee,
     total: cart.total,
     itemCount: cart.selectedItemCount,
+    hasUnavailableItems,
     addresses,
     selectedIndex,
     defaultIndex,

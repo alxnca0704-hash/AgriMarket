@@ -7,23 +7,21 @@ import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { ProductCategory } from '@/constants/categories';
-import { ProductUnit } from '@/constants/productUnits';
 import { MAX_PRODUCT_IMAGE_BYTES, MAX_PRODUCT_PHOTOS } from '@/constants/products';
 import { APP_ROUTES, API_ROUTES } from '@/constants/routes';
 import { SellerListing } from '@/types/seller';
 import { useCloudinaryImageUpload } from '@/hooks/useCloudinaryImageUpload';
 import { toSellerListing } from '@/lib/convexSync';
+import { ProductVariant } from '@/types/product';
+import { PRODUCT_ACTION_KEYS } from '@/constants/products';
+import { usePendingAction } from '@/hooks/usePendingAction';
 
 export { MAX_PRODUCT_PHOTOS };
 
 export interface ProductFormDraft {
   name: string;
   category: ProductCategory;
-  price: string;
-  unit: ProductUnit;
-  stockQty: string;
-  harvestDate: string;
-  expiryDate: string;
+  variants: Array<{ id: string; name: string; description: string; price: string; stock: string }>;
   description: string;
   imageUrls: string[];
   isActive: boolean;
@@ -33,11 +31,7 @@ export function makeEmptyProductDraft(): ProductFormDraft {
   return {
     name: '',
     category: 'vegetables',
-    price: '',
-    unit: 'kg',
-    stockQty: '',
-    harvestDate: '',
-    expiryDate: '',
+    variants: [{ id: crypto.randomUUID(), name: '', description: '', price: '', stock: '' }],
     description: '',
     imageUrls: [],
     isActive: true,
@@ -48,11 +42,7 @@ export function toProductFormDraft(listing: SellerListing): ProductFormDraft {
   return {
     name: listing.name,
     category: listing.category,
-    price: String(listing.price),
-    unit: listing.unit,
-    stockQty: String(listing.stockQty),
-    harvestDate: listing.harvestDate,
-    expiryDate: listing.expiryDate ?? '',
+    variants: (listing.variants ?? [{ id: `legacy-${listing.id}`, name: listing.unit, price: listing.price, stock: listing.stockQty, sortOrder: 0 }]).filter((variant) => !variant.archived).map((variant) => ({ id: variant.id, name: variant.name, description: variant.description ?? '', price: String(variant.price), stock: String(variant.stock) })),
     description: listing.description,
     imageUrls: listing.imageUrls.length > 0 ? listing.imageUrls : [listing.imageUrl],
     isActive: listing.isActive,
@@ -78,17 +68,19 @@ function validateProduct(draft: ProductFormDraft): Record<string, string> {
   if (!draft.category) errs.category = 'Pick a category';
   if (draft.imageUrls.length === 0) errs.imageUrls = 'Add at least one photo';
 
-  const price = parseFloat(draft.price);
-  if (draft.price.trim() === '' || Number.isNaN(price) || price <= 0) {
-    errs.price = 'Enter a price greater than 0';
-  }
-
-  const stock = parseInt(draft.stockQty, 10);
-  if (draft.stockQty.trim() === '' || Number.isNaN(stock) || stock < 0) {
-    errs.stockQty = 'Enter a valid stock quantity';
-  }
-
-  if (!draft.harvestDate) errs.harvestDate = 'Pick a harvest date';
+  if (draft.variants.length < 1 || draft.variants.length > 20) errs.variants = 'Add between 1 and 20 types';
+  const names = new Set<string>();
+  draft.variants.forEach((variant, index) => {
+    const name = variant.name.trim();
+    if (!name) errs[`variant-${index}-name`] = 'Type name is required';
+    else if (name.length > 60) errs[`variant-${index}-name`] = 'Type name must be 60 characters or fewer';
+    else if (names.has(name.toLocaleLowerCase())) errs[`variant-${index}-name`] = 'Type names must be unique';
+    names.add(name.toLocaleLowerCase());
+    const price = Number(variant.price);
+    if (!variant.price.trim() || !Number.isFinite(price) || price <= 0 || Math.round(price * 100) !== price * 100) errs[`variant-${index}-price`] = 'Enter a price greater than 0 (up to 2 decimals)';
+    if (!/^\d+$/.test(variant.stock)) errs[`variant-${index}-stock`] = 'Enter a whole stock quantity of 0 or more';
+    if (variant.description.length > 200) errs[`variant-${index}-description`] = 'Description must be 200 characters or fewer';
+  });
   return errs;
 }
 
@@ -113,7 +105,8 @@ export function useSellerProductForm(listingId?: string) {
     upload,
   } = useCloudinaryImageUpload(API_ROUTES.productImageUpload);
 
-  const [isSaving, setIsSaving] = useState(false);
+  const saveAction = usePendingAction();
+  const isSaving = saveAction.isPending(PRODUCT_ACTION_KEYS.save);
   const [draft, setDraft] = useState<ProductFormDraft>(makeEmptyProductDraft);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [fileList, setFileList] = useState<UploadFile[]>([]);
@@ -151,6 +144,11 @@ export function useSellerProductForm(listingId?: string) {
       });
     }
   };
+
+  const updateVariant = (index: number, field: 'name' | 'description' | 'price' | 'stock', value: string) => setDraft((prev) => ({ ...prev, variants: prev.variants.map((variant, i) => i === index ? { ...variant, [field]: value } : variant) }));
+  const addVariant = () => setDraft((prev) => prev.variants.length >= 20 ? prev : ({ ...prev, variants: [...prev.variants, { id: crypto.randomUUID(), name: '', description: '', price: '', stock: '' }] }));
+  const removeVariant = (index: number) => setDraft((prev) => prev.variants.length <= 1 ? prev : ({ ...prev, variants: prev.variants.filter((_, i) => i !== index) }));
+  const moveVariant = (index: number, direction: -1 | 1) => setDraft((prev) => { const target = index + direction; if (target < 0 || target >= prev.variants.length) return prev; const variants = [...prev.variants]; [variants[index], variants[target]] = [variants[target], variants[index]]; return { ...prev, variants }; });
 
   const removeUploadedImage = (url: string) => {
     setFileList((prev) => prev.filter((f) => f.url !== url));
@@ -204,17 +202,16 @@ export function useSellerProductForm(listingId?: string) {
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
-    setIsSaving(true);
-    try {
+    await saveAction.run(PRODUCT_ACTION_KEYS.save, async () => {
       const imageUrls = draft.imageUrls;
+      const variants: ProductVariant[] = draft.variants.map((variant, sortOrder) => ({ id: variant.id, name: variant.name.trim(), ...(variant.description.trim() ? { description: variant.description.trim() } : {}), price: Number(variant.price), stock: Number(variant.stock), sortOrder }));
       const input = {
         name: draft.name.trim(),
         category: draft.category,
-        price: parseFloat(draft.price),
-        unit: draft.unit,
-        stockQty: parseInt(draft.stockQty, 10),
-        harvestDate: draft.harvestDate,
-        ...(draft.expiryDate ? { expiryDate: draft.expiryDate } : {}),
+        price: Math.min(...variants.map((variant) => variant.price)),
+        unit: 'piece' as const,
+        stockQty: variants.reduce((sum, variant) => sum + variant.stock, 0),
+        variants,
         description: draft.description.trim(),
         imageUrl: imageUrls[0],
         imageUrls,
@@ -225,17 +222,11 @@ export function useSellerProductForm(listingId?: string) {
           productId: existing.id as Id<'products'>,
           patch: input,
         });
-        message.success('Product updated');
       } else {
         await createProduct(input);
-        message.success('Product added to your stall');
       }
       router.push(APP_ROUTES.sellerProducts);
-    } catch (err) {
-      message.error(errorMessage(err));
-    } finally {
-      setIsSaving(false);
-    }
+    }, { success: 'Product saved', error: 'Could not save product' });
   };
 
   return {
@@ -249,6 +240,7 @@ export function useSellerProductForm(listingId?: string) {
     errors,
     fileList,
     updateField,
+    updateVariant, addVariant, removeVariant, moveVariant,
     handleAddUploadedFile,
     removeUploadedImage,
     save,

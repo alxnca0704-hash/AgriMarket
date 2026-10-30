@@ -27,6 +27,12 @@ export function formatUnitPrice(value: number, unit: string): string {
   return `${formatPrice(value)}/${unit}`;
 }
 
+export function formatProductPriceRange(variants: Array<{ price: number; archived?: boolean }>, singlePrice: number): string {
+  const prices = variants.filter((variant) => !variant.archived).map((variant) => variant.price).sort((a, b) => a - b);
+  if (prices.length < 2 || prices[0] === prices[prices.length - 1]) return `from ${formatPrice(prices[0] ?? singlePrice)}`;
+  return `${formatPrice(prices[0])} - ${formatPrice(prices[prices.length - 1])}`;
+}
+
 export function formatDistance(km: number): string {
   return km >= 1 ? `${Math.round(km)} km` : `${km.toFixed(1)} km`;
 }

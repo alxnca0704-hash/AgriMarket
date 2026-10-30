@@ -174,6 +174,8 @@ export function AdminCodRefundsPanel({
               </dl>
             </section>
 
+            <section className="rounded-xl bg-stone-50 p-3 text-sm text-stone-700">{selectedRefund.items.map((item) => <p key={`${item.productId}:${item.variantId ?? ''}`}>{item.name} - {item.variantName ?? item.unit} x {item.qty}</p>)}</section>
+
             <section className="rounded-2xl bg-white p-4 shadow-sm">
               <h3 className="text-sm font-semibold text-stone-900">Refund destination</h3>
               <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">

@@ -32,6 +32,8 @@ export interface PaymentAttempt {
 
 export interface OrderLineItem {
   productId: string;
+  variantId?: string;
+  variantName?: string;
   name: string;
   price: number;
   unit: string;

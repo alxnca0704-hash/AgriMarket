@@ -218,6 +218,9 @@ export function OrderActions({
         <p className="text-sm text-stone-500 leading-relaxed mb-3">
           Order <span className="font-mono">{order.id}</span> from {order.sellerName}. Describe the issue and attach evidence for review.
         </p>
+        <div className="mb-3 rounded-xl bg-stone-50 p-3 text-sm text-stone-700">
+          {order.items.map((item) => <p key={`${item.productId}:${item.variantId ?? ''}`}>{item.name} - {item.variantName ?? item.unit} x {item.qty}</p>)}
+        </div>
         <Typography.Text type="secondary" className="text-xs">
           Reason (required, at least 10 characters)
         </Typography.Text>

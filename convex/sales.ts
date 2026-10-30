@@ -127,7 +127,7 @@ async function listSales(ctx: QueryCtx, args: { search: string; paymentMethod: '
     const commissionStatus: 'accrued' | 'invoiced' | 'overdue' | 'paid' | 'waived' | 'pending' | 'collected' | 'reversed' | 'n/a' = order.status === 'refunded' ? (order.paymentMethod === 'gcash' ? 'reversed' : 'waived') : order.paymentMethod === 'gcash' ? gcashCommissions.find(item => String(item.orderId) === String(order._id))?.status ?? 'pending' : codPair ? (codPair.eligible ? codAllocation?.status ?? 'accrued' : 'waived') : 'n/a';
     return {
       orderId: String(order._id), completedAt: order.completedAt ?? '', buyerName, stallName: order.sellerName,
-      itemSummary: order.items.map(item => `${item.name} x ${item.qty}`).join(', '),
+      itemSummary: order.items.map(item => `${item.name} - ${item.variantName ?? item.unit} x ${item.qty}`).join(', '),
       items: order.items, itemsSubtotal: order.subtotal,
       deliveryFee: order.deliveryFee, orderTotal: order.total, paymentMethod: order.paymentMethod,
       gcashReference: order.paymentMethod === 'gcash' ? order.paymentReference ?? null : null, saleStatus, stallId: String(order.stallId),

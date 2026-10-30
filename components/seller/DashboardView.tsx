@@ -115,7 +115,7 @@ export function DashboardView() {
                     <span className="text-stone-800 truncate">{listing.name}</span>
                   </span>
                   <span className="text-stone-500 shrink-0 ml-3">
-                    {listing.stockQty} {listing.unit} left
+                    {listing.stockQty} in stock · {listing.variants?.filter((variant) => !variant.archived).length ?? 1} types
                   </span>
                 </div>
               ))}

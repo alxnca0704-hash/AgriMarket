@@ -14,7 +14,7 @@ import {
 import { useSellerProducts } from '@/hooks/useSellerProducts';
 import { ALL_CATEGORIES, CATEGORY_OPTIONS } from '@/constants/categories';
 import { APP_ROUTES } from '@/constants/routes';
-import { formatUnitPrice, formatCount } from '@/lib/format';
+import { formatProductPriceRange, formatCount } from '@/lib/format';
 import { SellerListing } from '@/types/seller';
 
 export function ProductsView() {
@@ -78,10 +78,10 @@ export function ProductsView() {
           </p>
           <div className="mt-auto flex items-baseline justify-between gap-2 pt-1">
             <p className="text-[13px] font-bold tracking-tight text-stone-900">
-              {formatUnitPrice(listing.price, listing.unit)}
+              {formatProductPriceRange(listing.variants ?? [], listing.price)}
             </p>
             <span className="text-[10px] text-stone-400">
-              {listing.stockQty} {listing.unit} · {formatCount(listing.soldCount)} sold
+              {listing.variants?.filter((variant) => !variant.archived).length ?? 1} types · {listing.stockQty} in stock · {formatCount(listing.soldCount)} sold
             </span>
           </div>
         </div>

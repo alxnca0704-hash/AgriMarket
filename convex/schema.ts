@@ -63,11 +63,14 @@ export default defineSchema({
   cartItems: defineTable({
     userId: v.id("users"),
     productId: v.id("products"),
+    variantId: v.optional(v.string()),
+    priceAtAdd: v.optional(v.number()),
     stallId: v.id("stalls"),
     qty: v.number(),
   })
     .index("by_userId", ["userId"])
-    .index("by_userId_and_productId", ["userId", "productId"]),
+    .index("by_userId_and_productId", ["userId", "productId"])
+    .index("by_userId_and_productId_and_variantId", ["userId", "productId", "variantId"]),
 
   orders: defineTable({
     buyerId: v.id("users"),

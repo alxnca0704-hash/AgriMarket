@@ -33,10 +33,23 @@ export interface Product {
   rating: number;
   ratingCount: number;
   tags: string[];
+  variants?: ProductVariant[];
+}
+
+export interface ProductVariant {
+  id: string;
+  name: string;
+  description?: string;
+  price: number;
+  stock: number;
+  sortOrder: number;
+  archived?: boolean;
 }
 
 export interface CartItem {
   productId: string;
+  variantId: string;
+  priceAtAdd?: number;
   sellerId: string;
   qty: number;
 }

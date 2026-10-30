@@ -2,15 +2,12 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { Alert, Button, InputNumber, Result, Skeleton, Tag } from 'antd';
+import { Alert, Button, InputNumber, Modal, Result, Skeleton, Tag } from 'antd';
 import {
   ArrowLeftOutlined,
-  CalendarOutlined,
   CheckCircleFilled,
   CloudOutlined,
   EnvironmentOutlined,
-  MinusOutlined,
-  PlusOutlined,
   SafetyCertificateOutlined,
   ShopOutlined,
   ShoppingCartOutlined,
@@ -68,6 +65,8 @@ export function ProductDetailView({ productId }: { productId: string }) {
     cartQty,
     hasStock,
     lowStock,
+    selectedVariantId, selectedVariant, handleVariantSelect, selectedHasStock,
+    variantModalAction, closeVariantModal, handleConfirmVariant,
     handleQtyChange,
     handleAddToCart,
     handleBuyNow,
@@ -107,6 +106,7 @@ export function ProductDetailView({ productId }: { productId: string }) {
 
   const categoryLabel =
     CATEGORY_OPTIONS.find((c) => c.key === product.category)?.label ?? product.category;
+  const variants = (product.variants ?? []).filter((variant) => !variant.archived);
 
   const actionButtons = (
     <>
@@ -170,7 +170,7 @@ export function ProductDetailView({ productId }: { productId: string }) {
                 </Tag>
                 {lowStock && (
                   <Tag color="warning" className="!m-0 !border-none !rounded-full !px-3 !py-1 !text-xs !font-medium">
-                    Only {product.stockQty} left
+                    Only {selectedVariant?.stock ?? 0} left
                   </Tag>
                 )}
                 {!hasStock && (
@@ -202,69 +202,18 @@ export function ProductDetailView({ productId }: { productId: string }) {
             {/* Price & Stock */}
             <div className="flex items-end justify-between gap-3">
               <p className="text-3xl sm:text-4xl font-bold tracking-tight text-stone-900">
-                {formatPrice(product.price)}
-                <span className="ml-1.5 text-sm font-normal text-stone-400">
-                  / {product.unit}
-                </span>
+                {selectedVariant ? formatPrice(selectedVariant.price) : variants.length > 1 ? `${formatPrice(Math.min(...variants.map(v => v.price)))} - ${formatPrice(Math.max(...variants.map(v => v.price)))}` : formatPrice(product.price)}
               </p>
               {cartQty > 0 ? (
                 <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-sage bg-sage-soft px-3 py-1 rounded-full">
                   <CheckCircleFilled /> {cartQty} in cart
                 </span>
-              ) : hasStock ? (
+              ) : selectedHasStock ? (
                 <span className="text-xs text-stone-500 font-medium">
-                  {product.stockQty} in stock
+                  {selectedVariant?.stock} left
                 </span>
               ) : null}
             </div>
-
-            {/* Quantity Selector */}
-            {hasStock && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium text-stone-700" htmlFor="qty">
-                    Quantity
-                  </label>
-                  <span className="text-sm text-stone-500">
-                    Subtotal:{' '}
-                    <strong className="text-stone-900">{formatPrice(product.price * qty)}</strong>
-                  </span>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <button
-                    type="button"
-                    disabled={qty <= 1}
-                    onClick={() => handleQtyChange(qty - 1)}
-                    className="w-10 h-10 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center text-stone-600 text-xs transition-colors cursor-pointer"
-                    aria-label="Decrease quantity"
-                  >
-                    <MinusOutlined />
-                  </button>
-                  <InputNumber
-                    id="qty"
-                    size="large"
-                    min={1}
-                    max={product.stockQty}
-                    value={qty}
-                    onChange={handleQtyChange}
-                    className="!w-24 !rounded-xl text-center"
-                    aria-label="Quantity"
-                  />
-                  <button
-                    type="button"
-                    disabled={qty >= product.stockQty}
-                    onClick={() => handleQtyChange(qty + 1)}
-                    className="w-10 h-10 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center text-stone-600 text-xs transition-colors cursor-pointer"
-                    aria-label="Increase quantity"
-                  >
-                    <PlusOutlined />
-                  </button>
-                  <span className="text-xs text-stone-400 ml-2">
-                    {product.unit}
-                  </span>
-                </div>
-              </div>
-            )}
 
             {/* Action Buttons (Desktop) */}
             <div className="hidden md:grid grid-cols-2 gap-3 pt-1">
@@ -275,7 +224,7 @@ export function ProductDetailView({ productId }: { productId: string }) {
             <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs text-stone-500 pt-1">
               <span className="inline-flex items-center gap-1.5">
                 <CheckCircleFilled className="text-sage text-sm" />
-                Harvested fresh
+                Direct from the farm
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <SafetyCertificateOutlined className="text-sage text-sm" />
@@ -302,21 +251,7 @@ export function ProductDetailView({ productId }: { productId: string }) {
               <h3 className="text-sm font-semibold tracking-tight text-stone-900 mb-5">
                 Farm to table details
               </h3>
-              <dl className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8">
-                <div>
-                  <CalendarOutlined className="text-lg text-sage" />
-                  <dt className="mt-2.5 text-[11px] font-semibold uppercase tracking-wider text-stone-400">
-                    Harvested
-                  </dt>
-                  <dd className="mt-1 text-sm text-stone-700">
-                    {new Date(product.harvestDate).toLocaleDateString('en-PH', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric',
-                    })}
-                  </dd>
-                </div>
-
+              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
                 <div>
                   <EnvironmentOutlined className="text-lg text-sage" />
                   <dt className="mt-2.5 text-[11px] font-semibold uppercase tracking-wider text-stone-400">
@@ -378,15 +313,64 @@ export function ProductDetailView({ productId }: { productId: string }) {
         <div className="md:hidden fixed bottom-0 inset-x-0 z-20 bg-white/95 backdrop-blur-md shadow-[0_-4px_25px_rgba(0,0,0,0.08)] pb-[env(safe-area-inset-bottom)]">
           <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
             <div className="shrink-0">
-              <p className="text-[11px] text-stone-400">Total ({qty} {product.unit})</p>
+              <p className="text-[11px] text-stone-400">Price</p>
               <p className="text-lg font-bold text-stone-900">
-                {formatPrice(product.price * qty)}
+                {selectedVariant ? formatPrice(selectedVariant.price) : `${formatPrice(Math.min(...variants.map(v => v.price)))} - ${formatPrice(Math.max(...variants.map(v => v.price)))}`}
               </p>
             </div>
             <div className="flex-1 grid grid-cols-2 gap-2.5">{actionButtons}</div>
           </div>
         </div>
       )}
+
+      <Modal
+        title={variantModalAction === 'buy' ? 'Choose a type to buy' : 'Choose a type'}
+        open={variantModalAction !== null}
+        onCancel={closeVariantModal}
+        onOk={() => void handleConfirmVariant()}
+        okText={variantModalAction === 'buy' ? 'Buy now' : 'Add to cart'}
+        okButtonProps={{ disabled: !selectedHasStock }}
+        width="90%"
+        style={{ maxWidth: 520 }}
+      >
+        <div className="space-y-4">
+          <div className="flex flex-wrap gap-2">
+            {variants.map((variant) => (
+              <button
+                key={variant.id}
+                type="button"
+                disabled={variant.stock <= 0}
+                onClick={() => handleVariantSelect(variant.id)}
+                className={`rounded-xl px-3 py-2 text-sm ${selectedVariantId === variant.id ? 'bg-sage text-white' : 'bg-stone-100 text-stone-700'} disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                {variant.name}{variant.stock <= 0 ? ' · Sold out' : ''}
+              </button>
+            ))}
+          </div>
+          {selectedVariant ? (
+            <div className="space-y-1">
+              <p className="font-semibold text-stone-900">{formatPrice(selectedVariant.price)}</p>
+              <p className="text-sm text-stone-500">{selectedVariant.stock} left</p>
+              {selectedVariant.description && <p className="text-sm text-stone-600">{selectedVariant.description}</p>}
+            </div>
+          ) : (
+            <p className="text-sm text-amber-700">Please select a type</p>
+          )}
+          {selectedHasStock && (
+            <div className="flex items-center justify-between gap-3">
+              <label className="text-sm font-medium text-stone-700" htmlFor="variant-qty">Quantity</label>
+              <InputNumber
+                id="variant-qty"
+                min={1}
+                max={selectedVariant?.stock}
+                value={qty}
+                onChange={handleQtyChange}
+                aria-label="Quantity"
+              />
+            </div>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -22,6 +22,8 @@ export interface SaleRecord {
   itemSummary: string;
   items: Array<{
     productId: string;
+    variantId?: string;
+    variantName?: string;
     name: string;
     price: number;
     unit: string;

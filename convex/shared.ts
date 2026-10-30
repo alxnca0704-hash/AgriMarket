@@ -50,8 +50,11 @@ export const productInputValidator = v.object({
   price: v.number(),
   unit: productUnitValidator,
   stockQty: v.number(),
-  harvestDate: v.string(),
+  harvestDate: v.optional(v.string()),
   expiryDate: v.optional(v.string()),
+  variants: v.optional(v.array(v.object({
+    id: v.string(), name: v.string(), description: v.optional(v.string()), price: v.number(), stock: v.number(), sortOrder: v.number(), archived: v.optional(v.boolean()),
+  }))),
   description: v.string(),
   imageUrl: v.string(),
   imageUrls: v.array(v.string()),
@@ -91,6 +94,8 @@ export const orderStatusValidator = v.union(
 
 export const orderItemValidator = v.object({
   productId: v.id("products"),
+  variantId: v.optional(v.string()),
+  variantName: v.optional(v.string()),
   name: v.string(),
   price: v.number(),
   unit: v.string(),

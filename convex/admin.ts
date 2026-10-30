@@ -1,12 +1,13 @@
 import { v } from "convex/values";
 import { ADMIN_EMAIL } from "../constants/roles";
-import { Id } from "./_generated/dataModel";
+import { Doc, Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { createNotification } from "./notifications";
 import { makeFunctionReference } from "convex/server";
 import { RETURN_REQUEST_WINDOW_MS } from "../constants/refunds";
 import { COMMISSION_RATE } from "../constants/commissions";
+import { orderItemValidator } from "./shared";
 
 const waiveRefundedOrderRef = makeFunctionReference<"mutation", { orderId: Id<"orders"> }, null>("commissions:waiveRefundedOrder");
 
@@ -47,6 +48,7 @@ const pendingRefundValidator = v.array(v.object({
   returnAddress: v.string(),
   returnCarrier: v.string(),
   returnTrackingNumber: v.string(),
+  items: v.array(orderItemValidator),
   total: v.number(),
   requestedAt: v.string(),
 }));
@@ -98,6 +100,7 @@ export const listPendingRefundRequests = query({
       returnAddress: string;
       returnCarrier: string;
       returnTrackingNumber: string;
+      items: Doc<"orders">["items"];
       total: number;
       requestedAt: string;
     }> = [];
@@ -123,6 +126,7 @@ export const listPendingRefundRequests = query({
         returnAddress: order.returnAddress ?? "",
         returnCarrier: order.returnCarrier ?? "",
         returnTrackingNumber: order.returnTrackingNumber ?? "",
+        items: order.items,
         total: order.total,
         requestedAt: order.refundRequestedAt ?? order.updatedAt,
       });
@@ -511,7 +515,7 @@ export const listAdminGcashPayments = query({
         attemptNumber: first.attemptNumber ?? 1, reviewedBy: first.reviewedBy ?? "", reviewedAt: first.reviewedAt ?? "",
         rejectionReason: first.rejectionReason ?? first.paymentRejectionReason ?? "",
         sellerNames: group.map((order) => order.sellerName), orderIds: group.map((order) => String(order._id)),
-        orders: group.map((order) => ({ orderId: String(order._id), stallName: order.sellerName, subtotal: order.subtotal, deliveryFee: order.deliveryFee, total: order.total, status: order.status, paymentStatus: order.paymentStatus, payoutStatus: order.payoutRequestId ? "reserved" : order.refundPayoutHold ? "on hold" : order.status === "completed" && order.paymentStatus === "paid" && Date.now() - Date.parse(order.deliveredAt ?? "") >= RETURN_REQUEST_WINDOW_MS ? "eligible" : "not eligible" })),
+        orders: group.map((order) => ({ orderId: String(order._id), stallName: order.sellerName, items: order.items, subtotal: order.subtotal, deliveryFee: order.deliveryFee, total: order.total, status: order.status, paymentStatus: order.paymentStatus, payoutStatus: order.payoutRequestId ? "reserved" : order.refundPayoutHold ? "on hold" : order.status === "completed" && order.paymentStatus === "paid" && Date.now() - Date.parse(order.deliveredAt ?? "") >= RETURN_REQUEST_WINDOW_MS ? "eligible" : "not eligible" })),
         events, needsRefund: group.some((order) => order.status === "cancelled" && order.paymentStatus === "paid"),
         duplicateApproved: duplicates.some((order) => !group.some((item) => item._id === order._id) && order.paymentStatus === "paid"),
       });

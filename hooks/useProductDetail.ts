@@ -56,6 +56,8 @@ export function useProductDetail(productId: string) {
   const cart = useCartContext();
 
   const [qty, setQty] = useState(1);
+  const [selectedVariantId, setSelectedVariantId] = useState<string>();
+  const [variantModalAction, setVariantModalAction] = useState<'cart' | 'buy' | null>(null);
 
   const skip = !isValidConvexId(productId);
   const raw = useQuery(
@@ -79,6 +81,9 @@ export function useProductDetail(productId: string) {
     () => (raw == null || isFailed ? undefined : toBuyerSeller(raw.stall, raw.ownerName)),
     [raw, isFailed]
   );
+  const variants = product?.variants?.filter((variant) => !variant.archived) ?? [];
+  const activeVariantId = selectedVariantId ?? (variants.length === 1 ? variants[0].id : undefined);
+  const selectedVariant = variants.find((variant) => variant.id === activeVariantId);
 
   const reviews: Review[] = useMemo(
     () => (Array.isArray(rawReviews) ? rawReviews.map(toReview) : []),
@@ -87,27 +92,34 @@ export function useProductDetail(productId: string) {
   const reviewsLoading = !skip && rawReviews === undefined;
   const reviewsError = rawReviews instanceof Error ? rawReviews.message : null;
 
-  const cartQty =
-    cart.items.find((i) => i.productId === productId)?.qty ?? 0;
+  const cartQty = cart.items.find((i) => i.productId === productId && i.variantId === activeVariantId)?.qty ?? 0;
 
-  const hasStock = product ? product.stockQty > 0 : false;
-  const lowStock = product ? product.stockQty > 0 && product.stockQty <= 20 : false;
+  const hasStock = variants.some((variant) => variant.stock > 0);
+  const selectedHasStock = Boolean(selectedVariant && selectedVariant.stock > 0);
+  const lowStock = Boolean(selectedVariant && selectedVariant.stock > 0 && selectedVariant.stock <= 20);
 
   const handleQtyChange = (value: number | null) => {
-    if (!product) return;
-    setQty(Math.min(Math.max(1, value ?? 1), product.stockQty));
+    if (!selectedVariant) return;
+    setQty(Math.min(Math.max(1, value ?? 1), selectedVariant.stock));
   };
+  const handleVariantSelect = (variantId: string) => { setSelectedVariantId(variantId); setQty(1); };
 
-  const handleAddToCart = () => {
-    if (!product) return;
-    cart.addItem(product.id, qty);
-    message.success(`${product.name} added to cart`);
-  };
+  const handleAddToCart = () => setVariantModalAction('cart');
+  const handleBuyNow = () => setVariantModalAction('buy');
 
-  const handleBuyNow = async () => {
-    if (!product) return;
-    await cart.addItem(product.id, qty);
-    router.push(APP_ROUTES.checkout);
+  const closeVariantModal = () => setVariantModalAction(null);
+
+  const handleConfirmVariant = async () => {
+    if (!product || !selectedVariant || !selectedHasStock) return;
+    if (variantModalAction === 'cart') {
+      void cart.addItem(product.id, selectedVariant.id, qty);
+      message.success(`${product.name} added to cart`);
+      closeVariantModal();
+    } else if (variantModalAction === 'buy') {
+      await cart.addItem(product.id, selectedVariant.id, qty);
+      closeVariantModal();
+      router.push(APP_ROUTES.checkout);
+    }
   };
 
   const handleVisitShop = () => {
@@ -130,6 +142,12 @@ export function useProductDetail(productId: string) {
     cartQty,
     hasStock,
     lowStock,
+    selectedVariantId: activeVariantId, selectedVariant, setSelectedVariantId,
+    handleVariantSelect,
+    selectedHasStock,
+    variantModalAction,
+    closeVariantModal,
+    handleConfirmVariant,
     handleQtyChange,
     handleAddToCart,
     handleBuyNow,

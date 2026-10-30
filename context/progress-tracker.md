@@ -9,15 +9,23 @@ full Cash-on-Delivery order lifecycle are built and wired to Convex.
 
 ## Current Goal
 
-Verify the COD seller-funded refund workflow end-to-end with authenticated
-buyer, seller, and admin sessions, including buyer shipping and repayment
-deadlines, masked-number reveal,
-repayment proof, admin correction, commission credits, and payout blocking.
-The `ys8gxfew` refund-method correction is pending because no matching order
-exists in the dev or prod deployment. Stall Accounts replacement work follows;
-stalls are auto-verified and do not require admin ID review.
+Run the product variant migration and complete the authenticated seller,
+buyer, cart, checkout, and stock walkthrough. Implementation is complete;
+deployment migration and authenticated walkthrough remain release follow-up.
 
 ## Completed
+
+### Product variants
+
+- Products support 1–20 named variants with per-variant descriptions, price,
+  stock, stable IDs, ordering, and archival. Legacy products read as one
+  default variant and have an idempotent paginated migration.
+- Buyer selection, price ranges, variant-keyed cart lines, server checkout,
+  order snapshots, stock reservation/restoration, refund/payment views, and
+  sales CSV exports include variant details. Harvest/expiry dates were removed
+  from product UI.
+- `npm run build` and `npm run lint` pass. Authenticated deployment walkthrough
+  remains.
 
 ### COD seller-funded refunds
 
@@ -466,6 +474,14 @@ stalls are auto-verified and do not require admin ID review.
   the intended Convex deployment remain release follow-up.
 
 ## Architecture Decisions
+
+- **Product variants with per-type price and stock** — product display price
+  derives from the lowest active type price; product stock derives from the
+  active type stock sum. Legacy products resolve to one default type until the
+  idempotent migration fills the optional `variants` field.
+- **Cart keyed by product and variant** — one product in two types creates two
+  lines; checkout reads the selected type's current price and stock from
+  Convex and snapshots it on the order.
 
 - **Convex over a traditional API + ORM** — reactive queries give live
   cart, order, and review updates with no polling, and the entire

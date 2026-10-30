@@ -58,12 +58,12 @@ export function OrderCard({
       <div className="my-4 flex items-center gap-3 rounded-xl bg-stone-50/80 p-3 sm:p-4">
         <div className="flex shrink-0 items-center gap-1.5">
           {preview.slice(0, 2).map((line) => (
-            <Image key={line.productId} src={line.imageUrl} alt={line.name} preview={false} className="!h-12 !w-12 shrink-0 rounded-lg object-cover sm:!h-14 sm:!w-14" />
+            <Image key={`${line.productId}:${line.variantId ?? ''}`} src={line.imageUrl} alt={line.name} preview={false} className="!h-12 !w-12 shrink-0 rounded-lg object-cover sm:!h-14 sm:!w-14" />
           ))}
           {order.items.length > 2 && <span className="flex h-12 w-10 items-center justify-center rounded-lg bg-white text-xs font-semibold text-stone-500 sm:h-14">+{order.items.length - 2}</span>}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-stone-800">{preview[0]?.name}</p>
+          <p className="truncate text-sm font-medium text-stone-800">{preview[0] ? `${preview[0].name} - ${preview[0].variantName ?? preview[0].unit} x ${preview[0].qty}` : ''}</p>
           <p className="mt-1 text-xs text-stone-500">
             {order.items.reduce((sum, item) => sum + item.qty, 0)} {order.items.length === 1 ? 'item' : 'items'}
           </p>

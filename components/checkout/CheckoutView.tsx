@@ -102,6 +102,7 @@ export function CheckoutView() {
     isBarangaysLoading,
     confirmOpen,
     isPlacing,
+    hasUnavailableItems,
     gcashSettings,
     paymentMethod,
     setPaymentMethod,
@@ -238,7 +239,7 @@ export function CheckoutView() {
             total={total}
             itemCount={itemCount}
             paymentMethod={paymentMethod}
-            disabled={!detailsConfirmed || editMode || (paymentMethod === 'gcash' && (!gcashSettings || !paymentNote || !paymentReference.trim()))}
+            disabled={hasUnavailableItems || !detailsConfirmed || editMode || (paymentMethod === 'gcash' && (!gcashSettings || !paymentNote || !paymentReference.trim()))}
             onPlaceOrder={openConfirm}
           />
         </div>

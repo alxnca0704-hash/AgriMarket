@@ -34,7 +34,7 @@ export function CheckoutSellerCard({
           <div className="min-w-0">
             <p className="text-sm font-semibold text-stone-900 truncate">{seller.name}</p>
             <p className="text-xs text-stone-400">
-              {seller.location} · Delivery {formatPrice(deliveryFee)}
+              {seller.location} Â· Delivery {formatPrice(deliveryFee)}
             </p>
           </div>
         </div>
@@ -45,7 +45,7 @@ export function CheckoutSellerCard({
 
       <ul className="divide-y divide-stone-100">
         {lines.map((line) => (
-          <li key={line.productId} className="px-4 sm:px-5 py-4 flex items-center gap-3.5">
+          <li key={`${line.productId}:${line.variantId}`} className="px-4 sm:px-5 py-4 flex items-center gap-3.5">
             <Image
               src={line.imageUrl}
               alt={line.name}
@@ -55,7 +55,7 @@ export function CheckoutSellerCard({
             <div className="flex-1 min-w-0 space-y-1">
               <p className="text-sm font-medium text-stone-800 truncate">{line.name}</p>
               <p className="text-xs text-stone-400">
-                {formatPrice(line.price)}/{line.unit} × {line.qty}
+                {line.variantName} x {line.qty} · {formatPrice(line.price)}
               </p>
             </div>
             <span className="text-sm font-semibold text-stone-900 shrink-0">

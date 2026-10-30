@@ -8,9 +8,12 @@ import { formatPrice } from '@/lib/format';
 
 export interface CartLineItem {
   productId: string;
+  variantId: string;
+  variantName: string;
   name: string;
   price: number;
-  unit: string;
+  priceUpdated: boolean;
+  unavailable: boolean;
   imageUrl: string;
   stockQty: number;
   qty: number;
@@ -21,10 +24,10 @@ interface CartSellerGroupProps {
   seller: Seller;
   lines: CartLineItem[];
   subtotal: number;
-  onToggle: (productId: string, selected: boolean) => void;
+  onToggle: (productId: string, variantId: string, selected: boolean) => void;
   onToggleGroup: (selected: boolean) => void;
-  onQtyChange: (productId: string, qty: number) => void;
-  onRemove: (productId: string) => void;
+  onQtyChange: (productId: string, variantId: string, qty: number) => void;
+  onRemove: (productId: string, variantId: string) => void;
 }
 
 export function CartSellerGroup({
@@ -66,12 +69,13 @@ export function CartSellerGroup({
 
       <ul className="divide-y divide-stone-100">
         {lines.map((line) => {
-          const maxReached = line.qty >= line.stockQty;
+          const maxReached = line.qty >= line.stockQty || line.unavailable;
           return (
-            <li key={line.productId} className="px-4 sm:px-5 py-4 flex items-center gap-3.5">
+            <li key={`${line.productId}:${line.variantId}`} className="px-4 sm:px-5 py-4 flex items-center gap-3.5">
               <Checkbox
                 checked={line.selected}
-                onChange={(e) => onToggle(line.productId, e.target.checked)}
+                disabled={line.unavailable}
+                onChange={(e) => onToggle(line.productId, line.variantId, e.target.checked)}
                 aria-label={`Select ${line.name} for checkout`}
                 className="shrink-0"
               />
@@ -83,16 +87,16 @@ export function CartSellerGroup({
               />
               <div className="flex-1 min-w-0 space-y-1.5">
                 <p className="text-sm font-medium text-stone-800 truncate">{line.name}</p>
-                <p className="text-xs text-stone-400">
-                  {formatPrice(line.price)}/{line.unit}
-                </p>
+                <p className="text-xs text-stone-500">{line.variantName} · {formatPrice(line.price)}</p>
+                {line.priceUpdated && <p className="text-xs text-amber-700">Price updated</p>}
+                {line.unavailable && <p className="text-xs text-error">Unavailable — remove to continue</p>}
                 <div className="flex items-center gap-2 flex-wrap">
                   {/* Mobile: touch-friendly stepper */}
                   <div className="flex sm:hidden items-center gap-1 rounded-xl bg-stone-100 p-1">
                     <button
                       type="button"
                       disabled={line.qty <= 1}
-                      onClick={() => onQtyChange(line.productId, line.qty - 1)}
+                      onClick={() => onQtyChange(line.productId, line.variantId, line.qty - 1)}
                       aria-label={`Decrease quantity for ${line.name}`}
                       className="w-11 h-11 rounded-lg bg-white text-stone-600 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed hover:bg-stone-50 active:bg-stone-200 transition-colors cursor-pointer shadow-sm"
                     >
@@ -104,7 +108,7 @@ export function CartSellerGroup({
                     <button
                       type="button"
                       disabled={maxReached}
-                      onClick={() => onQtyChange(line.productId, line.qty + 1)}
+                      onClick={() => onQtyChange(line.productId, line.variantId, line.qty + 1)}
                       aria-label={`Increase quantity for ${line.name}`}
                       className="w-11 h-11 rounded-lg bg-white text-stone-600 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed hover:bg-stone-50 active:bg-stone-200 transition-colors cursor-pointer shadow-sm"
                     >
@@ -118,7 +122,7 @@ export function CartSellerGroup({
                       min={1}
                       max={line.stockQty}
                       value={line.qty}
-                      onChange={(value) => onQtyChange(line.productId, value ?? 1)}
+                      onChange={(value) => onQtyChange(line.productId, line.variantId, value ?? 1)}
                       aria-label={`Quantity for ${line.name}`}
                     />
                   </div>
@@ -135,7 +139,7 @@ export function CartSellerGroup({
                   type="button"
                   aria-label={`Remove ${line.name}`}
                   onClick={() => {
-                    onRemove(line.productId);
+                    onRemove(line.productId, line.variantId);
                     message.info(`${line.name} removed from cart`);
                   }}
                   className="text-xs text-stone-400 hover:text-[#A64D42] cursor-pointer transition-colors"

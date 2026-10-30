@@ -64,15 +64,19 @@ export function useCart() {
           .filter((i) => i.sellerId === seller.id)
           .map((item) => {
             const product = productById.get(item.productId);
+            const variant = product?.variants?.find((candidate) => candidate.id === item.variantId);
             return {
               productId: item.productId,
+              variantId: item.variantId,
               name: product?.name ?? 'Unknown product',
-              price: product?.price ?? 0,
-              unit: product?.unit ?? '',
+              variantName: variant?.name ?? 'Unavailable type',
+              price: variant?.price ?? item.priceAtAdd ?? product?.price ?? 0,
+              priceUpdated: item.priceAtAdd !== undefined && variant !== undefined && item.priceAtAdd !== variant.price,
+              unavailable: !variant || variant.archived || variant.stock <= 0,
               imageUrl: product?.imageUrl ?? '',
-              stockQty: product?.stockQty ?? 1,
+              stockQty: variant?.stock ?? 0,
               qty: item.qty,
-              selected: cart.isProductSelected(item.productId),
+              selected: cart.isProductSelected(item.productId, item.variantId),
             } satisfies CartLineItem;
           });
         return {
@@ -81,7 +85,7 @@ export function useCart() {
           subtotal: lines.reduce((sum, line) => sum + line.price * line.qty, 0),
         };
       });
-  }, [cart.items, cart.isProductSelected, sellerById, productById]);
+  }, [cart, sellerById, productById]);
 
   const selectedGroups: CartSellerGroupInfo[] = useMemo(
     () =>

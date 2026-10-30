@@ -979,6 +979,7 @@ const adminCodRefundShape = (order: Doc<"orders">, buyerName: string, sellerName
   reason: order.refundReason ?? "No reason provided",
   evidenceUrls: order.refundEvidenceUrls ?? [],
   total: order.total,
+  items: order.items,
   requestedAt: order.refundRequestedAt ?? order.updatedAt,
   returnAddress: order.returnAddress ?? "",
   returnCarrier: order.returnCarrier ?? "",

@@ -50,8 +50,9 @@
 - **Convex** (system of record): `users` (Clerk identity mirror + role
   + profile), `addresses` (buyer delivery address book),
   `stalls` (seller storefront + location + verification + rating),
-  `products` (catalogue, stock, sold count), `cartItems` (buyer cart
-  keyed by user), `orders` (immutable line-item snapshot plus a mutable
+  `products` (catalogue, variants, derived price and stock, sold count),
+  `cartItems` (buyer cart keyed by user, product, and variant), `orders`
+  (immutable line-item snapshot plus a mutable
   status/event log), `reviews` (rating, comment, seller reply),
   `conversations` (buyer/seller threads), and `messages` (text messages).
 - Orders optionally store the seller-entered delivery courier and tracking
@@ -187,28 +188,34 @@
 1. **One order per seller per checkout.** `placeOrders` groups cart
    items by `stallId` and inserts one order per group. Never merge
    sellers into a single order or a single payment.
-2. **Stock moves only on seller confirm.** `stockQty` decreases and
+2. **Stock moves only on seller confirm.** Per-variant stock decreases and
+   product `stockQty` (the active-variant total) and `soldCount` update in
    `soldCount` increases in `confirmOrder`, and only if the order had
    been confirmed (`restoreStock` early-returns otherwise). Cancel and
    reject restore exact quantities. A return/refund never restores stock
    automatically; the seller inspects returned goods first.
 3. **Orders are point-in-time snapshots.** `sellerName`,
-   `sellerLocation`, `items[].name`, `items[].price`,
+   `sellerLocation`, `items[].name`, `items[].variantId`,
+   `items[].variantName`, `items[].price`,
    `items[].unit`, and `items[].imageUrl` are copied at checkout and
    never re-read from the product or stall documents afterwards.
-4. **Status transitions are guarded.** Every mutation calls
+4. **Variant data is authoritative.** Product display price is the lowest
+   active variant price and product stock is the sum of active variant stock.
+   Cart lines are keyed by product and variant. Legacy products read as one
+   default variant and an idempotent migration fills the optional field.
+5. **Status transitions are guarded.** Every mutation calls
    `assertStatus(order, expected)` and appends to `order.events`.
    Illegal transitions throw and never mutate.
-5. **Payment state is server-authoritative.** COD orders start `unpaid`
+6. **Payment state is server-authoritative.** COD orders start `unpaid`
    and become `paid` when the buyer confirms receipt; that same action
    completes the order. GCash orders start `pending` after the buyer submits
    a reference number only; expected totals are derived from order records.
    Only verified admin approval may mark them paid or unlock seller
    confirmation. Decisions append an audit event; rejected submissions retain
    a reason and can be resubmitted by the buyer.
-6. **Images never enter the database as bytes.** Cloudinary holds the
+7. **Images never enter the database as bytes.** Cloudinary holds the
    file; Convex holds a `secure_url` string.
-7. **Return requests block seller payouts.** The order's
+8. **Return requests block seller payouts.** The order's
    `refundPayoutHold` is set in the same transaction as the request and
    stays set throughout approval and return transit, until the request is
    rejected or the admin records the completed refund. Payout requests and

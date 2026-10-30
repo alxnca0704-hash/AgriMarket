@@ -2,8 +2,8 @@
 
 AgriMarket is a three-role marketplace that connects smallholder farmers
 and local producers in the Philippines directly with buyers, with no
-middlemen. A seller creates a stall, lists farm goods with per-kilo /
-per-bundle pricing and stock, and sets a delivery fee. A buyer browses
+middlemen. A seller creates a stall, lists farm goods with one or more
+named types (each with its own price and stock), and sets a delivery fee. A buyer browses
 shops and products, fills a cart, checks out with a per-seller delivery
 fee, pays by Cash on Delivery or GCash, and follows the order through
 `pending → confirmed → to-receive → delivered → completed`, with a

@@ -8,17 +8,18 @@ Feature-complete MVP. Buyer, seller, COD, GCash payments, payouts, refunds, comm
 
 ## Current Goal
 
-Verify the COD seller-funded refund workflow with authenticated buyer, seller,
-and admin sessions, including buyer shipping and repayment deadlines,
-masked-number reveal,
-repayment proof and duplicates, admin method correction, commission credits,
-and payout blocking. The `ys8gxfew` correction is blocked because no matching
-order/refund exists in dev or prod. Completing and verifying Stall Accounts
-follows. Stalls are auto-verified; seller ID collection and admin verification
-were removed. Keep the legacy finance, receivables, and sales page components
-and shared queries until parity is verified.
+Complete the product variant rollout by running the idempotent migration and
+the authenticated seller-to-buyer checkout and stock walkthrough. Implementation
+and local build/lint are complete; deployment verification remains.
 
-## Just Completed
+## Completed
+
+- Implemented per-product types with their own names, descriptions, prices,
+  stock, ordering, and archival. Buyers select a type; cart lines are keyed by
+  product and variant; checkout prices and order snapshots are server-derived.
+- Added legacy default-type reads and an idempotent paginated migration. Product
+  forms and displays no longer show harvest or expiry dates. `npm run build`
+  and `npm run lint` pass.
 
 - Fixed admin stall order history GCash net payouts to include delivery fee via shared `getGcashNetToSeller`; rows and the GCash balance card now match.
 
@@ -166,6 +167,16 @@ and shared queries until parity is verified.
   deposits do not hide or suspend stalls. Deadline reminders and overdue flags
   run hourly; seller and admin receive live notifications.
 - New schema fields are optional, preserving legacy rows. Build and lint pass.
+
+## Architecture Decisions
+
+- **Variants with per-type price and stock** — product display price derives
+  from the lowest active type price and total stock from active type stock.
+  Legacy products read as one default type while an idempotent migration fills
+  the optional `variants` field.
+- **Cart keyed by product and variant** — one product in two types creates two
+  lines; checkout reads current type price and stock from Convex and snapshots
+  the chosen type on the order.
 
 ## Next Up
 

@@ -1,5 +1,6 @@
 import { ProductCategory } from '@/constants/categories';
 import { ProductUnit } from '@/constants/productUnits';
+import { ProductVariant } from '@/types/product';
 
 export interface SellerListing {
   id: string;
@@ -10,9 +11,8 @@ export interface SellerListing {
   imageUrl: string;
   imageUrls: string[];
   stockQty: number;
+  variants?: ProductVariant[];
   soldCount: number;
-  harvestDate: string;
-  expiryDate?: string;
   description: string;
   isActive: boolean;
   createdAt: string;

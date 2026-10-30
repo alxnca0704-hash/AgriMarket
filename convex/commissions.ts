@@ -418,7 +418,7 @@ async function getReceivableRecords(
     const matchesSearch = !search || String(order._id).toLowerCase().includes(search) || String(order._id).slice(-6).toLowerCase().includes(search) || String(invoice?._id ?? "").toLowerCase().includes(search);
     if (!matchesSearch || args.status !== "all" && status !== args.status) return null;
     return {
-      accrualId: accrual._id, orderId: order._id, saleDate, itemsSummary: order.items.map(item => `${item.name} × ${item.qty}`).join(", "),
+      accrualId: accrual._id, orderId: order._id, saleDate, itemsSummary: order.items.map(item => `${item.name} - ${item.variantName ?? item.unit} x ${item.qty}`).join(", "),
       itemsSubtotal: order.subtotal, commission: amount, amountPaid: allocation.amountPaid, amountOwed,
       invoiceId: invoice?._id ?? null, invoiceNumber: invoice ? String(invoice._id) : null, invoiceDueAt: invoice?.dueAt ?? null,
       status, paymentReference: allocation.paymentReference, paymentId: allocation.paymentId, paymentAmount: allocation.paymentAmount, paidAt: allocation.paidAt,

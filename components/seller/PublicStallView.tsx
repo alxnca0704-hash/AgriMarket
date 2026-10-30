@@ -13,6 +13,7 @@ import { usePublicStall } from '@/hooks/usePublicStall';
 import { FARM_TYPE_LABELS } from '@/constants/stall';
 import { APP_ROUTES } from '@/constants/routes';
 import { formatPrice } from '@/lib/format';
+import { formatProductPriceRange } from '@/lib/format';
 
 function PublicStallSkeleton() {
   return (
@@ -127,8 +128,8 @@ export function PublicStallView({ stallId }: { stallId: string }) {
                         {listing.name}
                       </p>
                       <p className="text-[13px] font-semibold text-stone-900 mt-0.5">
-                        {formatPrice(listing.price)}
-                        <span className="text-[11px] font-normal text-stone-400"> / {listing.unit}</span>
+                        {formatProductPriceRange(listing.variants ?? [], listing.price)}
+                        <span className="text-[11px] font-normal text-stone-400"> · {listing.variants?.filter((variant) => !variant.archived).length ?? 1} types</span>
                       </p>
                     </div>
                   </button>

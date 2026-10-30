@@ -2,15 +2,13 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { Alert, Button, DatePicker, Input, InputNumber, Result, Select, Skeleton, Switch, Upload } from 'antd';
-import dayjs from 'dayjs';
-import { PlusOutlined } from '@ant-design/icons';
+import { Alert, Button, Input, InputNumber, Result, Select, Skeleton, Switch, Upload } from 'antd';
+import { ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import {
   useSellerProductForm,
   MAX_PRODUCT_PHOTOS,
 } from '@/hooks/useSellerProductForm';
 import { CATEGORY_OPTIONS } from '@/constants/categories';
-import { PRODUCT_UNITS } from '@/constants/productUnits';
 import { APP_ROUTES } from '@/constants/routes';
 
 function FieldError({ message }: { message?: string }) {
@@ -31,6 +29,7 @@ export function ProductFormView({ listingId }: { listingId?: string }) {
     errors,
     fileList,
     updateField,
+    updateVariant, addVariant, removeVariant, moveVariant,
     handleAddUploadedFile,
     removeUploadedImage,
     save,
@@ -143,79 +142,24 @@ export function ProductFormView({ listingId }: { listingId?: string }) {
             )}
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-stone-700 mb-1.5">
-              Price (₱) <span className="text-error">*</span>
-            </label>
-            <InputNumber
-              size="large"
-              min={1}
-              className="w-full !rounded-lg"
-              value={parseFloat(draft.price) || undefined}
-              onChange={(value) => updateField('price', String(value ?? ''))}
-              status={errors.price ? 'error' : ''}
-            />
-            <FieldError message={errors.price} />
+          <div className="md:col-span-2 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div><h2 className="text-sm font-semibold text-stone-800">Types</h2><p className="text-xs text-stone-500">Each type has its own price and stock.</p></div>
+              <Button icon={<PlusOutlined />} onClick={addVariant} disabled={draft.variants.length >= 20}>Add type</Button>
+            </div>
+            <FieldError message={errors.variants} />
+            {draft.variants.map((variant, index) => (
+              <div key={variant.id} className="rounded-xl bg-stone-50 p-4 space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div><label className="block text-xs font-medium mb-1">Type name *</label><Input maxLength={60} value={variant.name} status={errors[`variant-${index}-name`] ? 'error' : ''} placeholder="e.g. 50 pieces" onChange={(e) => updateVariant(index, 'name', e.target.value)} /><FieldError message={errors[`variant-${index}-name`]} /></div>
+                  <div><label className="block text-xs font-medium mb-1">Description</label><Input maxLength={200} value={variant.description} status={errors[`variant-${index}-description`] ? 'error' : ''} placeholder="Optional details" onChange={(e) => updateVariant(index, 'description', e.target.value)} /><FieldError message={errors[`variant-${index}-description`]} /></div>
+                  <div><label className="block text-xs font-medium mb-1">Price (PHP) *</label><InputNumber min={0.01} precision={2} className="w-full" value={variant.price ? Number(variant.price) : undefined} onChange={(value) => updateVariant(index, 'price', String(value ?? ''))} status={errors[`variant-${index}-price`] ? 'error' : ''} /><FieldError message={errors[`variant-${index}-price`]} /></div>
+                  <div><label className="block text-xs font-medium mb-1">Stock *</label><InputNumber min={0} precision={0} className="w-full" value={variant.stock ? Number(variant.stock) : undefined} onChange={(value) => updateVariant(index, 'stock', String(value ?? ''))} status={errors[`variant-${index}-stock`] ? 'error' : ''} /><FieldError message={errors[`variant-${index}-stock`]} /></div>
+                </div>
+                <div className="flex justify-end gap-2"><Button aria-label="Move type up" icon={<ArrowUpOutlined />} disabled={index === 0} onClick={() => moveVariant(index, -1)} /><Button aria-label="Move type down" icon={<ArrowDownOutlined />} disabled={index === draft.variants.length - 1} onClick={() => moveVariant(index, 1)} /><Button aria-label="Delete type" danger icon={<DeleteOutlined />} disabled={draft.variants.length <= 1} onClick={() => removeVariant(index)} /></div>
+              </div>
+            ))}
           </div>
-
-          <div>
-            <label className="block text-sm font-medium text-stone-700 mb-1.5">
-              Unit <span className="text-error">*</span>
-            </label>
-            <Select
-              size="large"
-              className="w-full"
-              options={PRODUCT_UNITS.map((u) => ({ label: u.label, value: u.key }))}
-              value={draft.unit}
-              onChange={(value) => updateField('unit', value)}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-stone-700 mb-1.5">
-              Stock quantity <span className="text-error">*</span>
-            </label>
-            <InputNumber
-              size="large"
-              min={0}
-              className="w-full !rounded-lg"
-              value={draft.stockQty === '' ? undefined : parseInt(draft.stockQty, 10)}
-              onChange={(value) => updateField('stockQty', String(value ?? ''))}
-              status={errors.stockQty ? 'error' : ''}
-            />
-            <FieldError message={errors.stockQty} />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-stone-700 mb-1.5">
-              Harvest date <span className="text-error">*</span>
-            </label>
-            <DatePicker
-              size="large"
-              className="w-full !rounded-lg"
-              value={draft.harvestDate ? dayjs(draft.harvestDate) : null}
-              onChange={(_, dateString) =>
-                updateField('harvestDate', typeof dateString === 'string' ? dateString : '')
-              }
-              status={errors.harvestDate ? 'error' : ''}
-            />
-            <FieldError message={errors.harvestDate} />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-stone-700 mb-1.5">
-              Expiry date
-            </label>
-            <DatePicker
-              size="large"
-              className="w-full !rounded-lg"
-              value={draft.expiryDate ? dayjs(draft.expiryDate) : null}
-              onChange={(_, dateString) =>
-                updateField('expiryDate', typeof dateString === 'string' ? dateString : '')
-              }
-            />
-          </div>
-
           <div className="md:col-span-2">
             <label htmlFor="description" className="block text-sm font-medium text-stone-700 mb-1.5">
               Description

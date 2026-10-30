@@ -105,14 +105,18 @@ function assertStatus(order: Doc<"orders">, expected: OrderStatus): void {
 async function restoreStock(ctx: MutationCtx, order: Doc<"orders">) {
   if (order.confirmedAt === undefined) return;
   const now = new Date().toISOString();
+  const restored = new Map<string, { product: Doc<"products">; variants: Array<{ id: string; name: string; description?: string; price: number; stock: number; sortOrder: number; archived?: boolean }>; qty: number }>();
   for (const item of order.items) {
     const product = await ctx.db.get("products", item.productId);
     if (product === null) continue;
-    await ctx.db.patch("products", product._id, {
-      stockQty: product.stockQty + item.qty,
-      soldCount: Math.max(0, product.soldCount - item.qty),
-      updatedAt: now,
-    });
+    const entry = restored.get(product._id) ?? { product, variants: product.variants ?? [{ id: `legacy-${product._id}`, name: product.unit || "Standard", price: product.price, stock: product.stockQty, sortOrder: 0 }], qty: 0 };
+    const variantId = item.variantId ?? `legacy-${product._id}`;
+    entry.variants = entry.variants.map((variant) => variant.id === variantId ? { ...variant, stock: variant.stock + item.qty } : variant);
+    entry.qty += item.qty;
+    restored.set(product._id, entry);
+  }
+  for (const { product, variants, qty } of restored.values()) {
+    await ctx.db.patch("products", product._id, { variants, stockQty: variants.filter((variant) => !variant.archived).reduce((sum, variant) => sum + variant.stock, 0), soldCount: Math.max(0, product.soldCount - qty), updatedAt: now });
   }
 }
 
@@ -120,7 +124,7 @@ export const placeOrders = mutation({
   args: {
     address: deliveryAddressValidator,
     notes: v.record(v.string(), v.string()),
-    productIds: v.array(v.id("products")),
+    selectedLines: v.array(v.object({ productId: v.id("products"), variantId: v.string() })),
     paymentMethod: v.union(v.literal("cod"), v.literal("gcash")),
     paymentReference: v.optional(v.string()),
     paymentNote: v.optional(v.string()),
@@ -149,13 +153,13 @@ export const placeOrders = mutation({
       .query("cartItems")
       .withIndex("by_userId", (q) => q.eq("userId", user._id))
       .take(CART_ITEM_LIMIT);
-    const selectedIds = new Set<string>(args.productIds);
-    const cartItems = allCartItems.filter((item) =>
-      selectedIds.has(item.productId)
-    );
+    const selectedIds = new Set(args.selectedLines.map(({ productId, variantId }) => `${productId}:${variantId}`));
+    if (selectedIds.size !== args.selectedLines.length) throw new Error("A cart line was selected more than once");
+    const cartItems = allCartItems.filter((item) => selectedIds.has(`${item.productId}:${item.variantId ?? `legacy-${item.productId}`}`));
     if (cartItems.length === 0) {
       throw new Error("Select at least one item to check out");
     }
+    if (cartItems.length !== args.selectedLines.length) throw new Error("Your cart changed. Refresh and try again.");
 
     const itemsByStall = new Map<Id<"stalls">, Doc<"cartItems">[]>();
     for (const item of cartItems) {
@@ -179,15 +183,22 @@ export const placeOrders = mutation({
         if (product === null || !product.isActive) {
           throw new Error("An item in your cart is no longer available");
         }
-        if (product.stockQty < item.qty) {
+        const variants = product.variants ?? [{ id: `legacy-${product._id}`, name: product.unit || "Standard", price: product.price, stock: product.stockQty, sortOrder: 0 }];
+        const variantId = item.variantId ?? `legacy-${product._id}`;
+        const variant = variants.find((candidate) => candidate.id === variantId && !candidate.archived);
+        if (!variant || variant.stock <= 0) throw new Error(`${product.name} type is unavailable`);
+        if (!Number.isInteger(item.qty) || item.qty < 1) throw new Error(`Enter a valid quantity for ${product.name}`);
+        if (variant.stock < item.qty) {
           throw new Error(`Not enough stock for ${product.name}`);
         }
-        subtotal += product.price * item.qty;
+        subtotal += variant.price * item.qty;
         lineItems.push({
           productId: product._id,
+          variantId,
+          variantName: variant.name,
           name: product.name,
-          price: product.price,
-          unit: product.unit,
+          price: variant.price,
+          unit: variant.name,
           imageUrl: product.imageUrl,
           qty: item.qty,
         });
@@ -496,22 +507,28 @@ export const confirmOrder = mutation({
       throw new Error("GCash payment must be approved before this order can be confirmed.");
     }
 
-    const reserved: Array<{ product: Doc<"products">; qty: number }> = [];
+    const reserved: Array<{ product: Doc<"products">; variantId: string; qty: number }> = [];
     for (const item of order.items) {
       const product = await ctx.db.get("products", item.productId);
-      if (product === null || product.stockQty < item.qty) {
+      const variants = product?.variants ?? (product ? [{ id: `legacy-${product._id}`, name: product.unit || "Standard", price: product.price, stock: product.stockQty, sortOrder: 0 }] : []);
+      const variantId = item.variantId ?? `legacy-${item.productId}`;
+      const variant = variants.find((candidate) => candidate.id === variantId && !candidate.archived);
+      if (product === null || !variant || variant.stock < item.qty) {
         throw new Error(`Not enough stock for ${item.name}`);
       }
-      reserved.push({ product, qty: item.qty });
+      reserved.push({ product, variantId, qty: item.qty });
     }
 
     const now = new Date().toISOString();
-    for (const { product, qty } of reserved) {
-      await ctx.db.patch("products", product._id, {
-        stockQty: product.stockQty - qty,
-        soldCount: product.soldCount + qty,
-        updatedAt: now,
-      });
+    const reservedByProduct = new Map<string, { product: Doc<"products">; variants: Array<{ id: string; name: string; description?: string; price: number; stock: number; sortOrder: number; archived?: boolean }>; qty: number }>();
+    for (const { product, variantId, qty } of reserved) {
+      const entry = reservedByProduct.get(product._id) ?? { product, variants: product.variants ?? [{ id: `legacy-${product._id}`, name: product.unit || "Standard", price: product.price, stock: product.stockQty, sortOrder: 0 }], qty: 0 };
+      entry.variants = entry.variants.map((variant) => variant.id === variantId ? { ...variant, stock: variant.stock - qty } : variant);
+      entry.qty += qty;
+      reservedByProduct.set(product._id, entry);
+    }
+    for (const { product, variants, qty } of reservedByProduct.values()) {
+      await ctx.db.patch("products", product._id, { variants, stockQty: variants.filter((variant) => !variant.archived).reduce((sum, variant) => sum + variant.stock, 0), soldCount: product.soldCount + qty, updatedAt: now });
     }
 
     await ctx.db.patch("orders", order._id, {

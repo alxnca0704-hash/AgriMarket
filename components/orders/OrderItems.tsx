@@ -19,7 +19,7 @@ export function OrderItems({ items }: { items: OrderLineItem[] }) {
           <div className="flex-1 min-w-0 space-y-1">
             <p className="text-sm font-medium text-stone-800 truncate">{line.name}</p>
             <p className="text-xs text-stone-400">
-              {formatPrice(line.price)}/{line.unit} × {line.qty}
+              {line.name} - {line.variantName ?? line.unit} x {line.qty} · {formatPrice(line.price)}
             </p>
           </div>
           <span className="text-sm font-semibold text-stone-900 shrink-0">

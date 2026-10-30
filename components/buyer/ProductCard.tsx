@@ -3,7 +3,7 @@
 import React from 'react';
 import { CheckCircleFilled } from '@ant-design/icons';
 import { Product, Seller } from '@/types/product';
-import { formatCount, formatUnitPrice, getProductImageUrl } from '@/lib/format';
+import { formatCount, formatProductPriceRange, getProductImageUrl } from '@/lib/format';
 
 interface ProductCardProps {
   product: Product;
@@ -48,7 +48,7 @@ export function ProductCard({ product, seller, onOpen }: ProductCardProps) {
 
         <div className="mt-auto flex items-baseline justify-between gap-2 pt-1">
           <p className="text-[13px] font-bold tracking-tight text-stone-900">
-            {formatUnitPrice(product.price, product.unit)}
+            {formatProductPriceRange(product.variants ?? [], product.price)}
           </p>
           <span className="text-[10px] text-stone-400">Sold {formatCount(product.soldCount)}</span>
         </div>

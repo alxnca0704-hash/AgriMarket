@@ -9,6 +9,7 @@ export interface AdminRefundRequest {
   reason: string;
   evidenceUrls: string[];
   total: number;
+  items: import('@/types/order').OrderLineItem[];
   requestedAt: string;
   returnAddress: string;
   returnCarrier: string;
@@ -54,6 +55,7 @@ export interface AdminCodRefund {
   reason: string;
   evidenceUrls: string[];
   total: number;
+  items: import('@/types/order').OrderLineItem[];
   requestedAt: string;
   returnAddress: string;
   returnCarrier: string;
