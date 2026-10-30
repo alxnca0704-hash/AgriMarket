@@ -4,9 +4,10 @@ import { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { orderStatusValidator } from "./shared";
-import { BLOCK_PAYOUT_WHEN_OVERDUE } from "../constants/commissions";
 import { COMMISSION_RATE } from "../constants/commissions";
 import { isCodRefundOverdue } from "./orderMoney";
+import { isPayoutDay, nextPayoutDate, payoutBatchWeek, MIN_PAYOUT_AMOUNT, getNetPayoutAmount } from "../constants/payouts";
+import { RETURN_REQUEST_WINDOW_MS } from "../constants/refunds";
 
 const payoutValidator = v.object({
   _id: v.id("payoutRequests"),
@@ -15,6 +16,7 @@ const payoutValidator = v.object({
   gcashNumber: v.string(),
   orderCount: v.number(),
   status: v.union(v.literal("pending"), v.literal("paid"), v.literal("rejected")),
+  statusV2: v.union(v.literal("requested"), v.literal("on-hold"), v.literal("paid"), v.literal("cancelled"), v.literal("rejected")),
   requestedAt: v.string(),
   reviewedAt: v.union(v.string(), v.null()),
   transferReference: v.union(v.string(), v.null()),
@@ -23,6 +25,7 @@ const payoutValidator = v.object({
   deliveryFee: v.number(),
   commissionAmount: v.number(),
   netPayoutAmount: v.number(),
+  orders: v.array(v.object({ orderId: v.id("orders"), itemsSubtotal: v.number(), deliveryFee: v.number(), commissionAmount: v.number(), netPayoutAmount: v.number(), completedAt: v.string() })),
 });
 
 const sellerOrderValidator = v.object({
@@ -55,7 +58,7 @@ const payoutOrderSnapshotValidator = v.object({
 
 function commissionValues(order: { subtotal: number; deliveryFee: number; commissionRate?: number; commissionAmount?: number; netPayoutAmount?: number }) {
   const commissionAmount = order.commissionAmount ?? Math.round(order.subtotal * COMMISSION_RATE * 100) / 100;
-  return { itemsSubtotal: order.subtotal, deliveryFee: order.deliveryFee, commissionAmount, netPayoutAmount: order.netPayoutAmount ?? Math.round((order.subtotal + order.deliveryFee - commissionAmount) * 100) / 100, rate: order.commissionRate ?? COMMISSION_RATE };
+  return { itemsSubtotal: order.subtotal, deliveryFee: order.deliveryFee, commissionAmount, netPayoutAmount: getNetPayoutAmount({ ...order, commissionAmount }), rate: order.commissionRate ?? COMMISSION_RATE };
 }
 
 async function currentUser(ctx: QueryCtx | MutationCtx) {
@@ -88,14 +91,52 @@ function isPayoutEligible(order: {
     && order.refundPayoutHold !== true
     && order.payoutRequestId === undefined
     && order.deliveredAt !== undefined
-    && now - Date.parse(order.deliveredAt) >= 24 * 60 * 60 * 1000;
+    && now - Date.parse(order.deliveredAt) >= RETURN_REQUEST_WINDOW_MS;
 }
+
+export const cancelPayout = mutation({
+  args: { payoutRequestId: v.id("payoutRequests") },
+  returns: v.null(),
+  async handler(ctx, args) {
+    const user = await currentUser(ctx);
+    const request = await ctx.db.get("payoutRequests", args.payoutRequestId);
+    if (!user || user.role !== "seller" || !request || request.sellerId !== user._id) throw new Error("Payout request not found.");
+    if (request.status !== "pending" || request.statusV2 === "on-hold") throw new Error("Only a requested payout can be cancelled before the transfer is recorded.");
+    const now = new Date().toISOString();
+    await ctx.db.patch("payoutRequests", request._id, { status: "rejected", statusV2: "cancelled", rejectionReason: "Cancelled by seller", events: [...(request.events ?? []), { type: "cancelled", actorId: String(user._id), actorRole: "seller", at: now }] });
+    for (const orderId of request.orderIds) {
+      const order = await ctx.db.get("orders", orderId);
+      if (order?.payoutRequestId === request._id) await ctx.db.patch("orders", orderId, { payoutRequestId: undefined, updatedAt: now });
+    }
+    return null;
+  },
+});
+
+export const saveSellerPayoutDestination = mutation({
+  args: { gcashName: v.string(), gcashNumber: v.string() },
+  returns: v.null(),
+  async handler(ctx, args) {
+    const user = await currentUser(ctx);
+    if (!user || user.role !== "seller") throw new Error("Seller account required.");
+    const stall = await ctx.db.query("stalls").withIndex("by_ownerId", q => q.eq("ownerId", user._id)).first();
+    if (!stall) throw new Error("Stall not found.");
+    const name = args.gcashName.trim();
+    const number = args.gcashNumber.trim().replace(/[\s-]/g, "");
+    if (name.length < 2 || name.length > 100 || !/^((\+?63)|0)?9\d{9}$/.test(number)) throw new Error("Enter a valid GCash account name and Philippine mobile number.");
+    await ctx.db.patch("stalls", stall._id, { payoutGcashName: name, payoutGcashNumber: number, updatedAt: new Date().toISOString() });
+    return null;
+  },
+});
 
 export const getSellerPayouts = query({
   args: {},
   returns: v.union(v.null(), v.object({
     eligibleAmount: v.number(),
     eligibleOrderCount: v.number(),
+    isPayoutDay: v.boolean(),
+    nextPayoutAt: v.string(),
+    payoutGcashName: v.union(v.string(), v.null()),
+    payoutGcashNumber: v.union(v.string(), v.null()),
     codRefundBlocked: v.boolean(),
     codRefundOverdueAmount: v.number(),
     orders: v.array(sellerOrderValidator),
@@ -104,6 +145,8 @@ export const getSellerPayouts = query({
   async handler(ctx) {
     const user = await currentUser(ctx);
     if (!user || user.role !== "seller") return null;
+    const stall = await ctx.db.query("stalls").withIndex("by_ownerId", q => q.eq("ownerId", user._id)).first();
+    if (!stall) return null;
     const orders = await ctx.db.query("orders")
       .withIndex("by_sellerId", (q) => q.eq("sellerId", user._id))
       .take(500);
@@ -129,11 +172,11 @@ export const getSellerPayouts = query({
       }
       return {
         orderId: order._id,
-        amount: order.netPayoutAmount ?? commissionValues(order).netPayoutAmount,
+        amount: commissionValues(order).netPayoutAmount,
         itemsSubtotal: order.subtotal,
         deliveryFee: order.deliveryFee,
         commissionAmount: order.commissionAmount ?? commissionValues(order).commissionAmount,
-        netPayoutAmount: order.netPayoutAmount ?? commissionValues(order).netPayoutAmount,
+        netPayoutAmount: commissionValues(order).netPayoutAmount,
         completedAt: order.completedAt ?? null,
         placedAt: order.placedAt,
         deliveredAt: order.deliveredAt ?? null,
@@ -147,6 +190,10 @@ export const getSellerPayouts = query({
     return {
       eligibleAmount: eligible.reduce((total, order) => total + order.amount, 0),
       eligibleOrderCount: eligible.length,
+      isPayoutDay: isPayoutDay(now),
+      nextPayoutAt: nextPayoutDate(now).toISOString(),
+      payoutGcashName: stall?.payoutGcashName ?? null,
+      payoutGcashNumber: stall?.payoutGcashNumber ?? null,
       codRefundBlocked: overdueCodRefunds.length > 0,
       codRefundOverdueAmount: overdueCodRefunds.reduce((total, order) => total + (order.refundAmount ?? order.total), 0),
       orders: sellerOrders,
@@ -157,6 +204,7 @@ export const getSellerPayouts = query({
         gcashNumber: request.gcashNumber,
         orderCount: request.orderIds.length,
         status: request.status,
+        statusV2: request.statusV2 ?? (request.status === "pending" ? "requested" : request.status),
         requestedAt: request.requestedAt,
         reviewedAt: request.reviewedAt ?? null,
         transferReference: request.transferReference ?? null,
@@ -165,6 +213,7 @@ export const getSellerPayouts = query({
         deliveryFee: (request.orderSnapshots ?? []).reduce((sum, item) => sum + (item.deliveryFee ?? 0), 0),
         commissionAmount: (request.orderSnapshots ?? []).reduce((sum, item) => sum + (item.commissionAmount ?? 0), 0),
         netPayoutAmount: request.amount,
+        orders: (request.orders ?? (request.orderSnapshots ?? []).map(item => ({ orderId: item.orderId, itemsSubtotal: item.itemsSubtotal ?? item.amount, deliveryFee: item.deliveryFee ?? 0, commissionAmount: item.commissionAmount ?? 0, netPayoutAmount: item.netPayoutAmount ?? item.amount, completedAt: item.completedAt ?? item.deliveredAt }))),
       })),
     };
   },
@@ -194,43 +243,41 @@ export const backfillSellerGcashCommissions = mutation({
 });
 
 export const requestPayout = mutation({
-  args: { gcashName: v.string(), gcashNumber: v.string(), orderIds: v.array(v.id("orders")) },
+  args: {},
   returns: v.id("payoutRequests"),
-  async handler(ctx, args) {
+  async handler(ctx) {
     const user = await currentUser(ctx);
     if (!user || user.role !== "seller") throw new Error("Seller account required.");
     const stall = await ctx.db.query("stalls")
       .withIndex("by_ownerId", (q) => q.eq("ownerId", user._id))
       .first();
     if (!stall) throw new Error("Create a stall before requesting a payout.");
-    if (BLOCK_PAYOUT_WHEN_OVERDUE) {
-      const invoices = await ctx.db.query("commissionInvoices").withIndex("by_stallId", q => q.eq("stallId", stall._id)).take(200);
-      if (invoices.some(invoice => invoice.amount > invoice.paidAmount && invoice.dueAt <= Date.now())) throw new Error("Payout requests are unavailable while a commission invoice is overdue.");
-    }
+    const nowMs = Date.now();
+    if (!isPayoutDay(nowMs)) throw new Error("Payouts can only be requested on Sundays.");
+    const batchWeek = payoutBatchWeek(nowMs);
+    const existingBatch = await ctx.db.query("payoutRequests").withIndex("by_stallId_and_batchWeek", q => q.eq("stallId", stall._id).eq("batchWeek", batchWeek)).first();
+    if (existingBatch && ["pending", "paid"].includes(existingBatch.status) && existingBatch.statusV2 !== "cancelled" && existingBatch.statusV2 !== "rejected") throw new Error("Already requested for this Sunday.");
     const sellerOrders = await ctx.db.query("orders")
       .withIndex("by_sellerId", (q) => q.eq("sellerId", user._id))
       .take(500);
     if (sellerOrders.some((order) => isCodRefundOverdue(order))) {
       throw new Error("Payout requests are unavailable while you have an overdue COD refund. Send the refund and submit proof first.");
     }
-    const gcashName = args.gcashName.trim();
-    const gcashNumber = args.gcashNumber.trim();
+    const gcashName = (stall.payoutGcashName ?? "").trim();
+    const gcashNumber = (stall.payoutGcashNumber ?? "").trim();
     const normalizedNumber = gcashNumber.replace(/[\s-]/g, "");
     if (gcashName.length < 2 || gcashName.length > 100) throw new Error("Enter a GCash account name between 2 and 100 characters.");
     if (!/^(\+?63|0)?9\d{9}$/.test(normalizedNumber)) throw new Error("Enter a valid Philippine GCash mobile number.");
-    if (args.orderIds.length < 1 || args.orderIds.length > 100) throw new Error("Select between 1 and 100 orders for this payout request.");
-    if (new Set(args.orderIds).size !== args.orderIds.length) throw new Error("An order can only appear once in a payout request.");
-    const selected = args.orderIds.map((orderId) => sellerOrders.find((order) => order._id === orderId));
-    if (selected.some((order) => !order || !isPayoutEligible(order, Date.now()))) {
-      throw new Error("One or more selected orders are no longer eligible for payout.");
-    }
-    const selectedOrders = selected.filter((order) => order !== undefined);
+    if (!gcashName || !normalizedNumber) throw new Error("Add your GCash payout number before requesting a payout.");
+    const selectedOrders = sellerOrders.filter((order) => isPayoutEligible(order, nowMs));
+    if (selectedOrders.length === 0) throw new Error("No available balance.");
     const now = new Date().toISOString();
     const snapshots = selectedOrders.map((order) => {
       const values = commissionValues(order);
-      return { orderId: order._id, amount: values.netPayoutAmount, placedAt: order.placedAt, deliveredAt: order.deliveredAt!, paymentMethod: order.paymentMethod, itemsSubtotal: values.itemsSubtotal, deliveryFee: values.deliveryFee, commissionAmount: values.commissionAmount, netPayoutAmount: values.netPayoutAmount, completedAt: order.completedAt ?? order.deliveredAt! };
+      return { orderId: order._id, amount: getNetPayoutAmount(order), placedAt: order.placedAt, deliveredAt: order.deliveredAt!, paymentMethod: order.paymentMethod, itemsSubtotal: values.itemsSubtotal, deliveryFee: values.deliveryFee, commissionAmount: values.commissionAmount, netPayoutAmount: getNetPayoutAmount(order), completedAt: order.completedAt ?? order.deliveredAt! };
     });
     const amount = snapshots.reduce((total, item) => total + item.netPayoutAmount, 0);
+    if (amount <= 0 || amount < MIN_PAYOUT_AMOUNT) throw new Error("Available payout total is below the minimum payout amount.");
     for (const order of selectedOrders) {
       const values = commissionValues(order);
       await ctx.db.patch("orders", order._id, { commissionRate: values.rate, commissionAmount: values.commissionAmount, netPayoutAmount: values.netPayoutAmount });
@@ -247,8 +294,18 @@ export const requestPayout = mutation({
       gcashNumber,
       status: "pending",
       requestedAt: now,
+      type: "weekly",
+      batchWeek,
+      requestedBy: user._id,
+      statusV2: "requested",
+      orders: snapshots.map(item => ({ orderId: item.orderId, itemsSubtotal: item.itemsSubtotal ?? item.amount, deliveryFee: item.deliveryFee ?? 0, commissionAmount: item.commissionAmount ?? 0, netPayoutAmount: item.netPayoutAmount ?? item.amount, completedAt: item.completedAt ?? item.deliveredAt })),
+      totalNet: amount,
+      events: [{ type: "requested", actorId: String(user._id), actorRole: "seller", at: now }],
     });
     for (const order of selectedOrders) await ctx.db.patch("orders", order._id, { payoutRequestId: requestId, updatedAt: now });
+    const admin = await ctx.db.query("users").withIndex("by_email", q => q.eq("email", ADMIN_EMAIL)).first();
+    if (admin) await ctx.db.insert("notifications", { userId: admin._id, role: "admin", type: "payout_requested", title: "New seller payout request", body: `${stall.stallName} requested ${amount.toFixed(2)} for ${selectedOrders.length} GCash orders.`, refId: String(requestId), read: false, createdAt: now });
+    await ctx.db.insert("notifications", { userId: user._id, role: "seller", type: "payout_requested", title: "Payout request received", body: `Your ${amount.toFixed(2)} payout request is waiting for the admin to send your transfer.`, refId: String(requestId), read: false, createdAt: now });
     return requestId;
   },
 });
@@ -329,7 +386,7 @@ export const listPendingPayouts = query({
 });
 
 export const recordPayoutSent = mutation({
-  args: { payoutRequestId: v.id("payoutRequests"), transferReference: v.string() },
+  args: { payoutRequestId: v.id("payoutRequests"), transferReference: v.string(), recordedAmount: v.optional(v.number()) },
   returns: v.null(),
   async handler(ctx, args) {
     const actorEmail = await requireAdmin(ctx);
@@ -345,6 +402,9 @@ export const recordPayoutSent = mutation({
     }
     const reference = args.transferReference.trim();
     if (reference.length < 3 || reference.length > 100) throw new Error("Enter a GCash transfer reference between 3 and 100 characters.");
+    const normalizedReference = reference.toLowerCase().replace(/\s+/g, "");
+    const priorRequests = await ctx.db.query("payoutRequests").take(2000);
+    if (priorRequests.some(item => item._id !== request._id && (item.transferReference ?? "").toLowerCase().replace(/\s+/g, "") === normalizedReference)) throw new Error("This transfer reference has already been recorded.");
     let verifiedTotal = 0;
     for (const orderId of request.orderIds) {
       const order = await ctx.db.get("orders", orderId);
@@ -359,8 +419,11 @@ export const recordPayoutSent = mutation({
       const ledger = await ctx.db.query("platformCommissions").withIndex("by_orderId", q => q.eq("orderId", orderId)).unique();
       if (ledger && ledger.status === "pending") await ctx.db.patch("platformCommissions", ledger._id, { status: "collected", payoutRequestId: request._id, collectedAt: now, events: [...ledger.events, { type: "collected", label: "Commission collected with seller payout", at: now, actor: actorEmail, payoutRequestId: request._id, transferReference: reference }] });
     }
-    await ctx.db.patch("payoutRequests", request._id, { status: "paid", reviewedAt: now, reviewedBy: actorEmail, transferReference: reference });
-    await ctx.db.insert("adminAuditLog", { actorEmail, action: "payout_paid", payoutRequestId: request._id, payoutReference: reference, payoutAmount: request.amount, createdAt: now });
+    const recordedAmount = args.recordedAmount ?? request.amount;
+    if (!Number.isFinite(recordedAmount) || recordedAmount < 0) throw new Error("Enter a valid recorded transfer amount.");
+    await ctx.db.patch("payoutRequests", request._id, { status: "paid", statusV2: "paid", reviewedAt: now, reviewedBy: actorEmail, recordedBy: actorEmail, paidAt: now, recordedAmount, transferReference: reference, events: [...(request.events ?? []), { type: "paid", actorId: actorEmail, actorRole: "admin", amount: recordedAmount, at: now }] });
+    await ctx.db.insert("adminAuditLog", { actorEmail, action: "payout_paid", payoutRequestId: request._id, payoutReference: reference, payoutAmount: recordedAmount, createdAt: now });
+    await ctx.db.insert("notifications", { userId: request.sellerId, role: "seller", type: "payout_paid", title: "Payout transfer recorded", body: `Your ${recordedAmount.toFixed(2)} transfer was recorded. Reference: ${reference}.`, refId: String(request._id), read: false, createdAt: now });
     return null;
   },
 });
@@ -375,12 +438,13 @@ export const rejectPayout = mutation({
     const reason = args.reason.trim();
     if (reason.length < 5 || reason.length > 500) throw new Error("Enter a rejection reason between 5 and 500 characters.");
     const now = new Date().toISOString();
-    await ctx.db.patch("payoutRequests", request._id, { status: "rejected", reviewedAt: now, reviewedBy: actorEmail, rejectionReason: reason });
+    await ctx.db.patch("payoutRequests", request._id, { status: "rejected", statusV2: "rejected", reviewedAt: now, reviewedBy: actorEmail, rejectionReason: reason, events: [...(request.events ?? []), { type: "rejected", actorId: actorEmail, actorRole: "admin", reason, at: now }] });
     for (const orderId of request.orderIds) {
       const order = await ctx.db.get("orders", orderId);
       if (order?.payoutRequestId === request._id) await ctx.db.patch("orders", orderId, { payoutRequestId: undefined, updatedAt: now });
     }
     await ctx.db.insert("adminAuditLog", { actorEmail, action: "payout_rejected", payoutRequestId: request._id, payoutAmount: request.amount, reason, createdAt: now });
+    await ctx.db.insert("notifications", { userId: request.sellerId, role: "seller", type: "payout_rejected", title: "Payout request rejected", body: reason, refId: String(request._id), read: false, createdAt: now });
     return null;
   },
 });

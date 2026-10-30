@@ -395,7 +395,7 @@ async function computeExpectedGcashBalance(ctx: QueryCtx | MutationCtx) {
     total(orders.filter(o => o.paymentMethod === "gcash" && o.paymentStatus === "paid").map(o => o.total)) +
     total(deposits.filter(d => d.status === "approved").map(d => d.approvedAmount ?? d.amount)) +
     total(commissionPayments.map(p => p.approvedAmount ?? p.amount)) -
-    total(payouts.map(p => p.amount)) -
+    total(payouts.map(p => p.recordedAmount ?? p.amount)) -
     total(orders.filter(o => o.status === "refunded" && o.refundMethod === "gcash").map(o => o.refundAmount ?? o.total))
   );
 }
@@ -472,7 +472,7 @@ export const getAdminDashboard = query({
     const deposited = sumBy(approvedDeposits.map(d => d.approvedAmount ?? d.amount));
     const codCollected = sumBy(approvedCodPayments.map(p => p.approvedAmount ?? p.amount));
     const buyerPayments = sumBy(paidGcash.map(o => o.total));
-    const paidOut = sumBy(paidPayouts.map(p => p.amount));
+    const paidOut = sumBy(paidPayouts.map(p => p.recordedAmount ?? p.amount));
     const refundsOut = sumBy(gcashRefunds.map(o => o.refundAmount ?? o.total));
     const expected = roundMoney(buyerPayments + deposited + codCollected - paidOut - refundsOut);
     const sellerOwed = roundMoney(currentFinance.gcash.owedToSellers);
@@ -497,7 +497,7 @@ export const getAdminDashboard = query({
     for (const o of paidGcash) { const date = o.reviewedAt ?? o.placedAt; const row = trendByDate.get(date.slice(0, 10)); if (row && isInRange(date)) row.in += o.total; }
     for (const d of approvedDeposits) { const date = d.reviewedAt ?? d.createdAt; const row = trendByDate.get(date.slice(0, 10)); if (row && isInRange(date)) row.in += d.approvedAmount ?? d.amount; }
     for (const p of approvedCodPayments) { const date = p.reviewedAt ?? p.createdAt; const row = trendByDate.get(date.slice(0, 10)); if (row && isInRange(date)) row.in += p.approvedAmount ?? p.amount; }
-    for (const p of paidPayouts) { const date = p.reviewedAt ?? p.requestedAt; const row = trendByDate.get(date.slice(0, 10)); if (row && isInRange(date)) row.out += p.amount; }
+    for (const p of paidPayouts) { const date = p.paidAt ?? p.reviewedAt ?? p.requestedAt; const row = trendByDate.get(date.slice(0, 10)); if (row && isInRange(date)) row.out += p.recordedAmount ?? p.amount; }
     for (const o of gcashRefunds) { const date = o.updatedAt ?? o.placedAt; const row = trendByDate.get(date.slice(0, 10)); if (row && isInRange(date)) row.out += o.refundAmount ?? o.total; }
     for (const o of rangeSales) { const row = trendByDate.get((o.completedAt ?? financeDate(o)).slice(0, 10)); if (row) row[o.paymentMethod] += o.total; }
     const topSeller = [...currentFinance.stalls].sort((a, b) => b.gcashOwedToSeller - a.gcashOwedToSeller).slice(0, 5);

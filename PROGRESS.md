@@ -8,11 +8,21 @@ Feature-complete MVP. Buyer, seller, COD, GCash payments, payouts, refunds, comm
 
 ## Current Goal
 
-Complete the product variant rollout by running the idempotent migration and
-the authenticated seller-to-buyer checkout and stock walkthrough. Implementation
-and local build/lint are complete; deployment verification remains.
+Complete Sunday-only GCash seller payout batches, including seller request and
+cancel, admin review, consistent balances, refund interactions, and legacy
+request compatibility.
 
 ## Completed
+
+- Added Manila timezone Sunday and ISO batch-week helpers, a shared net payout
+  fallback formula, optional payout destination and batch snapshot schema fields,
+  server-enforced weekly all-eligible-order requests, and seller cancellation.
+- Replaced the seller order picker with balance cards, payout gating, saved
+  GCash destination entry, request confirmation, and batch history breakdown.
+- Admin transfer recording now supports a recorded amount, normalized unique
+  references, payout audit events, seller notification, and expected GCash
+  balance deductions use the recorded amount.
+- `npm run build` passes. `npm run lint` passes with existing warnings.
 
 - Implemented per-product types with their own names, descriptions, prices,
   stock, ordering, and archival. Buyers select a type; cart lines are keyed by
@@ -170,6 +180,13 @@ and local build/lint are complete; deployment verification remains.
 
 ## Architecture Decisions
 
+- **Sunday-only payout requests** — sellers request one weekly batch on Sunday
+  in Asia/Manila; the server clock and Manila calendar determine access.
+- **Balance computed by one helper** — balance is derived from eligible orders,
+  return/refund holds, reservations, and transfers; no balance copy is stored.
+- **One formula for net payout** — items subtotal plus delivery fee less the
+  stored commission snapshot; use the stored net snapshot when available.
+
 - **Variants with per-type price and stock** — product display price derives
   from the lowest active type price and total stock from active type stock.
   Legacy products read as one default type while an idempotent migration fills
@@ -191,6 +208,12 @@ and local build/lint are complete; deployment verification remains.
    `commissions:getSellerCommissions` responses.
 
 ## Open Questions
+
+- The payout implementation is incomplete: admin hold/remove-order controls,
+  tabbed server-paginated payout review and CSV export, summary cards, shared
+  available-balance computation across finance/dashboard/ledger surfaces,
+  refund request interactions, post-payment seller-owes flags, and reminder
+  notifications remain to be implemented and verified.
 
 - Whether or when the stall deposit is refundable remains undecided; refunds,
   commission offsets, and penalties were intentionally excluded from this

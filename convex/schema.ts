@@ -50,6 +50,8 @@ export default defineSchema({
     depositDeadline: v.optional(v.number()),
     depositPaidAt: v.optional(v.string()),
     depositOverdue: v.optional(v.boolean()),
+    payoutGcashName: v.optional(v.string()),
+    payoutGcashNumber: v.optional(v.string()),
     updatedAt: v.string(),
   }).index("by_ownerId", ["ownerId"]),
 
@@ -295,9 +297,21 @@ export default defineSchema({
     reviewedBy: v.optional(v.string()),
     transferReference: v.optional(v.string()),
     rejectionReason: v.optional(v.string()),
+    type: v.optional(v.union(v.literal("weekly"), v.literal("manual"))),
+    batchWeek: v.optional(v.string()),
+    requestedBy: v.optional(v.id("users")),
+    statusV2: v.optional(v.union(v.literal("requested"), v.literal("on-hold"), v.literal("paid"), v.literal("cancelled"), v.literal("rejected"))),
+    orders: v.optional(v.array(v.object({ orderId: v.id("orders"), itemsSubtotal: v.number(), deliveryFee: v.number(), commissionAmount: v.number(), netPayoutAmount: v.number(), completedAt: v.string() }))),
+    totalNet: v.optional(v.number()),
+    recordedAmount: v.optional(v.number()),
+    paidAt: v.optional(v.string()),
+    recordedBy: v.optional(v.string()),
+    events: v.optional(v.array(v.object({ type: v.string(), actorId: v.string(), actorRole: v.union(v.literal("seller"), v.literal("admin"), v.literal("system")), reason: v.optional(v.string()), amount: v.optional(v.number()), at: v.string() }))),
   })
     .index("by_sellerId", ["sellerId"])
-    .index("by_status", ["status"]),
+    .index("by_status", ["status"])
+    .index("by_stallId_and_batchWeek", ["stallId", "batchWeek"])
+    .index("by_requestedAt", ["requestedAt"]),
 
   platformCommissions: defineTable({
     orderId: v.id("orders"),

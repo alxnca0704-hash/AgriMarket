@@ -129,7 +129,7 @@ export function SettingsView() {
           </span>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-stone-800">GCash payouts</p>
-            <p className="text-xs text-stone-400">Set the GCash destination when requesting a payout from your stall page.</p>
+            <p className="text-xs text-stone-400">Manage the saved GCash destination for Sunday seller payouts from your stall page.</p>
           </div>
         </div>
         <div className="px-5 pb-4 sm:px-6"><Button type="link" className="!px-0" onClick={() => router.push(APP_ROUTES.sellerStallTab('payouts'))}>Go to Payouts</Button></div>
