@@ -146,7 +146,7 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
           <Button icon={<MessageOutlined />} loading={isStarting} onClick={() => void startConversation(order.stallId, order.id)}>Message shop</Button>
         </div>
 
-        <div className="mt-5">
+        <div className="mt-5 mb-6">
           <OrderProgress order={order} audience="buyer" />
         </div>
 
@@ -171,7 +171,7 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
           )}
 
         {order.deliveryCourier && order.deliveryTrackingNumber && (
-          <Alert className="mt-4" type="info" showIcon title="Delivery tracking" description={`${order.deliveryCourier} · Tracking ${order.deliveryTrackingNumber}`} />
+          <Alert className="!border-none" type="info" showIcon title="Delivery tracking" description={`${order.deliveryCourier} · Tracking ${order.deliveryTrackingNumber}`} />
         )}
 
         {order.cancelReason && (

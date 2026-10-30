@@ -6,7 +6,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Drawer, Layout, Menu } from 'antd';
 import type { MenuProps } from 'antd';
 import {
-  ArrowLeftOutlined,
   BellOutlined,
   CloseOutlined,
   HomeOutlined,
@@ -49,16 +48,6 @@ export function BuyerShell({ children }: { children: React.ReactNode }) {
     () => DEMO_BUYER
   );
 
-  const TAB_ROOTS = [
-    APP_ROUTES.home,
-    APP_ROUTES.shops,
-    APP_ROUTES.cart,
-    APP_ROUTES.orders,
-    APP_ROUTES.messages,
-    APP_ROUTES.notifications,
-    APP_ROUTES.profile,
-  ];
-
   const activeKey =
     pathname === APP_ROUTES.home || pathname.startsWith('/products')
       ? 'home'
@@ -75,12 +64,6 @@ export function BuyerShell({ children }: { children: React.ReactNode }) {
                 : pathname === APP_ROUTES.profile || pathname.startsWith('/profile')
                   ? 'profile'
                   : null;
-
-  const hasInlineBack =
-    pathname.startsWith(APP_ROUTES.productDetail('')) ||
-    pathname.startsWith(APP_ROUTES.shop(''));
-  const showBack =
-    !TAB_ROOTS.includes(pathname as (typeof TAB_ROOTS)[number]) && !hasInlineBack;
 
   const navItems: MenuProps['items'] = useMemo(
     () =>
@@ -176,16 +159,6 @@ export function BuyerShell({ children }: { children: React.ReactNode }) {
         <div className="lg:hidden sticky top-0 z-30 bg-white/95 backdrop-blur">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
             <div className="flex items-center gap-1.5 min-w-0">
-              {showBack && (
-                <button
-                  type="button"
-                  aria-label="Go back"
-                  onClick={() => router.back()}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg text-stone-500 hover:text-[#2D6A4F] cursor-pointer"
-                >
-                  <ArrowLeftOutlined />
-                </button>
-              )}
               <button
                 type="button"
                 aria-label="Open menu"

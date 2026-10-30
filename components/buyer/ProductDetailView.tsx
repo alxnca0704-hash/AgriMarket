@@ -4,11 +4,7 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Alert, Button, InputNumber, Modal, Result, Skeleton, Tag } from 'antd';
 import {
-  ArrowLeftOutlined,
   CheckCircleFilled,
-  CloudOutlined,
-  EnvironmentOutlined,
-  SafetyCertificateOutlined,
   ShopOutlined,
   ShoppingCartOutlined,
   ShoppingOutlined,
@@ -139,18 +135,6 @@ export function ProductDetailView({ productId }: { productId: string }) {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-5 pb-32 md:pb-12 sm:pt-8 space-y-10 sm:space-y-14">
         {error && <Alert type="error" title={error} showIcon />}
 
-        {/* Back navigation */}
-        <div>
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="group inline-flex items-center gap-2 text-sm font-medium text-stone-500 hover:text-stone-900 transition-colors cursor-pointer"
-          >
-            <ArrowLeftOutlined className="text-xs transition-transform group-hover:-translate-x-0.5" />
-            <span>Back to products</span>
-          </button>
-        </div>
-
         {/* Product Hero: Image + Purchase Info */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
           {/* Product Image */}
@@ -219,53 +203,35 @@ export function ProductDetailView({ productId }: { productId: string }) {
             <div className="hidden md:grid grid-cols-2 gap-3 pt-1">
               {actionButtons}
             </div>
-
-            {/* Direct Farm Badges */}
-            <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs text-stone-500 pt-1">
-              <span className="inline-flex items-center gap-1.5">
-                <CheckCircleFilled className="text-sage text-sm" />
-                Direct from the farm
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <SafetyCertificateOutlined className="text-sage text-sm" />
-                Verified farm origin
-              </span>
-            </div>
           </div>
         </div>
 
         {/* About & Farm Information */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
           {/* About & Details */}
-          <section className="lg:col-span-7 space-y-9">
+          <section className="lg:col-span-7 space-y-5">
             <div>
-              <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-stone-900 mb-3.5">
+              <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-stone-900">
                 About this produce
               </h2>
-              <p className="text-sm sm:text-[15px] text-stone-600 leading-relaxed">
+              <p className="mt-1.5 text-sm sm:text-[15px] text-stone-600 leading-relaxed">
                 {product.description}
               </p>
             </div>
 
             <div>
-              <h3 className="text-sm font-semibold tracking-tight text-stone-900 mb-5">
+              <h3 className="text-sm font-semibold tracking-tight text-stone-900">
                 Farm to table details
               </h3>
-              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
+              <dl className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <div>
-                  <EnvironmentOutlined className="text-lg text-sage" />
-                  <dt className="mt-2.5 text-[11px] font-semibold uppercase tracking-wider text-stone-400">
-                    Origin
-                  </dt>
-                  <dd className="mt-1 text-sm text-stone-700">{product.origin}</dd>
+                  <dt className="text-xs font-medium text-stone-400">Origin</dt>
+                  <dd className="mt-0.5 text-sm text-stone-700">{product.origin}</dd>
                 </div>
 
                 <div>
-                  <CloudOutlined className="text-lg text-sage" />
-                  <dt className="mt-2.5 text-[11px] font-semibold uppercase tracking-wider text-stone-400">
-                    Storage
-                  </dt>
-                  <dd className="mt-1 text-sm text-stone-700 leading-relaxed">
+                  <dt className="text-xs font-medium text-stone-400">Storage</dt>
+                  <dd className="mt-0.5 text-sm text-stone-700 leading-relaxed">
                     {product.storageTips}
                   </dd>
                 </div>
@@ -279,7 +245,7 @@ export function ProductDetailView({ productId }: { productId: string }) {
               <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-stone-900">
                 From the farm
               </h2>
-              <div className="rounded-2xl bg-white shadow-sm p-4 sm:p-5 space-y-4">
+              <div className="rounded-2xl bg-white p-4 sm:p-5 space-y-4">
                 <SellerCard seller={seller} />
                 <Button
                   block
@@ -311,14 +277,14 @@ export function ProductDetailView({ productId }: { productId: string }) {
       {/* Mobile Sticky Action Bar */}
       {hasStock && (
         <div className="md:hidden fixed bottom-0 inset-x-0 z-20 bg-white/95 backdrop-blur-md shadow-[0_-4px_25px_rgba(0,0,0,0.08)] pb-[env(safe-area-inset-bottom)]">
-          <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
-            <div className="shrink-0">
-              <p className="text-[11px] text-stone-400">Price</p>
-              <p className="text-lg font-bold text-stone-900">
+          <div className="max-w-6xl mx-auto px-4 pt-2.5 pb-3 flex flex-col gap-2">
+            <div className="flex items-baseline gap-2 min-w-0">
+              <span className="shrink-0 text-[11px] text-stone-400">Price</span>
+              <p className="truncate text-lg font-bold text-stone-900">
                 {selectedVariant ? formatPrice(selectedVariant.price) : `${formatPrice(Math.min(...variants.map(v => v.price)))} - ${formatPrice(Math.max(...variants.map(v => v.price)))}`}
               </p>
             </div>
-            <div className="flex-1 grid grid-cols-2 gap-2.5">{actionButtons}</div>
+            <div className="grid grid-cols-2 gap-2.5">{actionButtons}</div>
           </div>
         </div>
       )}
