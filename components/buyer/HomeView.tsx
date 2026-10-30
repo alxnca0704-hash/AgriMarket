@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Alert, Button, Empty, Input, Skeleton } from 'antd';
-import { EnvironmentOutlined, FilterOutlined, ShoppingOutlined } from '@ant-design/icons';
+import { FilterOutlined, ShoppingOutlined } from '@ant-design/icons';
 import { useHome } from '@/hooks/useHome';
 import { HomeCarousel } from '@/components/buyer/HomeCarousel';
 import { ProductGrid } from '@/components/buyer/ProductGrid';
@@ -39,9 +39,6 @@ export function HomeView() {
   const {
     isLoading,
     error,
-    greeting,
-    firstName,
-    deliveryAddress,
     products,
     totalProducts,
     sellers,
@@ -80,16 +77,6 @@ export function HomeView() {
     <div>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 pb-10 sm:pt-10 space-y-8 sm:space-y-10">
         {error && <Alert type="error" title={error} showIcon />}
-
-        <div>
-          <h1 className="text-[26px] sm:text-3xl font-semibold tracking-tight text-stone-900">
-            {greeting}, {firstName}.
-          </h1>
-          <p className="text-sm text-stone-500 mt-2 flex items-center gap-1.5">
-            <EnvironmentOutlined className="text-sage" />
-            <span className="truncate">Delivering to {deliveryAddress}</span>
-          </p>
-        </div>
 
         <HomeCarousel />
 
