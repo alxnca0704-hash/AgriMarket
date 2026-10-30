@@ -1,3 +1,5 @@
+import { getNetPayoutAmount } from '@/constants/payouts';
+
 export interface GcashNetOrder {
   netPayoutAmount?: number | null;
   itemsSubtotal: number;
@@ -6,6 +8,10 @@ export interface GcashNetOrder {
 }
 
 export function getGcashNetToSeller(order: GcashNetOrder): number {
-  if (order.netPayoutAmount !== undefined && order.netPayoutAmount !== null) return order.netPayoutAmount;
-  return Math.round((order.itemsSubtotal + order.deliveryFee - order.commissionAmount) * 100) / 100;
+  return getNetPayoutAmount({
+    subtotal: order.itemsSubtotal,
+    deliveryFee: order.deliveryFee,
+    commissionAmount: order.commissionAmount,
+    netPayoutAmount: order.netPayoutAmount ?? undefined,
+  });
 }

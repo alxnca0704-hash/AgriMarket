@@ -20,7 +20,7 @@ function StatTile({ label, value, hint }: { label: string; value: string; hint: 
 
 export function DashboardView() {
   const router = useRouter();
-  const { isLoading, error, stall, stats, codCommissionOwed, lowStock, outOfStockCount, listingCount } =
+  const { isLoading, error, stall, stats, codCommissionOwed, payoutAvailable, payoutRolling, payoutRequested, payoutPaidOut, lowStock, outOfStockCount, listingCount } =
     useSellerDashboard();
 
   if (isLoading) {
@@ -33,6 +33,7 @@ export function DashboardView() {
           ))}
         </div>
       </div>
+
     );
   }
 
@@ -73,6 +74,13 @@ export function DashboardView() {
           value={String(lowStock.length)}
           hint={`${listingCount} active listings`}
         />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatTile label="Available payout" value={formatPrice(payoutAvailable)} hint="Eligible GCash orders" />
+        <StatTile label="Rolling payout" value={formatPrice(payoutRolling)} hint="Return window or refund hold" />
+        <StatTile label="Requested payout" value={formatPrice(payoutRequested)} hint="Requested or on hold" />
+        <StatTile label="Paid out" value={formatPrice(payoutPaidOut)} hint="Recorded transfers" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

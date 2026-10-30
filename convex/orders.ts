@@ -13,6 +13,7 @@ import {
 } from "../constants/refunds";
 import { COMMISSION_RATE } from "../constants/commissions";
 import { makeRefundEvent, notifyAdmin, validateBuyerRefundNumber, validateGcashAccountName } from "./refundHelpers";
+import { getNetPayoutAmount } from "../constants/payouts";
 
 const BUYER_ORDER_LIMIT = 100;
 const SELLER_ORDER_LIMIT = 200;
@@ -23,7 +24,7 @@ async function snapshotGcashCommission(ctx: MutationCtx, order: Doc<"orders">, c
   if (order.paymentMethod !== "gcash") return {};
   const amount = order.commissionAmount ?? Math.round(order.subtotal * COMMISSION_RATE * 100) / 100;
   const rate = order.commissionRate ?? COMMISSION_RATE;
-  const net = order.netPayoutAmount ?? Math.round((order.subtotal + order.deliveryFee - amount) * 100) / 100;
+  const net = getNetPayoutAmount({ subtotal: order.subtotal, deliveryFee: order.deliveryFee, commissionAmount: amount, netPayoutAmount: order.netPayoutAmount });
   const existing = await ctx.db.query("platformCommissions").withIndex("by_orderId", q => q.eq("orderId", order._id)).unique();
   if (!existing) {
     await ctx.db.insert("platformCommissions", {
@@ -687,6 +688,35 @@ export const requestRefund = mutation({
       : undefined;
 
     const now = new Date().toISOString();
+    if (!isCod && order.payoutRequestId) {
+      const payout = await ctx.db.get("payoutRequests", order.payoutRequestId);
+      const payoutStatus = payout?.statusV2 ?? (payout?.status === "pending" ? "requested" : payout?.status);
+      if (payout && (payoutStatus === "requested" || payoutStatus === "on-hold")) {
+        const orderSnapshots = payout.orders ?? (payout.orderSnapshots ?? []).map(item => ({ orderId: item.orderId, itemsSubtotal: item.itemsSubtotal ?? item.amount, deliveryFee: item.deliveryFee ?? 0, commissionAmount: item.commissionAmount ?? 0, netPayoutAmount: item.netPayoutAmount ?? item.amount, completedAt: item.completedAt ?? item.deliveredAt }));
+        const remaining = orderSnapshots.filter(item => item.orderId !== order._id);
+        const totalNet = Math.round(remaining.reduce((sum, item) => sum + item.netPayoutAmount, 0) * 100) / 100;
+        await ctx.db.patch("payoutRequests", payout._id, {
+          orders: remaining,
+          orderIds: remaining.map(item => item.orderId),
+          orderSnapshots: (payout.orderSnapshots ?? []).filter(item => item.orderId !== order._id),
+          totalNet,
+          amount: totalNet,
+          ...(remaining.length === 0 ? { status: "rejected" as const, statusV2: "cancelled" as const, rejectionReason: "All orders were removed after refund requests." } : {}),
+          events: [...(payout.events ?? []), { type: "order_removed_refund", actorId: String(user._id), actorRole: "system" as const, reason, amount: getNetPayoutAmount({ subtotal: order.subtotal, deliveryFee: order.deliveryFee, commissionAmount: order.commissionAmount, netPayoutAmount: order.netPayoutAmount }), at: now }],
+        });
+        await ctx.db.patch("orders", order._id, { payoutRequestId: undefined });
+        await createNotification(ctx, { userId: order.sellerId, role: "seller", orderId: order._id, type: "payout_order_removed", title: "Order removed from payout", body: `Order #${order._id.slice(-6).toUpperCase()} was removed from your payout because a return was requested.` });
+        await notifyAdmin(ctx, "payout_order_removed_refund", "Order removed from seller payout", `Order #${order._id.slice(-6).toUpperCase()} was removed from a payout batch after a return request.`, order._id);
+      } else if (payout && payoutStatus === "paid") {
+        const existingOwes = await ctx.db.query("sellerOwesPlatform").withIndex("by_orderId", q => q.eq("orderId", order._id)).unique();
+        if (!existingOwes) {
+          const amount = getNetPayoutAmount({ subtotal: order.subtotal, deliveryFee: order.deliveryFee, commissionAmount: order.commissionAmount, netPayoutAmount: order.netPayoutAmount });
+          await ctx.db.insert("sellerOwesPlatform", { stallId: order.stallId, orderId: order._id, amount, reason, status: "open", createdAt: now, events: [{ type: "opened", actorId: String(user._id), actorRole: "system", reason, at: now }] });
+          await createNotification(ctx, { userId: order.sellerId, role: "seller", orderId: order._id, type: "seller_owes_platform", title: "Seller owes platform", body: `A return was requested for an order already paid out. Platform receivable: ₱${amount.toFixed(2)}. No automatic deduction was made.` });
+          await notifyAdmin(ctx, "seller_owes_platform", "Seller owes platform", `A return was requested for paid-out order #${order._id.slice(-6).toUpperCase()} (₱${amount.toFixed(2)}).`, order._id);
+        }
+      }
+    }
     const refundEvent = makeRefundEvent(
       "requested",
       isCod ? "Return requested. Waiting for the seller to respond." : "Return requested for admin review.",

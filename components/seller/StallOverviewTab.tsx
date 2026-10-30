@@ -76,12 +76,10 @@ export function StallOverviewTab({ page }: StallOverviewTabProps) {
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StallStatCard
-          label="GCash owed to you"
-          value={formatPrice(gcash?.owedToSellers ?? 0)}
-          note={`Ready to request ${formatPrice(gcash?.payoutReady ?? 0)}`}
-          tone="sage"
-        />
+        <StallStatCard label="Available payout" value={formatPrice(gcash?.availableBalance ?? 0)} note={`${page.earnings.payoutData && 'balance' in page.earnings.payoutData ? page.earnings.payoutData.balance.availableBalance.orderCount : 0} eligible orders`} tone="sage" />
+        <StallStatCard label="Rolling payout" value={formatPrice(gcash?.rollingBalance ?? 0)} note={`${page.earnings.payoutData && 'balance' in page.earnings.payoutData ? page.earnings.payoutData.balance.rollingBalance.orderCount : 0} orders in return window or on hold`} />
+        <StallStatCard label="Requested payout" value={formatPrice(gcash?.requestedBalance ?? 0)} note={`${page.earnings.payoutData && 'balance' in page.earnings.payoutData ? page.earnings.payoutData.balance.requestedBalance.orderCount : 0} orders requested or on hold`} />
+        <StallStatCard label="Paid out" value={formatPrice(gcash?.paidOut ?? 0)} note={`${page.earnings.payoutData && 'balance' in page.earnings.payoutData ? page.earnings.payoutData.balance.paidOut.orderCount : 0} recorded GCash transfers`} />
         <StallStatCard
           label="COD commission owed"
           value={formatPrice(cod?.totalOwed ?? 0)}

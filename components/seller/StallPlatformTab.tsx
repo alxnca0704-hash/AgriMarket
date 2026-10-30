@@ -84,6 +84,7 @@ export function StallPlatformTab({ page }: StallPlatformTabProps) {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StallStatCard label="Seller owes platform" value={formatPrice(finance.finance?.sellerOwesPlatform ?? 0)} note="Separate from commissions, deposit, and payout balance" />
         <StallStatCard
           label="Unbilled"
           value={formatPrice(unbilled)}

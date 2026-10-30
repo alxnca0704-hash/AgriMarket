@@ -127,25 +127,18 @@
   backs the landing page and any unauthenticated or not-yet-migrated
   view. Not persisted.
 
-- **Seller payouts**: only completed, paid GCash orders can be included in
-  seller payout requests. COD is a direct buyer-to-seller cash handoff on
-  delivery, so it is recorded as a sale and never enters the payout queue.
-  Payout requests snapshot the seller's GCash name and number, the
-  seller-selected eligible order IDs with item subtotal, delivery fee,
-  commission, net payout, and completion time per order. The server computes
-  the request total from net payout snapshots. At completion, each GCash order
-  snapshots its commission rate, amount, and net payout. `platformCommissions`
-  records the idempotent per-order commission, with append-only events for
-  accrual, collection with transfer reference, or reversal before payout.
-  Legacy completed GCash orders are backfilled once using the current rate.
-  Multiple requests may be pending
-  at once when they contain different orders; each order is reserved by one
-  request at most. Eligibility begins 24 hours after
-  delivery (the buyer return window), requires `completed` and paid status,
-  and excludes any active `refundPayoutHold`. The admin queue includes the
-  stall's current identity and location for review. Admins may
-  reject with a reason (releasing reserved orders) or mark paid after
-  recording a GCash transfer reference. The app does not execute transfers.
+- **Seller payouts**: sellers request all eligible completed, paid GCash orders
+  in one weekly batch on Sunday in Asia/Manila; the server clock enforces the
+  window. COD is direct seller cash and never enters this queue. A single
+  `getStallPayoutBalance` helper classifies available, rolling, requested, and
+  paid orders for seller and admin read models. Net payout uses the stored
+  order snapshot or the shared items subtotal + delivery fee - commission
+  function. Batch snapshots are server-computed. Refund requests remove an
+  order from requested/on-hold batches; a refund requested after payment opens
+  an idempotent `sellerOwesPlatform` receivable that is never netted against
+  deposits or payout balances. Admin settlement/waiver is audited. GCash
+  commissions remain in `platformCommissions`, separate from seller owes.
+  Legacy payout records remain readable and the app never executes transfers.
 - **Buyer/seller messages**: one conversation is shared by each buyer and
   seller pair. An optional order reference marks the latest order context that
   opened the thread. Reads and sends require membership; message text is

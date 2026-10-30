@@ -248,11 +248,10 @@ export function AdminFinanceView() {
         />
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
           <Metric label="Total received" value={formatPrice(gcash.totalReceived)} />
-          <Metric label="In return window" value={formatPrice(gcash.inReturnWindow)} hint="Not yet eligible for payout" />
+          <Metric label="Rolling balance" value={formatPrice(gcash.rollingBalance)} hint="Return window or refund hold" />
           <Metric label="Payout ready" value={formatPrice(gcash.payoutReady)} tone="text-[#2D6A4F]" />
           <Metric label="Payout requested" value={formatPrice(gcash.payoutRequested)} tone="text-amber-700" />
           <Metric label="Paid out" value={formatPrice(gcash.paidOut)} />
-          <Metric label="On hold" value={formatPrice(gcash.onHold)} tone="text-amber-700" hint="Returns and refund review" />
           <Metric label="Refunded" value={formatPrice(gcash.refunded)} tone="text-red-600" />
           <Metric label="Needs refund" value={formatPrice(gcash.needsRefund)} tone="text-red-600" hint="Paid orders cancelled before refund" />
           <Metric label="Owed to sellers" value={formatPrice(gcash.owedToSellers)} tone="text-[#2D6A4F]" hint="Completed orders not yet paid out" />

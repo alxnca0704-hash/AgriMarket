@@ -16,14 +16,15 @@ export function StallPayoutsTab({ page }: StallPayoutsTabProps) {
   const selected = requests.find((request) => request._id === selectedId) ?? null;
   if (earnings.error) return <Alert type="error" title="Could not load payouts" description={earnings.error} showIcon />;
   if (earnings.isLoading) return <Skeleton active paragraph={{ rows: 7 }} />;
-  const rolling = (earnings.finance?.gcash.inReturnWindow ?? 0) + (earnings.finance?.gcash.onHold ?? 0);
+  const rolling = data?.balance.rollingBalance.amount ?? 0;
   const requestStatus = (status: string) => ({ requested: 'Requested', 'on-hold': 'On hold', paid: 'Paid', cancelled: 'Cancelled', rejected: 'Rejected' }[status] ?? 'Requested');
   return <div className="space-y-5">
     {!data?.payoutGcashNumber && <Alert showIcon type="warning" title="Add your GCash payout number" description={<span>Save where admins should send payouts. <button type="button" className="font-medium underline" onClick={earnings.openDestination}>Add GCash details</button></span>} />}
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
       <StallStatCard label="Available balance" value={formatPrice(data?.eligibleAmount ?? 0)} note={`${data?.eligibleOrderCount ?? 0} eligible orders`} tone="sage" />
-      <StallStatCard label="Rolling" value={formatPrice(rolling)} note="In return window or on hold" />
-      <StallStatCard label="Paid out" value={formatPrice(earnings.finance?.gcash.paidOut ?? 0)} note="Recorded transfers" />
+      <StallStatCard label="Rolling" value={formatPrice(rolling)} note={`${data?.balance.rollingBalance.orderCount ?? 0} orders in return window or on hold`} />
+      <StallStatCard label="Requested" value={formatPrice(data?.balance.requestedBalance.amount ?? 0)} note={`${data?.balance.requestedBalance.orderCount ?? 0} orders in requested or held batches`} />
+      <StallStatCard label="Paid out" value={formatPrice(data?.balance.paidOut.amount ?? 0)} note={`${data?.balance.paidOut.orderCount ?? 0} orders paid`} />
       <StallStatCard label="Next payout date" value={new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'Asia/Manila' }).format(new Date(data?.nextPayoutAt ?? '1970-01-04T00:00:00.000Z'))} note="Requests open on Sundays" />
     </div>
     {earnings.activeRequest && <Alert showIcon type="info" title={`Requested on ${formatOrderTime(earnings.activeRequest.requestedAt)}. Waiting for the admin to send your transfer`} description={<div className="space-y-2"><p>{formatPrice(earnings.activeRequest.amount)} · {earnings.activeRequest.orderCount} orders</p><Button danger size="small" loading={earnings.isCancelling} onClick={() => void earnings.cancelPayout(earnings.activeRequest!._id)}>Cancel request</Button></div>} />}

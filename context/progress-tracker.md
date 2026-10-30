@@ -334,17 +334,13 @@ deployment migration and authenticated walkthrough remain release follow-up.
   admin authorization in the Convex query, stall drill-down, filters,
   pagination, and CSV export. Refunded orders remain visible and are
   excluded from totals on both seller and admin views.
-- Seller earnings now use paid Convex orders and distinguish GCash from COD.
-  The earnings page shows separate GCash and COD sales; COD cash is handed
-  directly to the seller on delivery, so COD orders never enter the payout
-  queue. Only completed GCash orders can be selected for payout, after the
-  24-hour return window. All sales totals exclude orders whose return has been
-  refunded. The order list shows dates and payout status. Sellers select
-  specific ready GCash orders; requests snapshot
-  each selected order and its amount. Multiple requests can be pending when
-  they contain different orders. Orders with a pending refund remain on hold.
-  Eligibility starts after the 24-hour buyer return window and excludes
-  already reserved orders.
+- Seller earnings distinguish GCash from COD; COD cash never enters the payout
+  queue. Sellers request one Sunday batch containing all eligible GCash orders.
+  `getStallPayoutBalance` is the shared read model for available, rolling,
+  requested, and paid balances across seller and admin finance surfaces.
+  Refunds remove orders from unpaid batches and open a separate seller-owes
+  receivable if requested after payout; the receivable never changes deposits
+  or payout balances.
 - Admin payout review shows stall identity, location, GCash destination,
   requested amount, and selected order dates, payment methods, and amounts.
   Admins can reject with a reason or record a sent transfer with its

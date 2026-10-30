@@ -22,6 +22,7 @@ import type * as migrations from "../migrations.js";
 import type * as notifications from "../notifications.js";
 import type * as orderMoney from "../orderMoney.js";
 import type * as orders from "../orders.js";
+import type * as payoutBalance from "../payoutBalance.js";
 import type * as payouts from "../payouts.js";
 import type * as products from "../products.js";
 import type * as receivableHelpers from "../receivableHelpers.js";
@@ -54,6 +55,7 @@ declare const fullApi: ApiFromModules<{
   notifications: typeof notifications;
   orderMoney: typeof orderMoney;
   orders: typeof orders;
+  payoutBalance: typeof payoutBalance;
   payouts: typeof payouts;
   products: typeof products;
   receivableHelpers: typeof receivableHelpers;

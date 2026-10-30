@@ -24,6 +24,9 @@ export interface GcashFinanceSection {
   totalReceived: number;
   inReturnWindow: number;
   payoutReady: number;
+  availableBalance: number;
+  rollingBalance: number;
+  requestedBalance: number;
   payoutRequested: number;
   paidOut: number;
   onHold: number;
@@ -83,6 +86,10 @@ export interface StallFinanceRow {
   codOverdue: number;
   gcashOwedToSeller: number;
   gcashPaidOut: number;
+  payoutAvailable: number;
+  payoutRolling: number;
+  payoutRequested: number;
+  sellerOwesPlatform: number;
   gcashCommissionCollected: number;
   codCommissionCollected: number;
   totalCommission: number;
@@ -103,6 +110,7 @@ export interface AdminFinanceResult {
   cod: CodFinanceSection;
   gcash: GcashFinanceSection;
   commission: CommissionFinanceSection;
+  sellerOwesPlatform: number;
   stalls: StallFinanceRow[];
   codRecords: CodFinanceRecord[];
   gcashRecords: GcashFinanceRecord[];
@@ -113,6 +121,7 @@ export interface SellerFinanceResult {
   cod: CodFinanceSection;
   gcash: GcashFinanceSection;
   commission: CommissionFinanceSection;
+  sellerOwesPlatform: number;
 }
 
 export interface StallFinanceOrder {
@@ -135,5 +144,7 @@ export interface StallFinanceOrder {
 export interface StallFinanceResult {
   stallId: string;
   stallName: string;
+  payoutBalance: { available: number; rolling: number; requested: number; paidOut: number };
+  sellerOwesPlatform: Array<{ _id: string; orderId: string; amount: number; reason: string; status: 'open' | 'settled' | 'waived'; createdAt: string; referenceOrNote: string | null }>;
   orders: StallFinanceOrder[];
 }

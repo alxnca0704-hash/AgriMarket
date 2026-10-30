@@ -8,6 +8,7 @@ import { makeFunctionReference } from "convex/server";
 import { RETURN_REQUEST_WINDOW_MS } from "../constants/refunds";
 import { COMMISSION_RATE } from "../constants/commissions";
 import { orderItemValidator } from "./shared";
+import { getNetPayoutAmount } from "../constants/payouts";
 
 const waiveRefundedOrderRef = makeFunctionReference<"mutation", { orderId: Id<"orders"> }, null>("commissions:waiveRefundedOrder");
 
@@ -308,7 +309,7 @@ export const completeReturnRefund = mutation({
       if (!commission) {
         const amount = order.commissionAmount ?? Math.round(order.subtotal * COMMISSION_RATE * 100) / 100;
         const rate = order.commissionRate ?? COMMISSION_RATE;
-        const net = order.netPayoutAmount ?? Math.round((order.subtotal + order.deliveryFee - amount) * 100) / 100;
+        const net = getNetPayoutAmount({ subtotal: order.subtotal, deliveryFee: order.deliveryFee, commissionAmount: amount, netPayoutAmount: order.netPayoutAmount });
         const completedAt = order.completedAt ?? order.deliveredAt ?? now;
         await ctx.db.patch("orders", order._id, { commissionRate: rate, commissionAmount: amount, netPayoutAmount: net });
         await ctx.db.insert("platformCommissions", {

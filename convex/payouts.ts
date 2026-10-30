@@ -8,6 +8,7 @@ import { COMMISSION_RATE } from "../constants/commissions";
 import { isCodRefundOverdue } from "./orderMoney";
 import { isPayoutDay, nextPayoutDate, payoutBatchWeek, MIN_PAYOUT_AMOUNT, getNetPayoutAmount } from "../constants/payouts";
 import { RETURN_REQUEST_WINDOW_MS } from "../constants/refunds";
+import { getStallPayoutBalance } from "./payoutBalance";
 
 const payoutValidator = v.object({
   _id: v.id("payoutRequests"),
@@ -131,6 +132,12 @@ export const saveSellerPayoutDestination = mutation({
 export const getSellerPayouts = query({
   args: {},
   returns: v.union(v.null(), v.object({
+    balance: v.object({
+      availableBalance: v.object({ amount: v.number(), orderCount: v.number() }),
+      rollingBalance: v.object({ amount: v.number(), orderCount: v.number() }),
+      requestedBalance: v.object({ amount: v.number(), orderCount: v.number() }),
+      paidOut: v.object({ amount: v.number(), orderCount: v.number() }),
+    }),
     eligibleAmount: v.number(),
     eligibleOrderCount: v.number(),
     isPayoutDay: v.boolean(),
@@ -185,11 +192,12 @@ export const getSellerPayouts = query({
         payoutStatus,
       };
     });
-    const eligible = sellerOrders.filter((order) => order.payoutStatus === "ready");
+    const balance = await getStallPayoutBalance(ctx, stall._id, now, orders, requests);
     const overdueCodRefunds = orders.filter((order) => isCodRefundOverdue(order));
     return {
-      eligibleAmount: eligible.reduce((total, order) => total + order.amount, 0),
-      eligibleOrderCount: eligible.length,
+      balance,
+      eligibleAmount: balance.availableBalance.amount,
+      eligibleOrderCount: balance.availableBalance.orderCount,
       isPayoutDay: isPayoutDay(now),
       nextPayoutAt: nextPayoutDate(now).toISOString(),
       payoutGcashName: stall?.payoutGcashName ?? null,
@@ -445,6 +453,39 @@ export const rejectPayout = mutation({
     }
     await ctx.db.insert("adminAuditLog", { actorEmail, action: "payout_rejected", payoutRequestId: request._id, payoutAmount: request.amount, reason, createdAt: now });
     await ctx.db.insert("notifications", { userId: request.sellerId, role: "seller", type: "payout_rejected", title: "Payout request rejected", body: reason, refId: String(request._id), read: false, createdAt: now });
+    return null;
+  },
+});
+
+
+export const settleSellerOwesPlatform = mutation({
+  args: { recordId: v.id("sellerOwesPlatform"), referenceOrNote: v.string() },
+  returns: v.null(),
+  async handler(ctx, args) {
+    const actorEmail = await requireAdmin(ctx);
+    const record = await ctx.db.get("sellerOwesPlatform", args.recordId);
+    const note = args.referenceOrNote.trim();
+    if (!record || record.status !== "open") throw new Error("This seller receivable is no longer open.");
+    if (note.length < 3 || note.length > 150) throw new Error("Enter a settlement reference or note between 3 and 150 characters.");
+    const now = new Date().toISOString();
+    await ctx.db.patch("sellerOwesPlatform", record._id, { status: "settled", referenceOrNote: note, events: [...record.events, { type: "settled", actorId: actorEmail, actorRole: "admin", referenceOrNote: note, at: now }] });
+    await ctx.db.insert("adminAuditLog", { actorEmail, action: "seller_owes_settled", orderId: record.orderId, payoutAmount: record.amount, reason: note, createdAt: now });
+    return null;
+  },
+});
+
+export const waiveSellerOwesPlatform = mutation({
+  args: { recordId: v.id("sellerOwesPlatform"), reason: v.string() },
+  returns: v.null(),
+  async handler(ctx, args) {
+    const actorEmail = await requireAdmin(ctx);
+    const record = await ctx.db.get("sellerOwesPlatform", args.recordId);
+    const reason = args.reason.trim();
+    if (!record || record.status !== "open") throw new Error("This seller receivable is no longer open.");
+    if (reason.length < 5 || reason.length > 500) throw new Error("Enter a waiver reason between 5 and 500 characters.");
+    const now = new Date().toISOString();
+    await ctx.db.patch("sellerOwesPlatform", record._id, { status: "waived", events: [...record.events, { type: "waived", actorId: actorEmail, actorRole: "admin", reason, at: now }] });
+    await ctx.db.insert("adminAuditLog", { actorEmail, action: "seller_owes_waived", orderId: record.orderId, payoutAmount: record.amount, reason, createdAt: now });
     return null;
   },
 });

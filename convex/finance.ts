@@ -9,6 +9,8 @@ import { receivablePeriodStarts, resolveReceivableLedger } from "./receivableHel
 import { loadCodCommissionAccrualsForOrders, resolveCodCommissionAccruals } from "./commissionAccruals";
 import { orderStatusValidator } from "./shared";
 import { STALL_DEPOSIT_AMOUNT } from "../constants/deposits";
+import { getStallPayoutBalance } from "./payoutBalance";
+import { getNetPayoutAmount } from "../constants/payouts";
 
 const roundMoney = (amount: number) => Math.round(amount * 100) / 100;
 const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
@@ -25,7 +27,7 @@ function commissionValues(order: Doc<"orders">) {
   const amount = order.commissionAmount ?? roundMoney(order.subtotal * COMMISSION_RATE);
   return {
     amount,
-    netPayoutAmount: order.netPayoutAmount ?? roundMoney(order.subtotal + order.deliveryFee - amount),
+    netPayoutAmount: getNetPayoutAmount({ subtotal: order.subtotal, deliveryFee: order.deliveryFee, commissionAmount: amount, netPayoutAmount: order.netPayoutAmount }),
   };
 }
 
@@ -62,7 +64,8 @@ const codSectionValidator = v.object({
 });
 const gcashSectionValidator = v.object({
   totalReceived: v.number(), inReturnWindow: v.number(), payoutReady: v.number(), payoutRequested: v.number(), paidOut: v.number(),
-  onHold: v.number(), refunded: v.number(), needsRefund: v.number(), owedToSellers: v.number(), commissionKept: v.number(), expectedBalance: v.number(),
+  onHold: v.number(), availableBalance: v.number(), rollingBalance: v.number(), requestedBalance: v.number(),
+  refunded: v.number(), needsRefund: v.number(), owedToSellers: v.number(), commissionKept: v.number(), expectedBalance: v.number(),
 });
 const commissionSectionValidator = v.object({
   gcashPending: v.number(), gcashCollected: v.number(), gcashReversed: v.number(), codCollected: v.number(),
@@ -84,6 +87,7 @@ const gcashRecordValidator = v.object({
 const stallRowValidator = v.object({
   stallId: v.id("stalls"), stallName: v.string(),
   codOwed: v.number(), codOverdue: v.number(), gcashOwedToSeller: v.number(), gcashPaidOut: v.number(),
+  payoutAvailable: v.number(), payoutRolling: v.number(), payoutRequested: v.number(), sellerOwesPlatform: v.number(),
   gcashCommissionCollected: v.number(), codCommissionCollected: v.number(), totalCommission: v.number(),
 });
 const reconciliationValidator = v.object({
@@ -91,16 +95,18 @@ const reconciliationValidator = v.object({
   from: v.union(v.string(), v.null()), to: v.union(v.string(), v.null()), adminEmail: v.string(), createdAt: v.string(),
 });
 const sellerFinanceValidator = v.object({
-  cod: codSectionValidator, gcash: gcashSectionValidator, commission: commissionSectionValidator,
+  cod: codSectionValidator, gcash: gcashSectionValidator, commission: commissionSectionValidator, sellerOwesPlatform: v.number(),
 });
 const adminFinanceValidator = v.object({
   cod: codSectionValidator, gcash: gcashSectionValidator, commission: commissionSectionValidator,
+  sellerOwesPlatform: v.number(),
   stalls: v.array(stallRowValidator), codRecords: v.array(codRecordValidator), gcashRecords: v.array(gcashRecordValidator),
   reconciliations: v.array(reconciliationValidator),
 });
 const adminDashboardValidator = v.object({
   expected: v.number(), buyerPayments: v.number(), deposited: v.number(), codCollected: v.number(), paidOut: v.number(), refundsOut: v.number(),
-  sellerOwed: v.number(), heldDeposits: v.number(), buyersOwed: v.number(), ownMoney: v.number(),
+  sellerOwed: v.number(), sellerOwesPlatform: v.number(), heldDeposits: v.number(), buyersOwed: v.number(), ownMoney: v.number(),
+  payoutAvailable: v.number(), payoutRolling: v.number(), payoutRequested: v.number(), payoutPaidOut: v.number(),
   lastReconciliation: v.union(reconciliationValidator, v.null()), reconciliations: v.array(reconciliationValidator),
   income: v.object({ earned: v.number(), earnedMonth: v.number(), pending: v.number(), codOwed: v.number(), codOverdue: v.number(), sales: v.number(), salesGcash: v.number(), salesCod: v.number() }),
   actions: v.object({ payments: v.number(), deposits: v.number(), commissions: v.number(), payouts: v.number(), returns: v.number(), refunds: v.number(), overdue: v.number() }),
@@ -110,6 +116,8 @@ const adminDashboardValidator = v.object({
 });
 const stallFinanceValidator = v.object({
   stallId: v.id("stalls"), stallName: v.string(),
+  payoutBalance: v.object({ available: v.number(), rolling: v.number(), requested: v.number(), paidOut: v.number() }),
+  sellerOwesPlatform: v.array(v.object({ _id: v.id("sellerOwesPlatform"), orderId: v.id("orders"), amount: v.number(), reason: v.string(), status: v.union(v.literal("open"), v.literal("settled"), v.literal("waived")), createdAt: v.string(), referenceOrNote: v.union(v.string(), v.null()) })),
   orders: v.array(v.object({
     orderId: v.id("orders"), date: v.string(), paymentMethod: v.union(v.literal("cod"), v.literal("gcash")),
     itemsSubtotal: v.number(), deliveryFee: v.number(), commissionAmount: v.number(), netPayoutAmount: v.union(v.number(), v.null()), status: orderStatusValidator,
@@ -122,6 +130,7 @@ const stallFinanceValidator = v.object({
 const stallAccountRowValidator = v.object({
   stallId: v.id("stalls"), stallName: v.string(), sellerName: v.string(), verificationStatus: v.string(),
   gcashSales: v.number(), gcashOwed: v.number(), gcashPaidOut: v.number(), codSales: v.number(),
+  payoutAvailable: v.number(), payoutRolling: v.number(), payoutRequested: v.number(), payoutPaidOut: v.number(), sellerOwesPlatform: v.number(),
   codOwed: v.number(), codOverdue: v.number(), commissionEarned: v.number(),
   depositRequired: v.number(), depositPaid: v.number(), depositRemaining: v.number(), depositStatus: v.string(),
   refundedAmount: v.number(), refundedGcash: v.number(), refundedCod: v.number(), refundedCount: v.number(),
@@ -206,7 +215,16 @@ async function computeGcashFinance(ctx: QueryCtx | MutationCtx, stallId: Id<"sta
   const payoutGroups = await Promise.all((["pending", "paid", "rejected"] as const).map(status =>
     ctx.db.query("payoutRequests").withIndex("by_status", q => q.eq("status", status)).take(1000)
   ));
-  const payoutById = new Map(payoutGroups.flat().map(request => [String(request._id), request]));
+  const allPayoutRequests = payoutGroups.flat();
+  const payoutById = new Map(allPayoutRequests.map(request => [String(request._id), request]));
+  const stallIds = [...new Set(paidOrders.map(order => String(order.stallId)))].map(id => id as Id<"stalls">);
+  const balances = await Promise.all(stallIds.map(id => getStallPayoutBalance(ctx, id, now, paidOrders, allPayoutRequests)));
+  const payoutBalance = balances.reduce((total, balance) => ({
+    available: total.available + balance.availableBalance.amount,
+    rolling: total.rolling + balance.rollingBalance.amount,
+    requested: total.requested + balance.requestedBalance.amount,
+    paid: total.paid + balance.paidOut.amount,
+  }), { available: 0, rolling: 0, requested: 0, paid: 0 });
 
   const commissionGroups = await Promise.all((["pending", "collected", "reversed"] as const).map(status =>
     ctx.db.query("platformCommissions").withIndex("by_status_and_collectedAt", q => q.eq("status", status)).take(2000)
@@ -279,11 +297,16 @@ async function computeGcashFinance(ctx: QueryCtx | MutationCtx, stallId: Id<"sta
   }
 
   const commissionKept = sum(platformCommissions.filter(commission => commission.status === "collected").map(commission => commission.amount));
+  payoutReady = payoutBalance.available;
+  payoutRequested = payoutBalance.requested;
+  paidOut = payoutBalance.paid;
+  owedToSellers = payoutBalance.available + payoutBalance.rolling + payoutBalance.requested;
 
   return {
     section: {
       totalReceived: roundMoney(totalReceived), inReturnWindow: roundMoney(inReturnWindow), payoutReady: roundMoney(payoutReady),
       payoutRequested: roundMoney(payoutRequested), paidOut: roundMoney(paidOut), onHold: roundMoney(onHold),
+      availableBalance: roundMoney(payoutBalance.available), rollingBalance: roundMoney(payoutBalance.rolling), requestedBalance: roundMoney(payoutBalance.requested),
       refunded: roundMoney(refunded), needsRefund: roundMoney(needsRefund), owedToSellers: roundMoney(owedToSellers),
       commissionKept: roundMoney(commissionKept), expectedBalance: roundMoney(totalReceived - paidOut - refunded - commissionKept),
     },
@@ -297,12 +320,13 @@ async function buildStallRows(ctx: QueryCtx, stallId: Id<"stalls"> | null, codRe
   const stalls = stallId ? (selectedStall ? [selectedStall] : []) : await ctx.db.query("stalls").take(500);
   const rows = new Map<string, {
     stallId: Id<"stalls">; stallName: string; codOwed: number; codOverdue: number; gcashOwedToSeller: number;
-    gcashPaidOut: number; gcashCommissionCollected: number; codCommissionCollected: number; totalCommission: number;
+    gcashPaidOut: number; payoutAvailable: number; payoutRolling: number; payoutRequested: number; sellerOwesPlatform: number;
+    gcashCommissionCollected: number; codCommissionCollected: number; totalCommission: number;
   }>();
   const ensure = (id: Id<"stalls">, name: string) => {
     let row = rows.get(String(id));
     if (!row) {
-      row = { stallId: id, stallName: name, codOwed: 0, codOverdue: 0, gcashOwedToSeller: 0, gcashPaidOut: 0, gcashCommissionCollected: 0, codCommissionCollected: 0, totalCommission: 0 };
+      row = { stallId: id, stallName: name, codOwed: 0, codOverdue: 0, gcashOwedToSeller: 0, gcashPaidOut: 0, payoutAvailable: 0, payoutRolling: 0, payoutRequested: 0, sellerOwesPlatform: 0, gcashCommissionCollected: 0, codCommissionCollected: 0, totalCommission: 0 };
       rows.set(String(id), row);
     }
     return row;
@@ -320,18 +344,29 @@ async function buildStallRows(ctx: QueryCtx, stallId: Id<"stalls"> | null, codRe
     if (record.status !== "cancelled" && record.status !== "refunded" && record.payoutStatus !== "paid" && record.payoutStatus !== "hold") row.gcashOwedToSeller += record.netPayout;
     if (record.commissionStatus === "collected") row.gcashCommissionCollected += record.commission;
   }
-  return [...rows.values()]
-    .map(row => ({
+  const result = await Promise.all([...rows.values()]
+    .map(async row => {
+      const balance = await getStallPayoutBalance(ctx, row.stallId);
+      const openOwes = await ctx.db.query("sellerOwesPlatform").withIndex("by_stallId_and_status", q => q.eq("stallId", row.stallId).eq("status", "open")).collect();
+      const payoutAvailable = balance.availableBalance.amount;
+      const payoutRolling = balance.rollingBalance.amount;
+      const payoutRequested = balance.requestedBalance.amount;
+      const gcashPaidOut = balance.paidOut.amount;
+      const sellerOwesPlatform = roundMoney(openOwes.reduce((total, item) => total + item.amount, 0));
+      return {
       ...row,
+      payoutAvailable, payoutRolling, payoutRequested, sellerOwesPlatform,
+      gcashOwedToSeller: roundMoney(payoutAvailable + payoutRolling + payoutRequested),
+      gcashPaidOut,
       codOwed: roundMoney(row.codOwed),
       codOverdue: roundMoney(row.codOverdue),
-      gcashOwedToSeller: roundMoney(row.gcashOwedToSeller),
-      gcashPaidOut: roundMoney(row.gcashPaidOut),
       gcashCommissionCollected: roundMoney(row.gcashCommissionCollected),
       codCommissionCollected: roundMoney(row.codCommissionCollected),
       totalCommission: roundMoney(row.gcashCommissionCollected + row.codCommissionCollected),
-    }))
-    .sort((a, b) => b.totalCommission - a.totalCommission || a.stallName.localeCompare(b.stallName));
+      };
+    })
+  );
+  return result.sort((a, b) => b.totalCommission - a.totalCommission || a.stallName.localeCompare(b.stallName));
 }
 
 async function computeFinance(ctx: QueryCtx, stallId: Id<"stalls"> | null, from: string | null, to: string | null, now: number) {
@@ -348,6 +383,10 @@ async function computeFinance(ctx: QueryCtx, stallId: Id<"stalls"> | null, from:
   ]);
   const scopedCommissions = allCollectedCommissions.filter(item => !stallId || item.stallId === stallId);
   const scopedPayments = allApprovedPayments.filter(item => !stallId || item.stallId === stallId);
+  const sellerOwesRows = stallId
+    ? await ctx.db.query("sellerOwesPlatform").withIndex("by_stallId_and_status", q => q.eq("stallId", stallId).eq("status", "open")).collect()
+    : await ctx.db.query("sellerOwesPlatform").withIndex("by_status", q => q.eq("status", "open")).collect();
+  const sellerOwesPlatform = roundMoney(sellerOwesRows.filter(row => !stallId || row.stallId === stallId).reduce((total, row) => total + row.amount, 0));
   const gcashCollected = sum(gcash.platformCommissions.filter(item => item.status === "collected").map(item => item.amount));
   const gcashPending = sum(gcash.platformCommissions.filter(item => item.status === "pending").map(item => item.amount));
   const gcashReversed = sum(gcash.platformCommissions.filter(item => item.status === "reversed").map(item => item.amount));
@@ -378,6 +417,7 @@ async function computeFinance(ctx: QueryCtx, stallId: Id<"stalls"> | null, from:
     cod: cod.section,
     gcash: gcash.section,
     commission,
+    sellerOwesPlatform,
     stalls: await buildStallRows(ctx, stallId, cod.records, gcash.records),
     codRecords: cod.records,
     gcashRecords: gcash.records,
@@ -404,12 +444,13 @@ const emptySellerFinance = () => ({
   cod: { unbilled: 0, invoiced: 0, overdue: 0, collected: 0, waived: 0, totalOwed: 0, orderCount: 0 },
   gcash: {
     totalReceived: 0, inReturnWindow: 0, payoutReady: 0, payoutRequested: 0, paidOut: 0,
-    onHold: 0, refunded: 0, needsRefund: 0, owedToSellers: 0, commissionKept: 0, expectedBalance: 0,
+    onHold: 0, availableBalance: 0, rollingBalance: 0, requestedBalance: 0, refunded: 0, needsRefund: 0, owedToSellers: 0, commissionKept: 0, expectedBalance: 0,
   },
   commission: {
     gcashPending: 0, gcashCollected: 0, gcashReversed: 0, codCollected: 0, totalEarned: 0, expectedAdditional: 0,
     collectedToday: 0, collectedThisWeek: 0, collectedThisMonth: 0, collectedAllTime: 0,
   },
+  sellerOwesPlatform: 0,
 });
 
 export const getAdminFinance = query({
@@ -425,6 +466,7 @@ export const getAdminFinance = query({
       cod: finance.cod,
       gcash: finance.gcash,
       commission: finance.commission,
+      sellerOwesPlatform: finance.sellerOwesPlatform,
       stalls: finance.stalls,
       codRecords: finance.codRecords,
       gcashRecords: finance.gcashRecords,
@@ -509,7 +551,8 @@ export const getAdminDashboard = query({
     const activity = audit.filter(a => ["gcash_payment_approved", "payout_paid", "deposit_approved", "commission_payment_approved", "return_refunded"].includes(a.action)).slice(0, 10).map(a => ({ action: a.action, date: a.createdAt, orderId: a.orderId ? String(a.orderId) : null, payoutId: a.payoutRequestId ? String(a.payoutRequestId) : null, depositId: a.depositId ? String(a.depositId) : null, commissionPaymentId: a.commissionPaymentId ? String(a.commissionPaymentId) : null }));
     const reconciliationRows = reconciliations.map(item => ({ _id: item._id, actualBalance: item.actualBalance, expectedBalance: item.expectedBalance, difference: item.difference, from: item.from, to: item.to, adminEmail: item.adminEmail, createdAt: item.createdAt }));
     return {
-      expected, buyerPayments, deposited, codCollected, paidOut, refundsOut, sellerOwed, heldDeposits, buyersOwed, ownMoney,
+      expected, buyerPayments, deposited, codCollected, paidOut, refundsOut, sellerOwed, sellerOwesPlatform: currentFinance.sellerOwesPlatform, heldDeposits, buyersOwed, ownMoney,
+      payoutAvailable: currentFinance.gcash.availableBalance, payoutRolling: currentFinance.gcash.rollingBalance, payoutRequested: currentFinance.gcash.requestedBalance, payoutPaidOut: currentFinance.gcash.paidOut,
       lastReconciliation: reconciliationRows[0] ?? null, reconciliations: reconciliationRows,
       income: { earned: roundMoney(earnedGcash + finance.cod.collected), earnedMonth: roundMoney(commissions.filter(c => c.status === "collected" && (c.collectedAt ?? "") >= monthStart).reduce((s, c) => s + c.amount, 0) + monthCod.section.collected), pending: pendingCommission, codOwed: finance.cod.totalOwed, codOverdue: overdueCommission, sales: sumBy(rangeSales.map(o => o.total)), salesGcash: sumBy(rangeSales.filter(o => o.paymentMethod === "gcash").map(o => o.total)), salesCod: sumBy(rangeSales.filter(o => o.paymentMethod === "cod").map(o => o.total)) },
       actions: { payments: pendingPayments, deposits: deposits.filter(d => d.status === "pending").length, commissions: commissionPayments.filter(p => p.status === "pending").length, payouts: pendingPayouts, returns: pendingReturns, refunds: pendingRefunds, overdue: invoices.filter(invoice => invoice.status === "overdue" && invoice.paidAmount < invoice.amount).length },
@@ -548,6 +591,7 @@ export const getAdminStallAccounts = query({
         stallId: stall._id, stallName: stall.stallName, sellerName: seller?.fullName ?? "Unknown seller", verificationStatus: stall.verification.status,
         gcashSales: roundMoney(nonRefunded.filter(order => order.paymentMethod === "gcash" && order.status === "completed").reduce((total, order) => total + order.total, 0)),
         gcashOwed: financeRow?.gcashOwedToSeller ?? 0, gcashPaidOut: financeRow?.gcashPaidOut ?? 0,
+        payoutAvailable: financeRow?.payoutAvailable ?? 0, payoutRolling: financeRow?.payoutRolling ?? 0, payoutRequested: financeRow?.payoutRequested ?? 0, payoutPaidOut: financeRow?.gcashPaidOut ?? 0, sellerOwesPlatform: financeRow?.sellerOwesPlatform ?? 0,
         codSales: roundMoney(nonRefunded.filter(order => order.paymentMethod === "cod" && order.status === "completed").reduce((total, order) => total + order.total, 0)),
         codOwed: financeRow?.codOwed ?? 0, codOverdue: financeRow?.codOverdue ?? 0,
         commissionEarned: financeRow?.totalCommission ?? 0, depositRequired: STALL_DEPOSIT_AMOUNT, depositPaid: roundMoney(approvedDeposit),
@@ -578,7 +622,7 @@ export const getSellerFinance = query({
     const stall = await ctx.db.query("stalls").withIndex("by_ownerId", q => q.eq("ownerId", user._id)).first();
     if (!stall) return emptySellerFinance();
     const finance = await computeFinance(ctx, stall._id, args.from, args.to, args.now);
-    return { cod: finance.cod, gcash: finance.gcash, commission: finance.commission };
+    return { cod: finance.cod, gcash: finance.gcash, commission: finance.commission, sellerOwesPlatform: finance.sellerOwesPlatform };
   },
 });
 
@@ -588,7 +632,7 @@ export const getAdminFinanceStall = query({
   async handler(ctx, args) {
     await requireAdmin(ctx);
     const stall = await ctx.db.get("stalls", args.stallId);
-    if (!stall) return { stallId: args.stallId, stallName: "Unknown stall", orders: [] };
+    if (!stall) return { stallId: args.stallId, stallName: "Unknown stall", payoutBalance: { available: 0, rolling: 0, requested: 0, paidOut: 0 }, sellerOwesPlatform: [], orders: [] };
     const orders = await ctx.db.query("orders")
       .withIndex("by_stallId", q => q.eq("stallId", args.stallId))
       .order("desc")
@@ -618,7 +662,7 @@ export const getAdminFinanceStall = query({
         itemsSubtotal: order.subtotal,
         deliveryFee: order.deliveryFee,
         commissionAmount: commission,
-        netPayoutAmount: order.netPayoutAmount ?? null,
+        netPayoutAmount: order.paymentMethod === "gcash" ? getNetPayoutAmount({ subtotal: order.subtotal, deliveryFee: order.deliveryFee, commissionAmount: commission, netPayoutAmount: order.netPayoutAmount }) : null,
         status: order.status,
         invoiceNumber,
         payoutReference,
@@ -628,7 +672,11 @@ export const getAdminFinanceStall = query({
         refundConfirmedAt: order.refundConfirmedAt ?? null,
       };
     }));
-    return { stallId: stall._id, stallName: stall.stallName, orders: result.sort((a, b) => b.date.localeCompare(a.date)) };
+    const [balance, sellerOwesPlatform] = await Promise.all([
+      getStallPayoutBalance(ctx, stall._id, args.now),
+      ctx.db.query("sellerOwesPlatform").withIndex("by_stallId_and_status", q => q.eq("stallId", stall._id).eq("status", "open")).collect(),
+    ]);
+    return { stallId: stall._id, stallName: stall.stallName, payoutBalance: { available: balance.availableBalance.amount, rolling: balance.rollingBalance.amount, requested: balance.requestedBalance.amount, paidOut: balance.paidOut.amount }, sellerOwesPlatform: sellerOwesPlatform.map(item => ({ _id: item._id, orderId: item.orderId, amount: item.amount, reason: item.reason, status: item.status, createdAt: item.createdAt, referenceOrNote: item.referenceOrNote ?? null })), orders: result.sort((a, b) => b.date.localeCompare(a.date)) };
   },
 });
 

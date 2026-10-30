@@ -8,9 +8,8 @@ Feature-complete MVP. Buyer, seller, COD, GCash payments, payouts, refunds, comm
 
 ## Current Goal
 
-Complete Sunday-only GCash seller payout batches, including seller request and
-cancel, admin review, consistent balances, refund interactions, and legacy
-request compatibility.
+Finish remaining admin payout queue features and complete the authenticated
+finance/refund/payout walkthrough.
 
 ## Completed
 
@@ -22,6 +21,14 @@ request compatibility.
 - Admin transfer recording now supports a recorded amount, normalized unique
   references, payout audit events, seller notification, and expected GCash
   balance deductions use the recorded amount.
+- Added `getStallPayoutBalance` as the shared server read model for available,
+  rolling, requested, and paid order totals. Seller Overview/Payouts/dashboard,
+  admin stall list/detail/dashboard, and finance reads now use the same result.
+- GCash refunds remove orders from requested/on-hold payout batches and
+  recalculate batch totals; refunds on paid batches create one open
+  `sellerOwesPlatform` record per order. Admin settle/waive actions are
+  allowlist-verified and audited. Seller, stall detail, and admin dashboard
+  surfaces display seller owes separately from deposits and payout balances.
 - `npm run build` passes. `npm run lint` passes with existing warnings.
 
 - Implemented per-product types with their own names, descriptions, prices,
@@ -209,11 +216,9 @@ request compatibility.
 
 ## Open Questions
 
-- The payout implementation is incomplete: admin hold/remove-order controls,
-  tabbed server-paginated payout review and CSV export, summary cards, shared
-  available-balance computation across finance/dashboard/ledger surfaces,
-  refund request interactions, post-payment seller-owes flags, and reminder
-  notifications remain to be implemented and verified.
+- Remaining payout work: admin hold/remove-order controls, tabbed
+  server-paginated payout review and CSV export, summary cards, reminder
+  notifications, and authenticated scenario walkthrough.
 
 - Whether or when the stall deposit is refundable remains undecided; refunds,
   commission offsets, and penalties were intentionally excluded from this

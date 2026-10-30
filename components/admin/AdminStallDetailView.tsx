@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Alert, Skeleton, Table, Tag } from 'antd';
+import { Alert, Button, Input, Modal, Skeleton, Table, Tag } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { APP_ROUTES } from '@/constants/routes';
 import { useAdminStallDetail } from '@/hooks/useAdminStallDetail';
@@ -9,9 +9,12 @@ import { formatPrice } from '@/lib/format';
 import { getGcashNetToSeller } from '@/lib/orderMoney';
 import { useAdminStalls } from '@/hooks/useAdminStalls';
 import type { StallFinanceOrder } from '@/types/finance';
+import { useState } from 'react';
 
 export function AdminStallDetailView({ stallId }: { stallId: string }) {
-  const { data, isLoading, error } = useAdminStallDetail(stallId);
+  const { data, isLoading, error, settle, waive, isSubmitting } = useAdminStallDetail(stallId);
+  const [owingAction, setOwingAction] = useState<{ id: string; kind: 'settle' | 'waive' } | null>(null);
+  const [owingNote, setOwingNote] = useState('');
   const { data: stallsData } = useAdminStalls();
 
   const stallRow = (stallsData?.rows || []).find((row) => row.stallId === stallId);
@@ -34,9 +37,7 @@ export function AdminStallDetailView({ stallId }: { stallId: string }) {
     );
   }
 
-  const gcashBalance = (data?.orders ?? [])
-    .filter((order) => order.paymentMethod === 'gcash' && order.status === 'completed' && !order.payoutReference)
-    .reduce((total, order) => total + getGcashNetToSeller(order), 0);
+  const gcashBalance = data?.payoutBalance.available ?? 0;
   const codOwed = stallRow?.codOwed ?? 0;
   const codOverdue = stallRow?.codOverdue ?? 0;
   const depositPaid = stallRow?.depositPaid ?? 0;
@@ -44,6 +45,13 @@ export function AdminStallDetailView({ stallId }: { stallId: string }) {
   const depositStatus = stallRow?.depositStatus || 'unpaid';
   const pendingRefundAmount = (stallRow?.inProgressAmount ?? 0) + (stallRow?.needsRefundAmount ?? 0);
   const recordedRefundAmount = stallRow?.refundedAmount ?? 0;
+  const submitOwesAction = async () => {
+    if (!owingAction) return;
+    const ok = owingAction.kind === 'settle'
+      ? await settle(owingAction.id, owingNote.trim())
+      : await waive(owingAction.id, owingNote.trim());
+    if (ok) setOwingAction(null);
+  };
 
   const attentionItems = [];
   if (codOverdue > 0) attentionItems.push({ label: `Overdue commission: ${formatPrice(codOverdue)}`, href: APP_ROUTES.adminCommissions });
@@ -77,9 +85,19 @@ export function AdminStallDetailView({ stallId }: { stallId: string }) {
         <div className="rounded-2xl bg-white p-5 shadow-sm">
           <p className="text-xs text-stone-500 whitespace-nowrap">GCash balance</p>
           <p className="mt-2 text-2xl font-semibold text-stone-900 tabular-nums sm:text-[26px] whitespace-nowrap">{formatPrice(gcashBalance)}</p>
+          <div className="mt-2 space-y-1 text-xs text-stone-500">
+            <p>Rolling {formatPrice(data?.payoutBalance.rolling ?? 0)}</p>
+            <p>Requested {formatPrice(data?.payoutBalance.requested ?? 0)}</p>
+            <p>Paid out {formatPrice(data?.payoutBalance.paidOut ?? 0)}</p>
+          </div>
           <Link href={APP_ROUTES.adminPayouts} className="mt-4 inline-block text-sm text-stone-600 hover:text-stone-900">
             View records
           </Link>
+        </div>
+        <div className="rounded-2xl bg-white p-5 shadow-sm">
+          <p className="text-xs text-stone-500 whitespace-nowrap">Seller owes platform</p>
+          <p className="mt-2 text-2xl font-semibold text-stone-900 tabular-nums sm:text-[26px] whitespace-nowrap">{formatPrice(stallRow?.sellerOwesPlatform ?? 0)}</p>
+          <p className="mt-1 text-xs text-stone-500">Separate from payouts, commission, and deposit</p>
         </div>
         <div className="rounded-2xl bg-white p-5 shadow-sm">
           <p className="text-xs text-stone-500 whitespace-nowrap">COD commission owed</p>
@@ -111,6 +129,15 @@ export function AdminStallDetailView({ stallId }: { stallId: string }) {
         </div>
       </section>
 
+      {(data?.sellerOwesPlatform.length ?? 0) > 0 && <section className="rounded-2xl bg-white p-5 shadow-sm">
+        <h2 className="text-base font-semibold text-stone-900">Seller owes platform</h2>
+        <p className="mt-1 text-sm text-stone-500">{formatPrice(stallRow?.sellerOwesPlatform ?? 0)} open. This stays separate from deposits and payout balances.</p>
+        <div className="mt-4 space-y-3">{data?.sellerOwesPlatform.map(record => <div key={record._id} className="flex flex-col gap-3 rounded-xl bg-stone-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div><p className="font-medium text-stone-900">{formatPrice(record.amount)} · order {record.orderId.slice(-8)}</p><p className="mt-1 text-xs text-stone-500">{record.reason}</p><p className="mt-1 text-xs text-stone-400">Opened {new Date(record.createdAt).toLocaleString()}</p></div>
+          <div className="flex gap-2"><Button size="small" onClick={() => { setOwingNote(''); setOwingAction({ id: record._id, kind: 'settle' }); }}>Settle</Button><Button danger size="small" onClick={() => { setOwingNote(''); setOwingAction({ id: record._id, kind: 'waive' }); }}>Waive</Button></div>
+        </div>)}</div>
+      </section>}
+
 
 
       <section className="rounded-2xl bg-white shadow-sm">
@@ -141,6 +168,9 @@ export function AdminStallDetailView({ stallId }: { stallId: string }) {
           />
         </div>
       </section>
+      <Modal open={Boolean(owingAction)} title={owingAction?.kind === 'settle' ? 'Settle seller receivable' : 'Waive seller receivable'} onCancel={() => setOwingAction(null)} onOk={() => void submitOwesAction()} confirmLoading={isSubmitting} okButtonProps={{ disabled: owingAction?.kind === 'settle' ? owingNote.trim().length < 3 : owingNote.trim().length < 5 }}>
+        <Input.TextArea rows={4} maxLength={500} value={owingNote} onChange={event => setOwingNote(event.target.value)} placeholder={owingAction?.kind === 'settle' ? 'Settlement reference or note' : 'Reason for waiver'} />
+      </Modal>
     </div>
   );
 }

@@ -310,6 +310,7 @@ export default defineSchema({
   })
     .index("by_sellerId", ["sellerId"])
     .index("by_status", ["status"])
+    .index("by_stallId", ["stallId"])
     .index("by_stallId_and_batchWeek", ["stallId", "batchWeek"])
     .index("by_requestedAt", ["requestedAt"]),
 
@@ -331,6 +332,17 @@ export default defineSchema({
     .index("by_stallId_and_status", ["stallId", "status"])
     .index("by_status_and_collectedAt", ["status", "collectedAt"])
     .index("by_payoutRequestId", ["payoutRequestId"]),
+
+  sellerOwesPlatform: defineTable({
+    stallId: v.id("stalls"),
+    orderId: v.id("orders"),
+    amount: v.number(),
+    reason: v.string(),
+    status: v.union(v.literal("open"), v.literal("settled"), v.literal("waived")),
+    createdAt: v.string(),
+    referenceOrNote: v.optional(v.string()),
+    events: v.array(v.object({ type: v.string(), actorId: v.string(), actorRole: v.union(v.literal("seller"), v.literal("admin"), v.literal("system")), reason: v.optional(v.string()), referenceOrNote: v.optional(v.string()), at: v.string() })),
+  }).index("by_orderId", ["orderId"]).index("by_stallId_and_status", ["stallId", "status"]).index("by_status", ["status"]),
 
   stallDeposits: defineTable({
     stallId: v.id("stalls"),
@@ -408,6 +420,8 @@ export default defineSchema({
       v.literal("return_approved"),
       v.literal("return_rejected"),
       v.literal("return_refunded"),
+      v.literal("seller_owes_settled"),
+      v.literal("seller_owes_waived"),
       v.literal("payout_paid"),
       v.literal("payout_rejected"),
       v.literal("deposit_approved"),

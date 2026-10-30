@@ -199,6 +199,8 @@ export function AdminStallsView() {
                 <div>
                   <p className="text-xs text-stone-500 whitespace-nowrap">We owe seller</p>
                   <p className="mt-1 text-base font-medium text-stone-900 tabular-nums whitespace-nowrap">{formatPrice(row.gcashOwed)}</p>
+                  <p className="mt-1 text-[11px] leading-4 text-stone-500">Available {formatPrice(row.payoutAvailable)} · Rolling {formatPrice(row.payoutRolling)} · Requested {formatPrice(row.payoutRequested)} · Paid {formatPrice(row.payoutPaidOut)}</p>
+                  <p className="mt-1 text-xs text-stone-600">Seller owes platform {formatPrice(row.sellerOwesPlatform)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-stone-500 whitespace-nowrap">Owes platform</p>
